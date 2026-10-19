@@ -11,7 +11,7 @@ No game files or dumped assets go in here.
 | `oat-patches/<tree>/` | our changes to each local OpenAssetTools checkout: `changes.patch` against `BASE_COMMIT`, new files under `new/` |
 | `converter/` | our BO1 → BO2 map converter: `run_bo1.py`, `tools/`, and `b2w-patch/` = our changes to [Ticass/B2W](https://github.com/Ticass/B2W) (`changes.patch` against `BASE_COMMIT`, new files under `new/`) |
 | `perks/` | Lua perks for BO2 Zombies: `lua2gsc` compiler (C++ header + CLI), GSC runtime, `API.md`, examples, tests |
-| `notes/` | BO1 → BO2 porting notes |
+| `notes/` | BO1 → BO2 porting notes, and T6 Zombies runtime notes (Cbuf, server commands, sounds, materials and images) |
 
 ## Updating
 

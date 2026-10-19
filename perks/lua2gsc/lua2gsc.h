@@ -29,6 +29,10 @@ struct Result {
     std::string registerFn;  // e.g. zmwp_vampire_register
     std::string error;       // "line 12: ..." when !ok
     std::string name;        // perk.name, or the id
+    std::string description; // perk.description
+    std::string id;          // the id used in GSC names and give/take commands
+    std::string cost;        // perk.cost as written ("" = the default, 2500)
+    int machines = 0;        // machine spots placed, all maps
 };
 
 namespace detail {
@@ -171,7 +175,7 @@ public:
 private:
     std::vector<Token> toks; size_t i = 0;
     const Token& Cur() const { return toks[i]; }
-    const Token& Peek(size_t o = 1) const { return toks[std::min(i + o, toks.size() - 1)]; }
+    const Token& Peek(size_t o = 1) const { return toks[(std::min)(i + o, toks.size() - 1)]; }   // (std::min): safe with windows.h
     bool Is(const char* text) const { return (Cur().type == T_OP || Cur().type == T_KW) && Cur().text == text; }
     bool Accept(const char* text) { if (Is(text)) { ++i; return true; } return false; }
     void Expect(const char* text, const char* what) {
@@ -896,6 +900,7 @@ Result Gen::Run(const Block& chunk) {
                 for (auto& spot : m.value->fields) {
                     if (spot.value->k != Expr::Str) Fail(spot.value->line, "each machine spot is a string \"x y z yaw\"");
                     Emit("info.machines[" + Quote(m.name) + "][" + std::to_string(k++) + "] = " + Quote(spot.value->s) + ";");
+                    ++r.machines;
                 }
             }
         } else if (n == "tick_every") {
@@ -904,9 +909,11 @@ Result Gen::Run(const Block& chunk) {
         } else if (n == "name" || n == "hint" || n == "icon" || n == "machine" || n == "bottle" || n == "description") {
             if (fld.value->k != Expr::Str) Fail(fld.value->line, n + " must be a string");
             if (n == "name") perkName = fld.value->s;
+            if (n == "description") r.description = fld.value->s;
             Emit("info." + n + " = " + Quote(fld.value->s) + ";");
         } else if (n == "cost") {
-            Emit("info.cost = " + ConstVal(fld.value, "cost") + ";");
+            r.cost = ConstVal(fld.value, "cost");
+            Emit("info.cost = " + r.cost + ";");
         } else Fail(fld.value->line, "unknown perk field '" + n + "' (name, description, cost, hint, icon, color, machine, bottle, machines, tick_every)");
     }
     std::vector<std::string> pre;
@@ -933,6 +940,7 @@ Result Gen::Run(const Block& chunk) {
     r.gsc = "// ---- perk " + id + (perkName.empty() ? "" : " (" + perkName + ")") + " - compiled from Lua by lua2gsc\n\n" + reg;
     for (auto& p : pending) r.gsc += "\n" + p;
     r.name = perkName.empty() ? id : perkName;
+    r.id = id;
     r.ok = true;
     return r;
 }
@@ -954,6 +962,7 @@ inline Result Compile(const std::string& source, const std::string& rawId) {
     } catch (const detail::Error& e) {
         r.error = "line " + std::to_string(e.line) + ": " + e.what();
     }
+    r.id = r.name = id;
     return r;
 }
 

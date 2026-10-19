@@ -475,7 +475,13 @@ zmwp_machine_think( p )
 }
 
 // ---------------------------------------------------------------- tool commands
-// zmw_perk_cmd = "<serial> give <id> | take <id> | place <id> | list" (player = the host).
+// zmw_perk_cmd = "<serial> <action> [arg] [all]", one-shot (run once each time the serial changes). The player is
+// the host, or every player when the last word is "all" (place and list: always the host).
+//   give <id> | take <id>          a custom perk id, or a stock specialty such as specialty_armorvest
+//   allperks | noperks             every perk the map sells plus every custom perk / all of them taken
+//   points <n> | takepoints <n>    score
+//   ammo | revive | heal           refill every weapon / get up from last stand / full health
+//   place <id> | list
 // place puts a machine in front of the host and prints "ZMW_PERK_PLACED <id> <map> <x> <y> <z> <yaw>" to the
 // console log; the tool reads that line and saves the spot into the perk's Lua file (perk.machines).
 
@@ -500,7 +506,13 @@ zmwp_watch_commands()
                 if ( args.size >= 3 )
                     id = args[2];
 
-                zmwp_command( players[0], args[1], id );
+                if ( args[args.size - 1] == "all" && args[1] != "place" && args[1] != "list" )
+                {
+                    foreach ( player in players )
+                        zmwp_command( player, args[1], id );
+                }
+                else
+                    zmwp_command( players[0], args[1], id );
             }
         }
 
@@ -522,6 +534,29 @@ zmwp_command( player, action, id )
         zmwa_give_perk( player, id );
     else if ( action == "take" )
         zmwa_take_perk( player, id );
+    else if ( action == "allperks" )
+    {
+        foreach ( perk in zmwp_all_perks() )
+            zmwa_give_perk( player, perk );
+    }
+    else if ( action == "noperks" )
+    {
+        foreach ( perk in zmwp_all_perks() )
+            zmwa_take_perk( player, perk );
+    }
+    else if ( action == "points" )
+        zmwa_give_points( player, id );
+    else if ( action == "takepoints" )
+        zmwa_take_points( player, id );
+    else if ( action == "ammo" )
+    {
+        foreach ( weapon in player getweaponslist() )
+            player givemaxammo( weapon );
+    }
+    else if ( action == "revive" )
+        zmwa_revive( player );
+    else if ( action == "heal" )
+        player.health = player.maxhealth;
     else if ( action == "place" && isdefined( level.zmwp[id] ) )
     {
         yaw = player.angles[1];
@@ -531,6 +566,38 @@ zmwp_command( player, action, id )
                  int( origin[2] ) + " " + int( yaw + 180 ) );
         iprintln( "ZM Workshop: placed " + level.zmwp[id].name + " - the tool saves the spot" );
     }
+}
+
+// The map's stock perks (its machines' specialties, without Pack-a-Punch) followed by every custom perk id.
+zmwp_all_perks()
+{
+    perks = [];
+    machines = getentarray( "zombie_vending", "targetname" );
+
+    foreach ( machine in machines )
+    {
+        if ( isdefined( machine.script_noteworthy ) && machine.script_noteworthy != "specialty_weapupgrade" && !zmwp_in( perks, machine.script_noteworthy ) )
+            perks[perks.size] = machine.script_noteworthy;
+    }
+
+    foreach ( id in level.zmwp_ids )
+    {
+        if ( !zmwp_in( perks, level.zmwp[id].specialty ) )
+            perks[perks.size] = id;
+    }
+
+    return perks;
+}
+
+zmwp_in( list, value )
+{
+    foreach ( v in list )
+    {
+        if ( v == value )
+            return 1;
+    }
+
+    return 0;
 }
 
 // ---------------------------------------------------------------- API used by compiled Lua (see API.md)

@@ -134,4 +134,19 @@ give/take all work. HUD icons are drawn by the runtime in a row above the stock 
 Up to 7 custom perks can be loaded at once: each needs an engine perk slot that Zombies never touches, and BO2
 has 7 of those. Extra perks are skipped with a message.
 
+## Commands from the tool
+
+The runtime also takes one-shot commands through the dvar `zmw_perk_cmd` (ZM Workshop's Perks and Player tabs send them):
+`"<serial> <action> [arg] [all]"`, run once each time the serial changes. The player is the host, or every player when
+the last word is `all`.
+
+| Action | Does |
+| --- | --- |
+| `give <id>`, `take <id>` | A custom perk id or a stock specialty (`specialty_armorvest`). |
+| `allperks`, `noperks` | Every perk the map sells plus every custom perk, or all of them taken. |
+| `points <n>`, `takepoints <n>` | Score. |
+| `ammo`, `revive`, `heal` | Refill every weapon, get up from last stand, full health. |
+| `place <id>` | A machine 64 units in front of the host; prints `ZMW_PERK_PLACED <id> <map> <x> <y> <z> <yaw>` to the console log. |
+| `list` | Prints the loaded custom perks. |
+
 Building `lua2gsc` itself: `cl /EHsc /std:c++17 lua2gsc.cpp`. Tests: `python tests/run_tests.py lua2gsc.exe gsc-tool.exe`.

@@ -10,7 +10,7 @@ Files next to this note:
 
 | file | what |
 |---|---|
-| `t6_renderer_functions.tsv` | all 1,834 renderer and HUD-draw functions (`R_`, `RB_`, `Material_`, `Image_`, `Load_`, `CG_Draw*`, `SCR_`) with the server address and, for 206, the t6zm address |
+| `t6_renderer_functions.tsv` | all 1,834 renderer and HUD-draw functions (`R_`, `RB_`, `Material_`, `Image_`, `Load_`, `CG_Draw*`, `SCR_`) with the server address and, for 309, the t6zm address (and which pass matched it) |
 | `t6_renderer_globals.tsv` | 35 renderer and cgame globals mapped to t6zm |
 | `t6_renderer_structs.txt` | PDB layouts of 39 renderer structs (back end, command buffers, views, scene, globals) |
 
@@ -23,8 +23,13 @@ Files next to this note:
     the server, so these are mostly errors, dvar names and asset names.
   - **Propagation:** for each matched pair, align the two lists of direct calls (assert and print calls removed), using
     callees that are already matched as anchors. Gaps of equal length are then paired.
-- **Coverage:** 6,660 functions across the whole exe, but only 206 of the renderer's 1,581 (most renderer code has
-  no strings).
+- **Coverage:** 6,660 functions across the whole exe, but only 206 of the 1,834 functions in the table (most renderer
+  code has no strings). That is pass **A** in the table.
+- **Pass B** (`callers.py`) also pairs a server function when every t6zm function calling its matched callees narrows
+  to one, alternating with the sequence step. That brings the whole exe to 9,811 functions and the table to 309. It
+  has no independent check yet beyond the command sizes below, so treat B rows as leads.
+  - Its new command-buffer matches carry the same command sizes as the server build: quad pic 0x18/0x14, clear screen
+    0x1C, rotated stretch pics 0x34.
 - **Accuracy:** checked against 28 t6zm addresses we had already verified at runtime. 22 are right, 2 wrong (each
   points to a neighbouring function), and 4 are unmatched, so **about 92% right**.
   - Spot checks agree: `R_AddCmdDrawStretchPicInternal` pushes command size 0x34 in both builds, and
@@ -44,7 +49,12 @@ Files next to this note:
 | `R_IssueRenderCommands` | 0x0070E850 | 0x00A2F1E0 |
 | `R_AddCmdDrawStretchPicInternal` | 0x0070F050 | 0x00A2C120 |
 | `R_AddCmdDrawTextInternal` | 0x0070F440 | 0x00A2C5C0 |
+| `R_GetCommandBuffer` (B) | 0x0070EA40 | |
+| `R_AddCmdDrawQuadPicInternal` (B) | 0x00710600 | |
 | `R_EndFrame` | 0x00710BB0 | 0x00A2E4A0 |
+| `R_AddBrushModelToSceneFromAngles` (B) | 0x00724BA0 | 0x00A0F6D0 |
+| `R_AddDObjToScene` (B) | 0x00724CC0 | 0x00A0F850 |
+| `R_UpdateFrameFog` (B) | 0x00725BB0 | 0x00A10A30 |
 | `R_ClearScene` | 0x0072F180 | 0x00A1D030 |
 | `R_SetViewParmsForScene` | 0x0072F310 | 0x00A1D1F0 |
 | `R_AddXModelSurfaces` | 0x00726C20 | 0x00A12440 |
@@ -56,8 +66,13 @@ Files next to this note:
 | `Material_LoadPerMap` | 0x00733430 | 0x00A2A1E0 |
 | `RB_EndFrame` | 0x00748580 | 0x00A5A750 |
 | `RB_Draw3D` | 0x00748680 | 0x00A5A9D0 |
+| `RB_CallExecuteRenderCommands` (B) | 0x00748BD0 | 0x00A5AB50 |
 | `Image_Register` | 0x0074C8C0 | 0x00A614D0 |
 | `R_RegisterDvars` | 0x00718990 | 0x00A1F600 |
+| `SCR_UpdateScreen` (B) | 0x00569940 | |
+| `CG_DrawActive` (B) | 0x00640EB0 | |
+
+(B) = pass B match.
 
 Most of the renderer sits between 0x70E000 and 0x777000 in t6zm.
 

@@ -14,7 +14,8 @@ COPIES = {
                + [CONV / 'research' / 'probe' / n for n in ('T6_Assets.h', 'sizes.cpp', 'sizes.txt', 'b.bat')],
     'tools': [CONV / 'research' / n for n in ('structdiff.py', 'structdiff.txt')],
     # B2W's handoff log stays out (other people's paths); its code goes in as our patch below
-    'notes': [CONV / 'research' / 'bo1_to_bo2_porting.md', CONV / 'research' / 't6_cbuf.md', CONV / 'research' / 't6_sv_sendservercommand.md'],
+    'notes': [CONV / 'research' / 'bo1_to_bo2_porting.md', CONV / 'research' / 't6_cbuf.md', CONV / 'research' / 't6_sv_sendservercommand.md',
+              CONV / 'research' / 't6_sound_playsound.md'],
     'converter': [CONV / 'run_bo1.py', CONV / 'README.md'],
     'converter/tools': sorted((CONV / 'tools').glob('*.py')),
     # ZM Workshop's code stays private: the user doesn't want the tool uploaded

@@ -29,12 +29,23 @@ ZM Workshop's Perks tab: it decompiles the script from your own game files.
 | `description` | Shown in the tool. |
 | `cost` | Machine price (default 2500). |
 | `hint` | Machine prompt; `&&1` is the cost. The default is `Hold [Use] for <name> [Cost: &&1]`. |
-| `icon` | HUD icon material. It must be loaded on the map; every stock perk icon on that map works, e.g. `specialty_juggernaut_zombies`. |
-| `color` | `{ r, g, b }` from 0 to 1, tints the icon. |
+| `icon` | HUD icon material: your own icon (see below), or a stock perk icon loaded on the map, e.g. `specialty_juggernaut_zombies`. |
+| `color` | `{ r, g, b }` from 0 to 1, tints the icon. Use `{ 1, 1, 1 }` for an icon with its own colours. |
 | `machine` | Model for its machines (default: the map's Juggernog machine). |
 | `bottle` | Drinking animation weapon (default `zombie_perk_bottle_jugg`). |
 | `machines` | Where machines stand, per map: `{ zm_transit = { "x y z yaw" } }`. The tool's **Place machine here** fills this in. |
 | `tick_every` | Seconds between `on_tick` calls (default 0.5). |
+
+## Your own icon
+
+Put a PNG in `perks\icons\` (square, transparent background; it is scaled to 64x64). `static_shock.png` becomes the
+material `zmw_icon_static_shock`, so the perk says `icon = "zmw_icon_static_shock"`. ZM Workshop builds the icons
+into the ZM Workshop mod (`mod.ff` + `zm_workshop_icons.ipak`) after **Build + install**; click **Load mod** on Home
+so the game loads them. Without the mod loaded the icon is missing.
+
+(How: each PNG becomes an uncompressed IWI v27 image - 64-byte header `IWi` 27, format 1 = RGBA, flags 2 = no mips,
+width/height/depth as uint16, `fileSizeForPicmip[0]` at byte 32 - and a copy of a stock perk icon's material. OAT
+writes T6 images only as streamed images, so they need `>ipak,<name>` in the zone and the .ipak next to the .ff.)
 
 ## Events
 

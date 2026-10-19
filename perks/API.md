@@ -149,4 +149,4 @@ the last word is `all`.
 | `place <id>` | A machine 64 units in front of the host; prints `ZMW_PERK_PLACED <id> <map> <x> <y> <z> <yaw>` to the console log. |
 | `list` | Prints the loaded custom perks. |
 
-Building `lua2gsc` itself: `cl /EHsc /std:c++17 lua2gsc.cpp`. Tests: `python tests/run_tests.py lua2gsc.exe gsc-tool.exe`.
+Building `lua2gsc` itself: `cl /EHsc /std:c++17 lua2gsc.cpp`. Tests: `python tests/run_tests.py lua2gsc.exe gsc-tool.exe`. `python tests/check_refs.py runtime/zm_workshop_perks.gsc <dir>` checks that every stock function the runtime calls exists, against your own decompiled `patch_zm` / `zm_*_patch` scripts (OAT Unlinker `--include-assets script`, then `gsc-tool -m decomp -g t6 -s pc`).

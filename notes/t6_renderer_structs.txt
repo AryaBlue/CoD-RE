@@ -1,0 +1,802 @@
+struct DxGlobals  // sizeof=0x1c380
+    /*0x0000*/ HINSTANCE__* hinst;
+    /*0x0004*/ ID3D11Device* device;
+    /*0x0008*/ ID3D11DeviceContext* context;
+    /*0x000c*/ ID3D11Buffer*[16B] constBuffer;
+    /*0x001c*/ ulong vendorId;
+    /*0x0020*/ bool adapterNativeIsValid;
+    /*0x0024*/ int adapterNativeWidth;
+    /*0x0028*/ int adapterNativeHeight;
+    /*0x002c*/ int adapterFullscreenWidth;
+    /*0x0030*/ int adapterFullscreenHeight;
+    /*0x0034*/ bool nvInitialized;
+    /*0x0035*/ bool nvStereoActivated;
+    /*0x0038*/ void* nvStereoHandle;
+    /*0x0040*/ TxaaCtxDX txaaCtx;
+    /*0x0440*/ int adapterIndex;
+    /*0x0444*/ bool vidRestart;
+    /*0x0445*/ bool needResizeBuffers;
+    /*0x0446*/ bool doResizeBuffers;
+    /*0x0447*/ bool ignoreResize;
+    /*0x0448*/ bool needsShaderWarming;
+    /*0x044c*/ int lastMaterialWarmed;
+    /*0x0450*/ enum DXGI_FORMAT depthStencilFormat;
+    /*0x0454*/ DxCmdBuf[1584B] cmdBuf;
+    /*0x0a84*/ uint monitorCount;
+    /*0x0a88*/ uint[32B] displayModeCount;
+    /*0x0aa8*/ DXGI_MODE_DESC[7168B][57344B] displayModes;
+    /*0xeaa8*/ const char*[1028B] resolutionNameTable;
+    /*0xeeac*/ char[5120B] modeText;
+    /*0x102ac*/ const char*[1028B][8224B] monitorResolutionNameTable;
+    /*0x122cc*/ char[40960B] monitorModeText;
+    /*0x1c2cc*/ ID3D11Query*[32B] fencePool;
+    /*0x1c2ec*/ uint nextFence;
+    /*0x1c2f0*/ int gpuCount;
+    /*0x1c2f4*/ func* resolutionCallback;
+    /*0x1c2f8*/ uint multiSampleType;
+    /*0x1c2fc*/ ulong multiSampleQuality;
+    /*0x1c300*/ ushort sunShadowPartition;
+    /*0x1c302*/ ushort spotShadowPartition;
+    /*0x1c304*/ ID3D11DepthStencilView* singleSampleDepthStencilSurface;
+    /*0x1c308*/ int targetWindowIndex;
+    /*0x1c30c*/ int windowCount;
+    /*0x1c310*/ GfxWindowTarget[20B] windows;
+    /*0x1c324*/ IDXGISwapChain* swapChain;
+    /*0x1c328*/ ID3D11Texture2D* backBuffer;
+    /*0x1c32c*/ ID3D11Query* flushGpuQuery;
+    /*0x1c330*/ int linearMippedAnisotropy;
+    /*0x1c334*/ int anisotropyFor2x;
+    /*0x1c338*/ int anisotropyFor4x;
+    /*0x1c33c*/ int mipFilterMode;
+    /*0x1c340*/ ulong mipBias;
+
+struct GfxAssets  // sizeof=0x10
+    /*0x0000*/ ID3D11Query*[16B] pixelCountQuery;
+
+struct GfxBackEndData  // sizeof=0x78d00
+    /*0x0000*/ uchar[1B] surfsBuffer;
+    /*0x0080*/ FxCodeMeshData[16B] codeMeshes;
+    /*0x0100*/ uint[262144B] primDrawSurfsBuf;
+    /*0x40100*/ uchar[16384B][65536B] lodData;
+    /*0x50100*/ GfxViewParms[3024B] viewParms;
+    /*0x50d00*/ uchar[256B][4096B] primaryLightTechType;
+    /*0x51d00*/ vec4_t[4096B] codeMeshArgs;
+    /*0x52d00*/ GfxParticleCloud[16384B] clouds;
+    /*0x56d00*/ GfxDrawSurf[8B] drawSurfs;
+    /*0x56d10*/ GfxMeshData* codeMeshPtr;
+    /*0x56d20*/ GfxMeshData markMesh;
+    /*0x56d50*/ GfxMeshData glassMesh;
+    /*0x56d78*/ GfxBackEndPrimitiveData prim;
+    /*0x56d7c*/ uchar[255B] shadowableLightHasShadowMap;
+    /*0x56e7c*/ uint frameCount;
+    /*0x56e80*/ int drawSurfCount;
+    /*0x56e84*/ volatile long surfPos;
+    /*0x56e88*/ volatile long gfxEntCount;
+    /*0x56e8c*/ GfxEntity[4096B] gfxEnts;
+    /*0x57e8c*/ volatile long shaderConstantSetCount;
+    /*0x57e90*/ ShaderConstantSet[15360B] shaderConstantSets;
+    /*0x5ba90*/ volatile long textureOverrideCount;
+    /*0x5ba94*/ GfxTextureOverride[16384B] textureOverrides;
+    /*0x5fa94*/ volatile long cloudCount;
+    /*0x5fa98*/ volatile long codeMeshCount;
+    /*0x5fa9c*/ volatile long codeMeshArgsCount;
+    /*0x5faa0*/ volatile long markMeshCount;
+    /*0x5faa4*/ FxMarkMeshData[12B] markMeshes;
+    /*0x5fab0*/ GfxVertexBufferState* skinnedCacheVb;
+    /*0x5fab4*/ volatile long skinnedCacheVertsAllocated;
+    /*0x5fab8*/ GfxIndexBufferState* dynamicIndexBuffer;
+    /*0x5fabc*/ GfxVertexBufferState* dynamicVertexBuffer;
+    /*0x5fac0*/ ID3D11Query* endFence;
+    /*0x5fac4*/ ID3D11Query* endFrameFence;
+    /*0x5fac8*/ uchar* tempSkinBuf;
+    /*0x5facc*/ volatile long tempSkinPos;
+    /*0x5fad0*/ int tempSkinSize;
+    /*0x5fad4*/ int viewParmCount;
+    /*0x5fad8*/ GfxFog fogSettings;
+    /*0x5fb28*/ GfxCmdArray* commands;
+    /*0x5fb2c*/ uint viewInfoIndex;
+    /*0x5fb30*/ uint viewInfoCount;
+    /*0x5fb34*/ GfxViewInfo* viewInfo;
+    /*0x5fb38*/ GfxWorkerData[3168B] workerData;
+    /*0x60798*/ GfxUI3DBackend rbUI3D;
+    /*0x60894*/ GfxQRCodeBackend rbQRCode;
+    /*0x60954*/ const void* cmds;
+    /*0x60958*/ const void* compositingCmds;
+    /*0x60960*/ GfxLight sunLight;
+    /*0x60ac0*/ int hasApproxSunDirChanged;
+    /*0x60ac4*/ volatile long primDrawSurfPos;
+    /*0x60ac8*/ uint streamerExecedFrame;
+    /*0x60acc*/ uint frameLastTransferId;
+    /*0x60ad0*/ jqBatchGroup glassGenerateVertsBatchGroup;
+    /*0x60ad8*/ DebugGlobals debugGlobals;
+    /*0x60b44*/ uint dualPlaySplitScreenOn;
+    /*0x60b48*/ uint drawType;
+    /*0x60b4c*/ float eyeOffset;
+    /*0x60b50*/ int hideMatureContent;
+    /*0x60b54*/ int splitscreen;
+    /*0x60b60*/ GfxLight[89760B] shadowableLights;
+    /*0x76a00*/ uint shadowableLightCount;
+    /*0x76a04*/ uint emissiveSpotLightIndex;
+    /*0x76a10*/ GfxLight emissiveSpotLight;
+    /*0x76b70*/ uint emissiveSpotLightCount;
+    /*0x76b74*/ int emissiveSpotLightShadowableLightIndex;
+    /*0x76b80*/ GfxSunShadow sunShadow;
+    /*0x76ff0*/ uint spotShadowCount;
+    /*0x77000*/ GfxSpotShadow[1920B] spotShadows;
+    /*0x77780*/ WindState gfxWindState;
+    /*0x77890*/ GfxFrameStats frameStats;
+    GfxBackEndData();
+
+struct GfxBackEndPrimitiveData  // sizeof=0x4
+    /*0x0000*/ int hasSunDirChanged;
+
+struct GfxCmdArray  // sizeof=0x18
+    /*0x0000*/ uchar* cmds;
+    /*0x0004*/ int usedTotal;
+    /*0x0008*/ int usedCritical;
+    /*0x000c*/ GfxCmdHeader* lastCmd;
+    /*0x0010*/ int byteSize;
+    /*0x0014*/ int warnSize;
+
+struct GfxCmdBufContext  // sizeof=0x8
+    /*0x0000*/ GfxCmdBufSourceState* source;
+    /*0x0004*/ GfxCmdBufState* state;
+    /*0x0000*/ GfxCmdBufContext::<unnamed-tag>::<unnamed-type-local> local;
+
+struct GfxCmdBufInput  // sizeof=0xe50
+    /*0x0000*/ vec4_t[3376B] consts;
+    /*0x0d30*/ const GfxImage*[220B] codeImages;
+    /*0x0e0c*/ uchar[55B] codeImageSamplerStates;
+    /*0x0e44*/ const GfxBackEndData* data;
+
+struct GfxCmdBufPrimState  // sizeof=0x2510
+    /*0x0000*/ ID3D11DeviceContext* device;
+    /*0x0000*/ ID3D11DeviceContext* localDevice;
+    /*0x0004*/ ID3D11Buffer* indexBuffer;
+    /*0x0008*/ enum MaterialVertexDeclType vertDeclType;
+    /*0x000c*/ GfxCmdBufPrimState::<unnamed-type-streams> streams;
+    /*0x0030*/ ID3D11InputLayout* vertexDecl;
+    /*0x0040*/ __m128[4192B] constantsBuffer;
+    /*0x10a0*/ char*[16B] constants;
+    /*0x10b0*/ bool[4B] constantsDirty;
+    /*0x10b4*/ GfxFrameStats frameStats;
+
+struct GfxCmdBufSourceState  // sizeof=0x1a80
+    /*0x0000*/ GfxCodeMatrices matrices;
+    /*0x0800*/ GfxCmdBufInput input;
+    /*0x1650*/ GfxViewParms viewParms;
+    /*0x17a0*/ GfxMatrix shadowLookupMatrix;
+    /*0x17e0*/ ushort[486B] constVersions;
+    /*0x19c6*/ ushort[16B] matrixVersions;
+    /*0x19e0*/ vec4_t eyeOffset;
+    /*0x19f0*/ uint shadowableLightForShadowLookupMatrix;
+    /*0x19f4*/ const GfxScaledPlacement* objectPlacement;
+    /*0x19f8*/ const GfxViewParms* viewParms3D;
+    /*0x19fc*/ uint depthHackFlags;
+    /*0x1a00*/ GfxScaledPlacement skinnedPlacement;
+    /*0x1a20*/ int cameraView;
+    /*0x1a24*/ enum GfxViewMode viewMode;
+    /*0x1a28*/ GfxSceneDef sceneDef;
+    /*0x1a3c*/ GfxViewport sceneViewport;
+    /*0x1a4c*/ GfxViewport scissorViewport;
+    /*0x1a5c*/ float materialTime;
+    /*0x1a60*/ float destructibleBurnAmount;
+    /*0x1a64*/ uchar viewportBehavior;
+    /*0x1a68*/ int renderTargetWidth;
+    /*0x1a6c*/ int renderTargetHeight;
+    /*0x1a70*/ bool viewportIsDirty;
+    /*0x1a71*/ bool scissorEnabled;
+    /*0x1a74*/ uint shadowableLightIndex;
+
+struct GfxCmdBufState  // sizeof=0x67c0
+    /*0x0000*/ uchar[16B] refSamplerState;
+    /*0x0010*/ uint[64B] samplerState;
+    /*0x0050*/ const GfxTexture*[64B] samplerTexture;
+    /*0x0090*/ GfxCmdBufPrimState prim;
+    /*0x25a0*/ const Material* material;
+    /*0x25a4*/ uchar techType;
+    /*0x25a8*/ const MaterialTechnique* technique;
+    /*0x25ac*/ const MaterialPass* localPass;
+    /*0x25ac*/ const MaterialPass* pass;
+    /*0x25b0*/ uint passIndex;
+    /*0x25b4*/ enum GfxDepthRangeType depthRangeType;
+    /*0x25b8*/ float depthRangeNear;
+    /*0x25bc*/ float depthRangeFar;
+    /*0x25c0*/ uint64[8384B] vertexShaderConstStateBuffer;
+    /*0x4680*/ uint64*[16B] vertexShaderConstState;
+    /*0x4690*/ uint64[8384B] pixelShaderConstStateBuffer;
+    /*0x6750*/ uint64*[16B] pixelShaderConstState;
+    /*0x6760*/ uchar alphaRef;
+    /*0x6764*/ ID3D11BlendState* blendState;
+    /*0x6768*/ ID3D11DepthStencilState* depthStencilState;
+    /*0x676c*/ ID3D11RasterizerState* rasterizerState;
+    /*0x6770*/ const MaterialPixelShader* pixelShader;
+    /*0x6774*/ const MaterialVertexShader* vertexShader;
+    /*0x6778*/ uint pixPrimarySortKey;
+    /*0x677c*/ const Material* pixMaterial;
+    /*0x6780*/ const MaterialTechnique* pixTechnique;
+    /*0x6784*/ int pixCombine;
+    /*0x6788*/ GfxViewport viewport;
+    /*0x6798*/ GfxViewport scissor;
+    /*0x67a8*/ int scissorEnabled;
+    /*0x67ac*/ uchar renderTargetId;
+    /*0x67b0*/ int stateOverride;
+    /*0x67b4*/ const GfxBackEndData* backEndData;
+
+struct GfxCmdDrawText2D  // sizeof=0x68
+    /*0x0000*/ GfxCmdHeader header;
+    /*0x0004*/ int type;
+    /*0x0008*/ float x;
+    /*0x000c*/ float y;
+    /*0x0010*/ float w;
+    /*0x0014*/ float h;
+    /*0x0018*/ float rotation;
+    /*0x001c*/ Font_s* font;
+    /*0x0020*/ float xScale;
+    /*0x0024*/ float yScale;
+    /*0x0028*/ GfxColor color;
+    /*0x002c*/ int maxChars;
+    /*0x0030*/ int renderFlags;
+    /*0x0034*/ int cursorPos;
+    /*0x0038*/ char cursorLetter;
+    /*0x003c*/ GfxColor glowForceColor;
+    /*0x0040*/ int fxBirthTime;
+    /*0x0044*/ int fxLetterTime;
+    /*0x0048*/ int fxDecayStartTime;
+    /*0x004c*/ int fxDecayDuration;
+    /*0x0050*/ int fxRedactDecayStartTime;
+    /*0x0054*/ int fxRedactDecayDuration;
+    /*0x0058*/ const Material* fxMaterial;
+    /*0x005c*/ const Material* fxMaterialGlow;
+    /*0x0060*/ float padding;
+    /*0x0064*/ char[3B] text;
+
+struct GfxCmdHeader  // sizeof=0x4
+    /*0x0000*/ ushort byteCount;
+    /*0x0002*/ uchar id;
+    /*0x0003*/ uchar ui3d;
+
+struct GfxCodeImageRenderTargetFields  // sizeof=0x8
+    /*0x0000*/ uint64 :8 @bit0 renderTargetId;
+    /*0x0000*/ uint64 :1 @bit8 enable;
+    /*0x0000*/ uint64 :3 @bit9 fbufferTexture;
+    /*0x0000*/ uint64 :20 @bit12 filtering;
+
+struct GfxConfiguration  // sizeof=0x18
+    /*0x0000*/ uint maxClientViews;
+    /*0x0004*/ uint entCount;
+    /*0x0008*/ uint entnumNone;
+    /*0x000c*/ uint entnumOrdinaryEnd;
+    /*0x0010*/ int threadContextCount;
+    /*0x0014*/ int critSectCount;
+
+union GfxDrawSurf  // sizeof=0x8
+    /*0x0000*/ GfxDrawSurfFields fields;
+    /*0x0000*/ uint64 packed;
+
+struct GfxDrawSurfFields  // sizeof=0x8
+    /*0x0000*/ uint64 :16 @bit0 objectId;
+    /*0x0000*/ uint64 :9 @bit16 customIndex;
+    /*0x0000*/ uint64 :5 @bit25 reflectionProbeIndex;
+    /*0x0000*/ uint64 :2 @bit30 dlightMask;
+    /*0x0000*/ uint64 :12 @bit32 materialSortedIndex;
+    /*0x0000*/ uint64 :8 @bit44 primaryLightIndex;
+    /*0x0000*/ uint64 :4 @bit52 surfType;
+    /*0x0000*/ uint64 :2 @bit56 prepass;
+    /*0x0000*/ uint64 :6 @bit58 primarySortKey;
+
+struct GfxDrawSurfListInfo  // sizeof=0x30
+    /*0x0000*/ const GfxDrawSurf* drawSurfs;
+    /*0x0004*/ uint drawSurfCount;
+    /*0x0008*/ uchar baseTechType;
+    /*0x000c*/ const GfxViewInfo* viewInfo;
+    /*0x0010*/ vec4_t viewOrigin;
+    /*0x0020*/ enum OcclusionReportsMode occlusionReportsMode;
+    /*0x0024*/ int cameraView;
+    /*0x0028*/ int disableAllShadowTech;
+    /*0x002c*/ int needResolve;
+
+struct GfxFrameStats  // sizeof=0x1454
+    /*0x0000*/ GfxStageStats[5184B] stages;
+    /*0x1440*/ enum GfxPrimStatsStage currentStage;
+    /*0x1444*/ enum GfxPrimStatsTarget currentTarget;
+    /*0x1448*/ GfxFrameStats::<unnamed-type-counters> counters;
+
+struct GfxLight  // sizeof=0x160
+    /*0x0000*/ uchar type;
+    /*0x0001*/ uchar canUseShadowMap;
+    /*0x0002*/ uchar shadowmapVolume;
+    /*0x0004*/ short cullDist;
+    /*0x0008*/ vec3_t color;
+    /*0x0014*/ vec3_t dir;
+    /*0x0020*/ vec3_t origin;
+    /*0x002c*/ float radius;
+    /*0x0030*/ float cosHalfFovOuter;
+    /*0x0034*/ float cosHalfFovInner;
+    /*0x0038*/ int exponent;
+    /*0x003c*/ uint spotShadowIndex;
+    /*0x0040*/ float dAttenuation;
+    /*0x0044*/ float roundness;
+    /*0x0048*/ vec3_t angles;
+    /*0x0054*/ float spotShadowHiDistance;
+    /*0x0058*/ vec4_t diffuseColor;
+    /*0x0068*/ vec4_t shadowColor;
+    /*0x0078*/ vec4_t falloff;
+    /*0x0088*/ vec4_t aAbB;
+    /*0x0098*/ vec4_t cookieControl0;
+    /*0x00a8*/ vec4_t cookieControl1;
+    /*0x00b8*/ vec4_t cookieControl2;
+    /*0x00d0*/ float44 viewMatrix;
+    /*0x0110*/ float44 projMatrix;
+    /*0x0150*/ GfxLightDef* def;
+
+struct GfxMetrics  // sizeof=0x4
+    /*0x0000*/ ushort cubemapShotRes;
+    /*0x0002*/ ushort cubemapShotPixelBorder;
+
+struct GfxPlacement  // sizeof=0x1c
+    /*0x0000*/ vec4_t quat;
+    /*0x0010*/ vec3_t origin;
+
+enum GfxRenderCommand  // sizeof=0x0
+    RC_END_OF_LIST = 0,
+    RC_SET_CUSTOM_CONSTANT = 1,
+    RC_SET_MATERIAL_COLOR = 2,
+    RC_SAVE_SCREEN = 3,
+    RC_SAVE_SCREEN_SECTION = 4,
+    RC_CLEAR_SCREEN = 5,
+    RC_BEGIN_VIEW = 6,
+    RC_SET_VIEWPORT = 7,
+    RC_SET_SCISSOR = 8,
+    RC_RESOLVE_COMPOSITE = 9,
+    RC_PC_COPY_IMAGE_GEN_MIP = 10,
+    RC_FIRST_NONCRITICAL = 11,
+    RC_STRETCH_PIC = 11,
+    RC_STRETCH_PIC_FLIP_ST = 12,
+    RC_STRETCH_PIC_ROTATE_XY = 13,
+    RC_STRETCH_PIC_ROTATE_ST = 14,
+    RC_DRAW_QUAD_PIC = 15,
+    RC_DRAW_FULL_SCREEN_COLORED_QUAD = 16,
+    RC_DRAW_TEXT_2D = 17,
+    RC_DRAW_TEXT_3D = 18,
+    RC_BLEND_SAVED_SCREEN_BLURRED = 19,
+    RC_BLEND_SAVED_SCREEN_FLASHED = 20,
+    RC_DRAW_POINTS = 21,
+    RC_DRAW_LINES = 22,
+    RC_DRAW_UI_QUADS = 23,
+    RC_DRAW_UI_QUADS_REPLACE_IMAGE = 24,
+    RC_DRAW_TRIANGLES = 25,
+    RC_DRAW_UI_TRIANGLES = 26,
+    RC_DRAW_QUADLIST_2D = 27,
+    RC_DRAW_EMBLEM_LAYER = 28,
+    RC_STRETCH_COMPOSITE = 29,
+    RC_PROJECTION_SET = 30,
+    RC_DRAW_FRAMED = 31,
+    RC_CONSTANT_SET = 32,
+    RC_COUNT = 33,
+
+struct GfxRenderTarget  // sizeof=0x14
+    /*0x0000*/ GfxImage* image;
+    /*0x0004*/ GfxRenderTargetSurface surface;
+    /*0x000c*/ ushort width;
+    /*0x000e*/ ushort height;
+    /*0x0010*/ bool cleared;
+
+struct GfxScene  // sizeof=0x165500
+    /*0x0000*/ GfxDrawSurf[36864B] bspDrawSurfs;
+    /*0x9000*/ GfxDrawSurf[36864B] smodelDrawSurfsLight;
+    /*0x12000*/ GfxDrawSurf[36864B] entDrawSurfsLight;
+    /*0x1b000*/ GfxDrawSurf[28672B] smodelDrawSurfsLightMapOpaque;
+    /*0x22000*/ GfxDrawSurf[28672B] bspDrawSurfsLightMap;
+    /*0x29000*/ GfxDrawSurf[28672B] entDrawSurfsLightMapOpaque;
+    /*0x30000*/ GfxDrawSurf[4096B] depthHackCameraDrawSurfs;
+    /*0x31000*/ GfxDrawSurf[8192B] codemeshDrawSurfsLight;
+    /*0x33000*/ GfxDrawSurf[4096B] entDrawSurfsSonar;
+    /*0x34000*/ GfxDrawSurf[4096B] bspDrawSurfsLitTrans;
+    /*0x35000*/ GfxDrawSurf[4096B] smodelDrawSurfsLitTrans;
+    /*0x36000*/ GfxDrawSurf[8192B] entDrawSurfsLitTrans;
+    /*0x38000*/ GfxDrawSurf[16384B] smodelDrawSurfsLitQuasiOpaque;
+    /*0x3c000*/ GfxDrawSurf[4096B] entDrawSurfsLitQuasiOpaque;
+    /*0x3d000*/ GfxDrawSurf[8192B] bspDrawSurfsEmissiveOpaque;
+    /*0x3f000*/ GfxDrawSurf[8192B] smodelDrawSurfsEmissiveOpaque;
+    /*0x41000*/ GfxDrawSurf[8192B] entDrawSurfsEmissiveOpaque;
+    /*0x43000*/ GfxDrawSurf[8192B] bspDrawSurfsEmissiveTrans;
+    /*0x45000*/ GfxDrawSurf[8192B] smodelDrawSurfsEmissiveTrans;
+    /*0x47000*/ GfxDrawSurf[8192B] entDrawSurfsEmissiveTrans;
+    /*0x49000*/ GfxDrawSurf[65536B] fxDrawSurfsEmissive;
+    /*0x59000*/ GfxDrawSurf[65536B] fxDrawSurfsEmissiveAuto;
+    /*0x69000*/ GfxDrawSurf[65536B] fxDrawSurfsEmissiveDecal;
+    /*0x79000*/ GfxDrawSurf[4096B] fxDrawSurfsEmissiveViewmodel;
+    /*0x7a000*/ GfxDrawSurf[512B] fxDrawSurfsEmissiveSuperflare;
+    /*0x7a200*/ GfxDrawSurf[4096B] smodelDrawSurfsEmissiveFX;
+    /*0x7b200*/ GfxDrawSurf[4096B] entDrawSurfsEmissiveFX;
+    /*0x7c200*/ GfxDrawSurf[32768B] bspSunShadowDrawSurfs0;
+    /*0x84200*/ GfxDrawSurf[32768B] smodelSunShadowDrawSurfs0;
+    /*0x8c200*/ GfxDrawSurf[32768B] entSunShadowDrawSurfs0;
+    /*0x94200*/ GfxDrawSurf[4096B] codemeshSunShadowDrawSurfs0;
+    /*0x95200*/ GfxDrawSurf[65536B] bspSunShadowDrawSurfs1;
+    /*0xa5200*/ GfxDrawSurf[65536B] smodelSunShadowDrawSurfs1;
+    /*0xb5200*/ GfxDrawSurf[65536B] entSunShadowDrawSurfs1;
+    /*0xc5200*/ GfxDrawSurf[4096B] codemeshSunShadowDrawSurfs1;
+    /*0xc6200*/ GfxDrawSurf[8192B] bspSpotShadowDrawSurfs0;
+    /*0xc8200*/ GfxDrawSurf[8192B] smodelSpotShadowDrawSurfs0;
+    /*0xca200*/ GfxDrawSurf[8192B] entSpotShadowDrawSurfs0;
+    /*0xcc200*/ GfxDrawSurf[8192B] bspSpotShadowDrawSurfs1;
+    /*0xce200*/ GfxDrawSurf[8192B] smodelSpotShadowDrawSurfs1;
+    /*0xd0200*/ GfxDrawSurf[8192B] entSpotShadowDrawSurfs1;
+    /*0xd2200*/ GfxDrawSurf[8192B] bspSpotShadowDrawSurfs2;
+    /*0xd4200*/ GfxDrawSurf[8192B] smodelSpotShadowDrawSurfs2;
+    /*0xd6200*/ GfxDrawSurf[8192B] entSpotShadowDrawSurfs2;
+    /*0xd8200*/ GfxDrawSurf[8192B] bspSpotShadowDrawSurfs3;
+    /*0xda200*/ GfxDrawSurf[8192B] smodelSpotShadowDrawSurfs3;
+    /*0xdc200*/ GfxDrawSurf[8192B] entSpotShadowDrawSurfs3;
+    /*0xde200*/ uchar[255B] shadowableLightIsUsed;
+    /*0xde300*/ uchar[255B][1020B] cachedShadowableLightIsUsed;
+    /*0xde6fc*/ bool invalidateShadowableLightCache;
+    /*0xde700*/ GfxLight[1408B][5632B] cachedVisibleLights;
+    /*0xdfd00*/ int[16B] cachedVisibleLightCounts;
+    /*0xdfd10*/ int[200B] maxDrawSurfCount;
+    /*0xdfdd8*/ volatile long[200B] drawSurfCount;
+    /*0xdfea0*/ GfxDrawSurf*[200B] drawSurfs;
+    /*0xdff68*/ GfxDrawSurf[65536B] fxDrawSurfsLight;
+    /*0xeff68*/ GfxDrawSurf[65536B] fxDrawSurfsLightAuto;
+    /*0xfff68*/ GfxDrawSurf[65536B] fxDrawSurfsLightDecal;
+    /*0x10ff68*/ GfxSceneDef def;
+    /*0x10ff7c*/ volatile long addedLightCount;
+    /*0x10ff80*/ GfxLight[11264B] addedLight;
+    /*0x112b80*/ bool[32B] isAddedLightCulled;
+    /*0x112ba0*/ float dynamicSpotLightNearPlaneOffset;
+    /*0x112ba4*/ vec4_t[96B] dynamicSpotLightPlanes;
+    /*0x112c04*/ volatile long sceneDObjCount;
+    /*0x112c08*/ GfxSceneEntity[143360B] sceneDObj;
+    /*0x135c08*/ uchar[1024B][7168B] sceneDObjVisData;
+    /*0x137808*/ int sceneDObjViewmodelIndex;
+    /*0x13780c*/ volatile long sceneModelCount;
+    /*0x137810*/ GfxSceneModel[90112B] sceneModel;
+    /*0x14d810*/ uchar[1024B][7168B] sceneModelVisData;
+    /*0x14f410*/ volatile long sceneBrushCount;
+    /*0x14f414*/ GfxSceneBrush[45056B] sceneBrush;
+    /*0x15a414*/ uchar[1024B][3072B] sceneBrushVisData;
+    /*0x15b014*/ volatile long glassBrushCount;
+    /*0x15b018*/ GfxSceneGlassBrush[40960B] glassBrush;
+    /*0x165018*/ uchar[1024B] glassBrushVisData;
+    /*0x165418*/ uint sceneDynModelCount;
+    /*0x16541c*/ uint sceneDynBrushCount;
+    /*0x165420*/ DpvsPlane[40B] shadowFarPlane;
+    /*0x165448*/ DpvsPlane[40B] shadowNearPlane;
+    /*0x165470*/ GfxSceneDpvs dpvs;
+    /*0x1654a8*/ SceneModelBatchCmd modelSkelCmd;
+
+struct GfxSceneBrush  // sizeof=0x2c
+    /*0x0000*/ BModelDrawInfo info;
+    /*0x0002*/ ushort entnum;
+    /*0x0004*/ const GfxBrushModel* bmodel;
+    /*0x0008*/ GfxPlacement placement;
+    /*0x0024*/ const ShaderConstantSet* brushConstantSet;
+    /*0x0028*/ uchar reflectionProbeIndex;
+
+struct GfxSceneDef  // sizeof=0x14
+    /*0x0000*/ int time;
+    /*0x0004*/ float floatTime;
+    /*0x0008*/ vec3_t viewOffset;
+
+struct GfxSceneEntity  // sizeof=0x8c
+    /*0x0000*/ vec3_t lightingOrigin;
+    /*0x000c*/ GfxScaledPlacement placement;
+    /*0x002c*/ float radius;
+    /*0x0030*/ GfxSceneEntityCull cull;
+    /*0x0070*/ const DObj* obj;
+    /*0x0074*/ GfxSceneEntityInfo info;
+    /*0x0078*/ float lightingOriginToleranceSq;
+    /*0x007c*/ float invScaleSq;
+    /*0x0080*/ ushort gfxEntIndex;
+    /*0x0082*/ ushort gfxEntIndex2;
+    /*0x0084*/ ushort entnum;
+    /*0x0086*/ uchar primaryLightIndex;
+    /*0x0087*/ uchar reflectionProbeIndex;
+    /*0x0088*/ uchar altXModelIndex;
+    /*0x0089*/ uchar entShaderConstantSetIndex;
+    /*0x008a*/ uchar useHeroLighting;
+
+struct GfxSceneModel  // sizeof=0x58
+    /*0x0000*/ XModelDrawInfo info;
+    /*0x0004*/ const XModel* model;
+    /*0x0008*/ const DObj* obj;
+    /*0x000c*/ const cpose_t* pose;
+    /*0x0010*/ GfxScaledPlacement placement;
+    /*0x0030*/ float lightingOriginToleranceSq;
+    /*0x0034*/ float invScaleSq;
+    /*0x0038*/ float radius;
+    /*0x003c*/ vec3_t lightingOrigin;
+    /*0x0048*/ ushort* cachedLightingHandle;
+    /*0x004c*/ ushort gfxEntIndex;
+    /*0x004e*/ ushort entnum;
+    /*0x0050*/ uchar modelShaderConstantSetIndex;
+    /*0x0051*/ uchar primaryLightIndex;
+    /*0x0052*/ uchar reflectionProbeIndex;
+    /*0x0053*/ uchar useHeroLighting;
+    /*0x0054*/ uchar noLodCullOut;
+
+struct GfxShaderConstantBlock  // sizeof=0xc4
+    /*0x0000*/ uint count;
+    /*0x0004*/ ushort[64B] dest;
+    /*0x0044*/ const float*[128B] value;
+
+struct GfxSpotShadow  // sizeof=0x1e0
+    /*0x0000*/ GfxViewParms shadowViewParms;
+    /*0x0150*/ GfxMatrix lookupMatrix;
+    /*0x0190*/ uchar shadowableLightIndex;
+    /*0x0191*/ uchar flags;
+    /*0x0192*/ uchar[2B] pad;
+    /*0x0194*/ const GfxLight* light;
+    /*0x0198*/ float fade;
+    /*0x01a0*/ GfxCodeImageRenderTarget spotShadowRenderTarget;
+    /*0x01a8*/ uchar renderTargetId;
+    /*0x01ac*/ GfxViewport viewport;
+    /*0x01bc*/ GfxImage* image;
+    /*0x01c0*/ vec4_t pixelAdjust;
+    /*0x01d0*/ int clearScreen;
+
+struct GfxSunShadow  // sizeof=0x470
+    /*0x0000*/ GfxMatrix lookupMatrix;
+    /*0x0040*/ GfxSunShadowProjection sunProj;
+    /*0x00a0*/ int sunShadowCount;
+    /*0x00b0*/ GfxSunShadowPartition[960B] partition;
+
+struct GfxViewInfo  // sizeof=0xc40
+    /*0x0000*/ GfxViewParms viewParms;
+    /*0x0150*/ GfxViewport sceneViewport;
+    /*0x0160*/ GfxViewport displayViewport;
+    /*0x0170*/ GfxViewport scissorViewport;
+    /*0x0180*/ GfxSceneDef sceneDef;
+    /*0x0194*/ enum ShadowType dynamicShadowType;
+    /*0x0198*/ enum LocalClientNum_t localClientNum;
+    /*0x019c*/ int viewInfoIndex;
+    /*0x01a0*/ int isRenderingFullScreen;
+    /*0x01a4*/ int playerTeleported;
+    /*0x01b0*/ GfxLight[1408B] visibleLights;
+    /*0x0730*/ int visibleLightCount;
+    /*0x0734*/ vec4_t[64B] frustumPlanes;
+    /*0x0774*/ GfxLightScale charPrimaryLightScale;
+    /*0x077c*/ GfxPostFxInfo* postFxInfo;
+    /*0x0780*/ const void* cmds;
+    /*0x0784*/ float sunVisibility;
+    /*0x0788*/ float adsZScale;
+    /*0x078c*/ GfxQuadMeshData* fullSceneViewMesh;
+    /*0x0790*/ GfxDrawSurfListInfo* drawList;
+    /*0x0794*/ GfxCmdBufInput* input;
+    /*0x0798*/ uchar hdrRenderingMode;
+    /*0x079c*/ GfxViewRenderControl sceneComposition;
+    /*0x07ac*/ GfxUI3DBackend rbUI3D;
+    /*0x08a8*/ GfxQRCodeBackend rbQRCode;
+    /*0x0968*/ bool isExtraCamera;
+    /*0x096c*/ int noLodCullOut;
+    /*0x0970*/ float lodScaleRigid;
+    /*0x0974*/ float lodScaleSkinned;
+    /*0x0978*/ float postEmissiveBrightening;
+    /*0x0980*/ GfxViewParms weaponViewParms;
+    /*0x0ad0*/ bool sonarRenderTargetInUse;
+    /*0x0ad4*/ float sonarBlur;
+    /*0x0ae0*/ GfxViewParms sonarViewParms;
+    /*0x0c30*/ bool sonarUseThermalMaterial;
+    /*0x0c31*/ bool sonarOverrideBlend;
+    /*0x0c32*/ bool drawInfrared;
+    /*0x0c33*/ bool drawPostBlur;
+    /*0x0c34*/ bool drawWaypointsPostBloom;
+    /*0x0c38*/ int splitscreenBlurEdges;
+    /*0x0c3c*/ bool needResolveOpaque;
+    /*0x0c3e*/ short lutScriptIndex;
+
+struct GfxViewParms  // sizeof=0x150
+    /*0x0000*/ GfxMatrix viewMatrix;
+    /*0x0040*/ GfxMatrix projectionMatrix;
+    /*0x0080*/ GfxMatrix viewProjectionMatrix;
+    /*0x00c0*/ GfxMatrix inverseViewProjectionMatrix;
+    /*0x0100*/ vec4_t origin;
+    /*0x0110*/ vec3_t[36B] axis;
+    /*0x0134*/ float depthHackNearClip;
+    /*0x0138*/ float zNear;
+    /*0x013c*/ float zFar;
+    /*0x0140*/ int bspCellIndex;
+
+struct GfxViewport  // sizeof=0x10
+    /*0x0000*/ int x;
+    /*0x0004*/ int y;
+    /*0x0008*/ int width;
+    /*0x000c*/ int height;
+
+struct GfxWindowParms  // sizeof=0x24
+    /*0x0000*/ HWND__* hwnd;
+    /*0x0004*/ int hz;
+    /*0x0008*/ bool fullscreen;
+    /*0x000c*/ int x;
+    /*0x0010*/ int y;
+    /*0x0014*/ int sceneWidth;
+    /*0x0018*/ int sceneHeight;
+    /*0x001c*/ int displayWidth;
+    /*0x0020*/ int displayHeight;
+
+struct GfxWorkerData  // sizeof=0x318
+    /*0x0000*/ int[132B] cmdBufValid;
+    /*0x0084*/ GfxCmdBuf[396B] cmdBuf;
+    /*0x0210*/ jqBatchGroup[264B] cmdBufBatchGroup;
+    GfxWorkerData();
+
+struct r_backEndGlobals_t  // sizeof=0x1464
+    /*0x0000*/ int glowCount;
+    /*0x0004*/ GfxImage* glowImage;
+    /*0x0008*/ GfxImage* godRaysImage;
+    /*0x000c*/ Font_s* debugFont;
+    /*0x0010*/ GfxFrameStats frameStatsMax;
+
+struct r_global_permanent_t  // sizeof=0x4780
+    /*0x0000*/ Material*[17408B] sortedMaterials;
+    /*0x4400*/ int needSortMaterials;
+    /*0x4404*/ int materialCount;
+    /*0x4408*/ GfxImage* whiteImage;
+    /*0x440c*/ GfxImage* blackImage;
+    /*0x4410*/ GfxImage* blankImage;
+    /*0x4414*/ GfxImage* grayImage;
+    /*0x4418*/ GfxImage* linearGrayImage;
+    /*0x441c*/ GfxImage*[124B] lightmapIntensityImages;
+    /*0x4498*/ GfxImage* identityNormalMapImage;
+    /*0x449c*/ GfxImage* whiteTransparentImage;
+    /*0x44a0*/ GfxImage* blackTransparentImage;
+    /*0x44a4*/ GfxImage* outdoorImage;
+    /*0x44a8*/ GfxImage* heatMapImage;
+    /*0x44ac*/ GfxImage*[48B] qrcodeImage;
+    /*0x44dc*/ GfxLightDef* dlightDef;
+    /*0x44e0*/ GfxLightDef* flashLightDef;
+    /*0x44e4*/ Material* defaultMaterial;
+    /*0x44e8*/ Material* whiteMaterial;
+    /*0x44ec*/ Material* additiveMaterial;
+    /*0x44f0*/ Material* additiveMaterialNoDepth;
+    /*0x44f4*/ Material* pointMaterial;
+    /*0x44f8*/ Material* lineMaterial;
+    /*0x44fc*/ Material* lineMaterialNoDepth;
+    /*0x4500*/ Material* blendMaterial;
+    /*0x4504*/ Material* blendMaterialNoDepth;
+    /*0x4508*/ Material* whiteDebugExteriorMaterial;
+    /*0x450c*/ Material* whiteDepthInteriorMaterial;
+    /*0x4510*/ Material* clearAlphaMaterial;
+    /*0x4514*/ Material* clearAlphaStencilMaterial;
+    /*0x4518*/ Material* setAlphaMaterial;
+    /*0x451c*/ Material* shadowClearMaterial;
+    /*0x4520*/ Material* shadowCasterMaterial;
+    /*0x4524*/ Material* shadowOverlayMaterial;
+    /*0x4528*/ Material* depthPrepassMaterial;
+    /*0x452c*/ Material* glareBlindMaterial;
+    /*0x4530*/ Material* lightCoronaMaterial;
+    /*0x4534*/ Material* stencilShadowMaterial;
+    /*0x4538*/ Material* stencilDisplayMaterial;
+    /*0x453c*/ Material* floatZDisplayMaterial;
+    /*0x4540*/ Material* resolveFloatZ1;
+    /*0x4544*/ Material* resolveFloatZ2;
+    /*0x4548*/ Material* resolveFloatZ4;
+    /*0x454c*/ Material* resolveFloatZ8;
+    /*0x4550*/ Material* resolveFloatZ16;
+    /*0x4554*/ Material* fxaaMaterial;
+    /*0x4558*/ Material* ssaoMaterial;
+    /*0x455c*/ Material* ssaoApplyMaterial;
+    /*0x4560*/ Material* ssaoBlurMaterial;
+    /*0x4564*/ Material* ssaoMinifyMaterial;
+    /*0x4568*/ Material* ssaoReconstructMaterial;
+    /*0x456c*/ Material* colorChannelMixerMaterial;
+    /*0x4570*/ Material* frameColorDebugMaterial;
+    /*0x4574*/ Material* frameAlphaDebugMaterial;
+    /*0x4578*/ GfxImage* rawImage;
+    /*0x457c*/ GfxWorld* world;
+    /*0x4580*/ Material* feedbackReplaceMaterial;
+    /*0x4584*/ Material* feedbackBlendMaterial;
+    /*0x4588*/ Material* feedbackFilmBlendMaterial;
+    /*0x458c*/ Material* dofDownsampleMaterial;
+    /*0x4590*/ Material* dofNearCocMaterial;
+    /*0x4594*/ Material* smallBlurMaterial;
+    /*0x4598*/ Material* postFxDofMaterial;
+    /*0x459c*/ Material* postFxDofMaterial2;
+    /*0x45a0*/ Material* postFxDofColorMaterial;
+    /*0x45a4*/ Material* dofHqDownsample;
+    /*0x45a8*/ Material* dofHqBlurMask;
+    /*0x45ac*/ Material* dofHqBlur;
+    /*0x45b0*/ Material* dofHqFinal;
+    /*0x45b4*/ Material* dofHqFinalExtra;
+    /*0x45b8*/ Material* redactMaterial1;
+    /*0x45bc*/ Material* redactMaterial2;
+    /*0x45c0*/ Material* redactMaterial3;
+    /*0x45c4*/ Material* waterDropletMaterial;
+    /*0x45c8*/ Material* reviveFXMaterial;
+    /*0x45cc*/ Material* postFxColorMaterial;
+    /*0x45d0*/ Material* postFxMaterial;
+    /*0x45d4*/ Material* poisonFXMaterial;
+    /*0x45d8*/ Material* anaglyphFXMaterial;
+    /*0x45dc*/ Material*[32B] symmetricFilterMaterial;
+    /*0x45fc*/ Material* shellShockBlurredMaterial;
+    /*0x4600*/ Material* shellShockFlashedMaterial;
+    /*0x4604*/ Material* ropeMaterial;
+    /*0x4608*/ Material* logoMaterial;
+    /*0x460c*/ int[16B] savedScreenTimes;
+    /*0x461c*/ SavedScreenParams[80B] savedScreenParams;
+    /*0x466c*/ Material* resampleFinal;
+    /*0x4670*/ Material* resampleHDR;
+    /*0x4674*/ Material* resampleCubicFinal;
+    /*0x4678*/ Material* resampleCubicFinalLeft;
+    /*0x467c*/ Material* resampleCubicFinalRight;
+    /*0x4680*/ Material* resampleShift;
+    /*0x4684*/ Material* resampleMatrix;
+    /*0x4688*/ Material* bloomDownsample;
+    /*0x468c*/ Material* bloomDownsampleHQ;
+    /*0x4690*/ Material* bloomDownsampleConvolution;
+    /*0x4694*/ Material* bloomDownsampleConvolutionHQ;
+    /*0x4698*/ Material* bloomRemap;
+    /*0x469c*/ Material* bloomBlurX;
+    /*0x46a0*/ Material* bloomBlurY;
+    /*0x46a4*/ Material* bloomCombineHiLo;
+    /*0x46a8*/ Material* bloomApply;
+    /*0x46ac*/ Material* bloomApplyHQ;
+    /*0x46b0*/ Material* bloomApplyNull;
+    /*0x46b4*/ Material* bloomApplyThermal;
+    /*0x46b8*/ Material* debugZbuffer;
+    /*0x46bc*/ Material* createLut2d;
+    /*0x46c0*/ Material* createLut2dv;
+    /*0x46c4*/ Material* applyLut3d;
+    /*0x46c8*/ Material* dummyMaterial;
+    /*0x46cc*/ Material* compositeResult;
+    /*0x46d0*/ Material* infraredWhite;
+    /*0x46d4*/ Material* sonarMaterial;
+    /*0x46d8*/ Material* sonarAttachmentMaterial;
+    /*0x46dc*/ Material*[12B] hudOutlineMaterial;
+    /*0x46e8*/ Material* predatorMaterial;
+    /*0x46ec*/ r_global_permap_assets_t permapAssets;
+    /*0x46fc*/ FontIcon*[16B] fontIconHandle;
+    /*0x470c*/ int fontIconFilesCount;
+
+struct r_globals_t  // sizeof=0x13100
+    /*0x0000*/ GfxViewParms identityViewParms;
+    /*0x0150*/ bool inFrame;
+    /*0x0151*/ bool registered;
+    /*0x0152*/ bool forbidDelayLoadImages;
+    /*0x0153*/ bool ignorePrecacheErrors;
+    /*0x0154*/ vec3_t viewOrg;
+    /*0x0160*/ vec3_t viewDir;
+    /*0x016c*/ uint frontEndFrameCount;
+    /*0x0170*/ int totalImageMemory;
+    /*0x0174*/ Material*[17408B] materialHashTable;
+    /*0x4574*/ MaterialUsage[52224B] materialUsage;
+    /*0x11174*/ GfxClientFog[1936B] clientFogs;
+    /*0x11904*/ GfxColor color_axis;
+    /*0x11908*/ GfxColor color_allies;
+    /*0x1190c*/ trStatistics_t* globalstats;
+    /*0x11910*/ trViewStatistics_t* stats;
+    /*0x11914*/ GfxFrameStats frameStats;
+    /*0x12d68*/ GfxLodParms lodParms;
+    /*0x12ddc*/ GfxLodParms[464B] correctedLodParms;
+    /*0x12fac*/ bool useSunLightOverride;
+    /*0x12fad*/ bool useSunDirOverride;
+    /*0x12fae*/ bool useSunDirLerp;
+    /*0x12fb0*/ vec3_t diffuseSunLightOverride;
+    /*0x12fbc*/ vec3_t specularSunLightOverride;
+    /*0x12fc8*/ vec3_t sunDirOverride;
+    /*0x12fd4*/ vec3_t sunDirOverrideTarget;
+    /*0x12fe0*/ int sunDirLerpBeginTime;
+    /*0x12fe4*/ int sunDirLerpEndTime;
+    /*0x12fe8*/ const GfxViewParms* debugViewParms;
+    /*0x12fec*/ int endTime;
+    /*0x12ff0*/ bool distortion;
+    /*0x12ff1*/ bool drawWorld;
+    /*0x12ff2*/ bool drawSModels;
+    /*0x12ff3*/ bool drawXModels;
+    /*0x12ff4*/ bool drawBModels;
+    /*0x12ff8*/ const char*[220B] codeImageNames;
+    /*0x130d4*/ uint viewInfoCount;
+    /*0x130d8*/ int sunShadowFull;
+    /*0x130dc*/ float sunShadowmapScale;
+    /*0x130e0*/ float sunShadowmapScaleNum;
+    /*0x130e4*/ uint sunShadowSize;
+    /*0x130e8*/ float sunShadowPartitionRatio;
+    /*0x130ec*/ int drawSunShadow;
+    /*0x130f0*/ bool isNotRenderingFullScreen;
+    /*0x130f1*/ bool enablePlayerShadowFlag;
+    /*0x130f2*/ bool gammaModified;
+    /*0x130f4*/ float gamma;
+    /*0x130f8*/ float skinnedVertexCacheUsed;
+

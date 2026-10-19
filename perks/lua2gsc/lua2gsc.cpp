@@ -26,7 +26,7 @@ int main(int argc, char** argv) {
         std::string id = path.substr(slash == std::string::npos ? 0 : slash + 1);
         if (dot != std::string::npos && dot > path.size() - id.size()) id = id.substr(0, id.size() - (path.size() - dot));
         lua2gsc::Result r = lua2gsc::Compile(src, id);
-        if (!r.ok) { std::cerr << path << ":" << r.error << "\n"; ++failed; continue; }
+        if (!r.ok) { std::cerr << path << ": " << r.error << "\n"; ++failed; continue; }
         std::cout << "compiled " << id << " (" << r.name << ")\n";
         perks.push_back(r);
     }

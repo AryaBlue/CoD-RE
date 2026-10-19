@@ -131,6 +131,7 @@ Zombies never uses and registers with `_zm_perks`. So the perk limit, losing per
 give/take all work. HUD icons are drawn by the runtime in a row above the stock icons; set the dvar
 `zmw_perk_hud "x y size gap"` to move them.
 
-Up to 18 custom perks can be active at once (the number of spare engine perk slots).
+Up to 7 custom perks can be loaded at once: each needs an engine perk slot that Zombies never touches, and BO2
+has 7 of those. Extra perks are skipped with a message.
 
 Building `lua2gsc` itself: `cl /EHsc /std:c++17 lua2gsc.cpp`. Tests: `python tests/run_tests.py lua2gsc.exe gsc-tool.exe`.

@@ -37,14 +37,15 @@ init()
     level thread zmwp_spawn_machines();
 }
 
-// Engine perks no Zombies script reads; each custom perk takes the next one.
+// Engine perks no Zombies script sets, takes or reads (checked against every patch_zm / zm_*_patch script);
+// each custom perk takes the next one. Left out because Zombies uses them: gpsjammer (female animations),
+// immunemms (Cymbal Monkey), noname (friendly fire), nomotionsensor (Vulture Aid), detectexplosive /
+// showenemyequipment / disarmexplosive (equipment), earnmoremomentum (score), and the three that spawn
+// protection sets then takes (nottargetedbyairsupport, nokillstreakreticle, nottargettedbysentry).
 zmwp_specialties()
 {
-    return strtok( "specialty_gpsjammer specialty_nomotionsensor specialty_immunecounteruav specialty_immuneemp " +
-                   "specialty_immunemms specialty_immunenvthermal specialty_immunerangefinder specialty_noname " +
-                   "specialty_nottargetedbyairsupport specialty_nokillstreakreticle specialty_nottargettedbysentry " +
-                   "specialty_reconnaissance specialty_showenemyequipment specialty_detectexplosive " +
-                   "specialty_disarmexplosive specialty_earnmoremomentum specialty_killstreak specialty_loudenemies", " " );
+    return strtok( "specialty_immunecounteruav specialty_immuneemp specialty_immunenvthermal " +
+                   "specialty_immunerangefinder specialty_reconnaissance specialty_killstreak specialty_loudenemies", " " );
 }
 
 // Called by each compiled perk's register function.
@@ -474,8 +475,9 @@ zmwp_machine_think( p )
 }
 
 // ---------------------------------------------------------------- tool commands
-// zmw_perk_cmd = "<serial> give <id> | take <id> | place <id> <x> <y> <z> <yaw> | list" (player = the host).
-// The tool reads the host's position itself (DLL) and saves placed machines into the perk's Lua file.
+// zmw_perk_cmd = "<serial> give <id> | take <id> | place <id> | list" (player = the host).
+// place puts a machine in front of the host and prints "ZMW_PERK_PLACED <id> <map> <x> <y> <z> <yaw>" to the
+// console log; the tool reads that line and saves the spot into the perk's Lua file (perk.machines).
 
 zmwp_watch_commands()
 {
@@ -498,7 +500,7 @@ zmwp_watch_commands()
                 if ( args.size >= 3 )
                     id = args[2];
 
-                zmwp_command( players[0], args[1], id, args );
+                zmwp_command( players[0], args[1], id );
             }
         }
 
@@ -506,7 +508,7 @@ zmwp_watch_commands()
     }
 }
 
-zmwp_command( player, action, id, args )
+zmwp_command( player, action, id )
 {
     if ( action == "list" )
     {
@@ -520,10 +522,14 @@ zmwp_command( player, action, id, args )
         zmwa_give_perk( player, id );
     else if ( action == "take" )
         zmwa_take_perk( player, id );
-    else if ( action == "place" && isdefined( level.zmwp[id] ) && args.size >= 7 )
+    else if ( action == "place" && isdefined( level.zmwp[id] ) )
     {
-        zmwp_place( level.zmwp[id], ( float( args[3] ), float( args[4] ), float( args[5] ) ), ( 0, float( args[6] ), 0 ) );
-        iprintln( "ZM Workshop: placed " + level.zmwp[id].name );
+        yaw = player.angles[1];
+        origin = player.origin + vectorscale( anglestoforward( ( 0, yaw, 0 ) ), 64 );
+        zmwp_place( level.zmwp[id], origin, ( 0, yaw + 180, 0 ) );
+        println( "ZMW_PERK_PLACED " + id + " " + getdvar( "mapname" ) + " " + int( origin[0] ) + " " + int( origin[1] ) + " " +
+                 int( origin[2] ) + " " + int( yaw + 180 ) );
+        iprintln( "ZM Workshop: placed " + level.zmwp[id].name + " - the tool saves the spot" );
     }
 }
 

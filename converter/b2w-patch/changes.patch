@@ -1200,10 +1200,10 @@ index a065f50..1ff7512 100644
          for folder in ('materials', 'images'):
              (root / folder).mkdir(parents=True, exist_ok=True)
 diff --git a/src/waw2bo2/parallel.py b/src/waw2bo2/parallel.py
-index b5b8890..77f3999 100644
+index b5b8890..a85caf7 100644
 --- a/src/waw2bo2/parallel.py
 +++ b/src/waw2bo2/parallel.py
-@@ -54,3 +54,25 @@ def ordered_map(function, values, *, label: str, processes: bool = False):
+@@ -54,3 +54,29 @@ def ordered_map(function, values, *, label: str, processes: bool = False):
          for future in pending:
              future.cancel()
          pool.shutdown(wait=True, cancel_futures=True)
@@ -1215,11 +1215,15 @@ index b5b8890..77f3999 100644
 +    moved into place, retrying while another worker holds the target open."""
 +    import time
 +    from pathlib import Path
++    import threading
 +    path = Path(path)
-+    if path.is_file() and path.stat().st_size == len(data) and path.read_bytes() == data:
-+        return
++    try:
++        if path.is_file() and path.stat().st_size == len(data) and path.read_bytes() == data:
++            return
++    except PermissionError:
++        pass  # another worker is replacing it right now; write ours below
 +    path.parent.mkdir(parents=True, exist_ok=True)
-+    temp = path.with_name(f'{path.name}.{os.getpid()}.tmp')
++    temp = path.with_name(f'{path.name}.{os.getpid()}.{threading.get_ident()}.tmp')
 +    temp.write_bytes(data)
 +    for attempt in range(50):
 +        try:
@@ -1366,6 +1370,85 @@ index 2902bc4..62a04f7 100644
          output_material['techniqueSet'] = ts_name
      return result
  
+diff --git a/src/waw2bo2/shaders.py b/src/waw2bo2/shaders.py
+index 67d0aa8..7db574f 100644
+--- a/src/waw2bo2/shaders.py
++++ b/src/waw2bo2/shaders.py
+@@ -494,16 +494,38 @@ def translate_file(source: Path, output: Path, bindings: dict | None = None, *,
+     return report
+ 
+ 
++# Rows of earlier runs are reused while the source bytes and this translator are
++# unchanged (a full Kino stage translates 7380 shaders; most never change).
++CACHE_FILE = 'stage_cache.json'
++_TRANSLATOR = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
++
++
++def _cached_row(entry, digest, output):
++    if not entry or entry.get('translator') != _TRANSLATOR or entry.get('source_sha256') != digest:
++        return None
++    row = entry['row']
++    if row['status'] == 'translated_unbound' and not all(
++            output.with_suffix(suffix).is_file() for suffix in ('.hlsl', '.cso', '.json')):
++        return None
++    return row
++
++
+ def _stage_shader(task):
+-    name, source, destination = task
++    name, source, destination, cached = task
++    data = source.read_bytes()
+     # T6 donor DXBC is not WaW input. Preserve it through the existing path.
+-    if source.read_bytes()[:4] == b'DXBC':
+-        return None
+-    try:
+-        report = translate_file(source, destination / name)
+-        return dict(report, name=name, status='translated_unbound')
+-    except (ShaderError, OSError, AttributeError) as exc:
+-        return {'name': name, 'source': str(source), 'status': 'unsupported', 'error': str(exc)}
++    if data[:4] == b'DXBC':
++        return None, None, False
++    digest = hashlib.sha256(data).hexdigest()
++    row = _cached_row(cached, digest, destination / name)
++    reused = row is not None
++    if row is None:
++        try:
++            report = translate_file(source, destination / name)
++            row = dict(report, name=name, status='translated_unbound')
++        except (ShaderError, OSError, AttributeError) as exc:
++            row = {'name': name, 'source': str(source), 'status': 'unsupported', 'error': str(exc)}
++    return row, {'translator': _TRANSLATOR, 'source_sha256': digest, 'row': row}, reused
+ 
+ 
+ def stage(roots: list[Path], destination: Path) -> dict:
+@@ -518,12 +540,24 @@ def stage(roots: list[Path], destination: Path) -> dict:
+         for folder in (root / 'shader_bin', root / 'content_source/shader_bin'):
+             for path in sorted(folder.rglob('*.cso')):
+                 sources.setdefault(path.relative_to(folder).as_posix(), path)
+-    rows = [row for row in ordered_map(_stage_shader,
+-            [(name, source, destination) for name, source in sources.items()], label='Shaders')
+-            if row is not None]
++    cache_path = destination / CACHE_FILE
++    try:
++        cache = json.loads(cache_path.read_text(encoding='utf-8'))
++    except (OSError, ValueError):
++        cache = {}
++    rows, entries, reused = [], {}, 0
++    results = ordered_map(_stage_shader, [(name, source, destination, cache.get(name))
++                                          for name, source in sources.items()], label='Shaders')
++    for name, (row, entry, hit) in zip(sources, results):
++        if row is not None:
++            rows.append(row)
++            entries[name] = entry
++            reused += hit
++    print(f'[staging] Shaders: {reused}/{len(rows)} reused from the previous run', flush=True)
+     report = {'status': 'requires_t6_pass_bindings' if rows else 'no_source_bytecode',
+               'translated': sum(r['status'] == 'translated_unbound' for r in rows),
+               'unsupported': sum(r['status'] == 'unsupported' for r in rows), 'shaders': rows}
+     destination.mkdir(parents=True, exist_ok=True)
+     (destination / 'stage.json').write_text(json.dumps(report, indent=2) + '\n')
++    cache_path.write_text(json.dumps(entries) + '\n', encoding='utf-8')
+     return report
 diff --git a/src/waw2bo2/t6bridge.py b/src/waw2bo2/t6bridge.py
 index 8a7736e..70dd8ea 100644
 --- a/src/waw2bo2/t6bridge.py

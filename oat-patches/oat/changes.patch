@@ -1,0 +1,911 @@
+diff --git a/src/Cryptography/Algorithms/AlgorithmSalsa20.cpp b/src/Cryptography/Algorithms/AlgorithmSalsa20.cpp
+index 9a58e8d..71959ba 100644
+--- a/src/Cryptography/Algorithms/AlgorithmSalsa20.cpp
++++ b/src/Cryptography/Algorithms/AlgorithmSalsa20.cpp
+@@ -14,7 +14,7 @@ namespace
+     public:
+         AlgorithmSalsa20(const uint8_t* keyBytes, const size_t keySize)
+         {
+-            Salsa20_KeySetup(&m_context, keyBytes, static_cast<uint32_t>(keySize * 8uz));
++            Salsa20_KeySetup(&m_context, keyBytes, static_cast<uint32_t>(keySize * static_cast<size_t>(8)));
+         }
+ 
+         void SetIv(const uint8_t* iv, const size_t ivSize) override
+diff --git a/src/Linking/LinkerPaths.cpp b/src/Linking/LinkerPaths.cpp
+index 30fea26..ad42f1c 100644
+--- a/src/Linking/LinkerPaths.cpp
++++ b/src/Linking/LinkerPaths.cpp
+@@ -57,8 +57,8 @@ namespace
+         void CreateFromString(const std::string& templateString)
+         {
+             const auto templateStringLength = templateString.size();
+-            auto partStart = 0uz;
+-            for (auto i = 0uz; i < templateStringLength; i++)
++            auto partStart = static_cast<size_t>(0);
++            for (auto i = static_cast<size_t>(0); i < templateStringLength; i++)
+             {
+                 if (templateString[i] != '?')
+                     continue;
+diff --git a/src/ObjCommon/Sound/FlacDecoder.cpp b/src/ObjCommon/Sound/FlacDecoder.cpp
+index 3c3fd0d..cf757c6 100644
+--- a/src/ObjCommon/Sound/FlacDecoder.cpp
++++ b/src/ObjCommon/Sound/FlacDecoder.cpp
+@@ -68,7 +68,7 @@ namespace
+                 T result;
+             } data{};
+ 
+-            const auto byteCount = utils::Align(bitCount, 8uz) / 8uz;
++            const auto byteCount = utils::Align(bitCount, static_cast<size_t>(8)) / static_cast<size_t>(8);
+             assert(byteCount <= sizeof(T));
+ 
+             const auto shiftCount = (8u - bitCount % 8) % 8;
+@@ -83,7 +83,7 @@ namespace
+ 
+             while (remainingBits > 0)
+             {
+-                const auto curBits = static_cast<uint8_t>(std::min(remainingBits, 8uz));
++                const auto curBits = static_cast<uint8_t>(std::min(remainingBits, static_cast<size_t>(8)));
+ 
+                 if (m_remaining_bits_last_byte > 0)
+                 {
+diff --git a/src/ObjCommon/StructuredDataDef/CommonStructuredDataTypes.cpp b/src/ObjCommon/StructuredDataDef/CommonStructuredDataTypes.cpp
+index 8602a7c..cd8fb3f 100644
+--- a/src/ObjCommon/StructuredDataDef/CommonStructuredDataTypes.cpp
++++ b/src/ObjCommon/StructuredDataDef/CommonStructuredDataTypes.cpp
+@@ -59,7 +59,7 @@ size_t CommonStructuredDataType::GetSizeInBits(const CommonStructuredDataDef& de
+             return 0u;
+         }
+         const auto& indexedArray = def.m_indexed_arrays[m_info.type_index];
+-        return utils::Align(indexedArray.m_element_size_in_bits * indexedArray.m_element_count, 8uz);
++        return utils::Align(indexedArray.m_element_size_in_bits * indexedArray.m_element_count, static_cast<size_t>(8));
+     }
+     case CommonStructuredDataTypeCategory::ENUM_ARRAY:
+     {
+@@ -69,7 +69,7 @@ size_t CommonStructuredDataType::GetSizeInBits(const CommonStructuredDataDef& de
+             return 0u;
+         }
+         const auto& enumedArray = def.m_enumed_arrays[m_info.type_index];
+-        return utils::Align(enumedArray.m_element_size_in_bits * enumedArray.m_element_count, 8uz);
++        return utils::Align(enumedArray.m_element_size_in_bits * enumedArray.m_element_count, static_cast<size_t>(8));
+     }
+ 
+     case CommonStructuredDataTypeCategory::UNKNOWN:
+diff --git a/src/ObjCompiling/Image/IPak/IPakCreator.cpp b/src/ObjCompiling/Image/IPak/IPakCreator.cpp
+index 0d8bf45..073567e 100644
+--- a/src/ObjCompiling/Image/IPak/IPakCreator.cpp
++++ b/src/ObjCompiling/Image/IPak/IPakCreator.cpp
+@@ -207,7 +207,7 @@ namespace
+ 
+         void WriteChunkData(const void* data, const size_t dataSize)
+         {
+-            auto dataOffset = 0uz;
++            auto dataOffset = static_cast<size_t>(0);
+             while (dataOffset < dataSize)
+             {
+                 if (m_current_block.countAndOffset.count >= std::extent_v<decltype(IPakDataBlockHeader::commands)>)
+@@ -219,7 +219,7 @@ namespace
+                 const auto remainingSize = dataSize - dataOffset;
+                 const auto remainingChunkBufferWindowSize = std::max((ipak_consts::IPAK_CHUNK_COUNT_PER_READ * ipak_consts::IPAK_CHUNK_SIZE)
+                                                                          - static_cast<size_t>(m_current_offset - m_chunk_buffer_window_start),
+-                                                                     0uz);
++                                                                     static_cast<size_t>(0));
+ 
+                 if (remainingChunkBufferWindowSize == 0)
+                 {
+diff --git a/src/ObjCompiling/Techset/CommonShaderArgCreator.cpp b/src/ObjCompiling/Techset/CommonShaderArgCreator.cpp
+index c20890a..1059b2d 100644
+--- a/src/ObjCompiling/Techset/CommonShaderArgCreator.cpp
++++ b/src/ObjCompiling/Techset/CommonShaderArgCreator.cpp
+@@ -668,7 +668,7 @@ namespace
+         {
+             assert(m_shader_info);
+ 
+-            auto usedConstantIndex = 0uz;
++            auto usedConstantIndex = static_cast<size_t>(0);
+             for (const auto& buffer : m_shader_info->m_constant_buffers)
+             {
+                 const auto bufferBinding =
+diff --git a/src/ObjCompiling/Techset/TechniqueCompiler.cpp.template b/src/ObjCompiling/Techset/TechniqueCompiler.cpp.template
+index ef5a954..d8173ae 100644
+--- a/src/ObjCompiling/Techset/TechniqueCompiler.cpp.template
++++ b/src/ObjCompiling/Techset/TechniqueCompiler.cpp.template
+@@ -327,7 +327,7 @@ namespace
+ 
+     MaterialTechnique* ConvertTechnique(const techset::CommonTechnique& commonTechnique, AssetCreationContext& context, MemoryManager& memory)
+     {
+-        const auto additionalPassCount = std::max(commonTechnique.m_passes.size(), 1uz) - 1uz;
++        const auto additionalPassCount = std::max(commonTechnique.m_passes.size(), static_cast<size_t>(1)) - static_cast<size_t>(1);
+         auto* technique = static_cast<MaterialTechnique*>(memory.AllocRaw(sizeof(MaterialTechnique) + additionalPassCount * sizeof(MaterialPass)));
+ 
+         const auto passCount = static_cast<decltype(MaterialTechnique::passCount)>(commonTechnique.m_passes.size());
+diff --git a/src/ObjCompiling/Techset/TechsetCompiler.cpp.template b/src/ObjCompiling/Techset/TechsetCompiler.cpp.template
+index 999516f..99bbc22 100644
+--- a/src/ObjCompiling/Techset/TechsetCompiler.cpp.template
++++ b/src/ObjCompiling/Techset/TechsetCompiler.cpp.template
+@@ -43,8 +43,8 @@ namespace
+             techset::CountWorldVertFormatParameters(name, texCount, normalCount);
+ 
+             // 0 and 1 seem to be treated equally
+-            texCount = std::max(texCount, 1uz);
+-            normalCount = std::max(normalCount, 1uz);
++            texCount = std::max(texCount, static_cast<size_t>(1));
++            normalCount = std::max(normalCount, static_cast<size_t>(1));
+ 
+             if (texCount == 1 && normalCount == 1)
+                 return MTL_WORLDVERT_TEX_1_NRM_1;
+diff --git a/src/ObjLoading/Game/IW3/Menu/LoaderMenuListIW3.cpp b/src/ObjLoading/Game/IW3/Menu/LoaderMenuListIW3.cpp
+index bd57470..bf45236 100644
+--- a/src/ObjLoading/Game/IW3/Menu/LoaderMenuListIW3.cpp
++++ b/src/ObjLoading/Game/IW3/Menu/LoaderMenuListIW3.cpp
+@@ -134,7 +134,7 @@ namespace
+         {
+             const auto menuCount = parsingResult.m_menus.size();
+             const auto menuLoadCount = parsingResult.m_menus_to_load.size();
+-            auto totalItemCount = 0uz;
++            auto totalItemCount = static_cast<size_t>(0);
+             for (const auto& menu : parsingResult.m_menus)
+                 totalItemCount += menu->m_items.size();
+ 
+diff --git a/src/ObjLoading/Game/IW4/Menu/LoaderMenuListIW4.cpp b/src/ObjLoading/Game/IW4/Menu/LoaderMenuListIW4.cpp
+index c45605a..0dccceb 100644
+--- a/src/ObjLoading/Game/IW4/Menu/LoaderMenuListIW4.cpp
++++ b/src/ObjLoading/Game/IW4/Menu/LoaderMenuListIW4.cpp
+@@ -131,7 +131,7 @@ namespace
+             const auto menuCount = parsingResult.m_menus.size();
+             const auto functionCount = parsingResult.m_functions.size();
+             const auto menuLoadCount = parsingResult.m_menus_to_load.size();
+-            auto totalItemCount = 0uz;
++            auto totalItemCount = static_cast<size_t>(0);
+             for (const auto& menu : parsingResult.m_menus)
+                 totalItemCount += menu->m_items.size();
+ 
+diff --git a/src/ObjLoading/Game/IW4/StructuredDataDef/LoaderStructuredDataDefIW4.cpp b/src/ObjLoading/Game/IW4/StructuredDataDef/LoaderStructuredDataDefIW4.cpp
+index 673d715..539cb72 100644
+--- a/src/ObjLoading/Game/IW4/StructuredDataDef/LoaderStructuredDataDefIW4.cpp
++++ b/src/ObjLoading/Game/IW4/StructuredDataDef/LoaderStructuredDataDefIW4.cpp
+@@ -115,7 +115,7 @@ namespace
+                     if (outputProperty.type.type != DATA_BOOL)
+                     {
+                         assert(inputProperty.m_offset_in_bits % 8 == 0);
+-                        outputProperty.offset = static_cast<unsigned>(inputProperty.m_offset_in_bits / 8uz);
++                        outputProperty.offset = static_cast<unsigned>(inputProperty.m_offset_in_bits / static_cast<size_t>(8));
+                     }
+                     else
+                         outputProperty.offset = static_cast<unsigned>(inputProperty.m_offset_in_bits);
+@@ -129,14 +129,14 @@ namespace
+         {
+             outputIndexedArray.arraySize = static_cast<int>(inputIndexedArray.m_element_count);
+             outputIndexedArray.elementType = ConvertType(inputIndexedArray.m_array_type);
+-            outputIndexedArray.elementSize = static_cast<unsigned>(utils::Align(inputIndexedArray.m_element_size_in_bits, 8uz) / 8uz);
++            outputIndexedArray.elementSize = static_cast<unsigned>(utils::Align(inputIndexedArray.m_element_size_in_bits, static_cast<size_t>(8)) / static_cast<size_t>(8));
+         }
+ 
+         void ConvertEnumedArray(const CommonStructuredDataEnumedArray& inputEnumedArray, StructuredDataEnumedArray& outputEnumedArray)
+         {
+             outputEnumedArray.enumIndex = static_cast<int>(inputEnumedArray.m_enum_index);
+             outputEnumedArray.elementType = ConvertType(inputEnumedArray.m_array_type);
+-            outputEnumedArray.elementSize = static_cast<unsigned>(utils::Align(inputEnumedArray.m_element_size_in_bits, 8uz) / 8uz);
++            outputEnumedArray.elementSize = static_cast<unsigned>(utils::Align(inputEnumedArray.m_element_size_in_bits, static_cast<size_t>(8)) / static_cast<size_t>(8));
+         }
+ 
+         void ConvertDef(const CommonStructuredDataDef& inputDef, StructuredDataDef& outputDef)
+diff --git a/src/ObjLoading/Image/ImageLoaderEmbedded.cpp.template b/src/ObjLoading/Image/ImageLoaderEmbedded.cpp.template
+index bdc6f3c..ee7eadc 100644
+--- a/src/ObjLoading/Image/ImageLoaderEmbedded.cpp.template
++++ b/src/ObjLoading/Image/ImageLoaderEmbedded.cpp.template
+@@ -123,7 +123,7 @@ namespace
+             const auto mipCount = texture->HasMipMaps() ? texture->GetMipMapCount() : 1;
+             const auto faceCount = texture->GetFaceCount();
+ 
+-            auto dataSize = 0uz;
++            auto dataSize = static_cast<size_t>(0);
+             for (auto mipLevel = 0; mipLevel < mipCount; mipLevel++)
+                 dataSize += texture->GetSizeOfMipLevel(mipLevel) * faceCount;
+ 
+diff --git a/src/ObjLoading/StructuredDataDef/Parsing/Sequence/StructuredDataStructScopeSequences.cpp b/src/ObjLoading/StructuredDataDef/Parsing/Sequence/StructuredDataStructScopeSequences.cpp
+index fb6ce4e..c868ea8 100644
+--- a/src/ObjLoading/StructuredDataDef/Parsing/Sequence/StructuredDataStructScopeSequences.cpp
++++ b/src/ObjLoading/StructuredDataDef/Parsing/Sequence/StructuredDataStructScopeSequences.cpp
+@@ -240,7 +240,7 @@ namespace sdd::struct_scope_sequences
+             if (state->m_current_struct_is_root && state->m_current_struct->m_properties.empty())
+                 state->m_current_struct_padding_offset -= 64u;
+ 
+-            state->m_current_struct->m_size_in_byte = utils::Align(state->m_current_struct_padding_offset, 8uz) / 8;
++            state->m_current_struct->m_size_in_byte = utils::Align(state->m_current_struct_padding_offset, static_cast<size_t>(8)) / 8;
+             state->m_current_struct_padding_offset = 0u;
+             state->m_current_struct_is_root = false;
+             state->m_current_struct = nullptr;
+diff --git a/src/ObjLoading/StructuredDataDef/Parsing/StructuredDataDefSizeCalculator.cpp b/src/ObjLoading/StructuredDataDef/Parsing/StructuredDataDefSizeCalculator.cpp
+index 58ee172..5a4d071 100644
+--- a/src/ObjLoading/StructuredDataDef/Parsing/StructuredDataDefSizeCalculator.cpp
++++ b/src/ObjLoading/StructuredDataDef/Parsing/StructuredDataDefSizeCalculator.cpp
+@@ -73,7 +73,7 @@ class StructuredDataDefSizeCalculatorInternal
+ 
+         m_type_stack.emplace_back(CommonStructuredDataTypeCategory::STRUCT, index);
+ 
+-        auto currentOffset = 0uz;
++        auto currentOffset = static_cast<size_t>(0);
+         for (auto& property : _struct.m_properties)
+         {
+             CalculateForType(property.m_type);
+@@ -84,7 +84,7 @@ class StructuredDataDefSizeCalculatorInternal
+ 
+             currentOffset += property.m_type.GetSizeInBits(m_def);
+         }
+-        currentOffset = utils::Align(currentOffset, 8uz);
++        currentOffset = utils::Align(currentOffset, static_cast<size_t>(8));
+         _struct.m_size_in_byte += currentOffset / 8;
+ 
+         m_struct_calculated[index] = true;
+diff --git a/src/ObjLoading/XModel/LoaderXModel.cpp.template b/src/ObjLoading/XModel/LoaderXModel.cpp.template
+index 4d03f30..56c83f0 100644
+--- a/src/ObjLoading/XModel/LoaderXModel.cpp.template
++++ b/src/ObjLoading/XModel/LoaderXModel.cpp.template
+@@ -659,7 +659,7 @@ namespace
+         {
+             std::vector<uint16_t> vertsBlendData;
+             const auto vertexCount = vertexIndices.size();
+-            auto vertexIndex = 0uz;
++            auto vertexIndex = static_cast<size_t>(0);
+ 
+             // Reserve the minimum amount of data we know will follow
+             vertsBlendData.reserve(vertexCount);
+diff --git a/src/ObjLoading/XModel/TangentData.cpp b/src/ObjLoading/XModel/TangentData.cpp
+index dc509af..292f5fb 100644
+--- a/src/ObjLoading/XModel/TangentData.cpp
++++ b/src/ObjLoading/XModel/TangentData.cpp
+@@ -11,11 +11,11 @@ void TangentData::CreateTangentData(const XModelCommon& common)
+     m_tangents.resize(vertexCount);
+     m_binormals.resize(vertexCount);
+ 
+-    auto triCount = 0uz;
++    auto triCount = static_cast<size_t>(0);
+     for (const auto& object : common.m_objects)
+         triCount += object.m_faces.size();
+ 
+-    std::vector<uint16_t> indices(triCount * 3uz);
++    std::vector<uint16_t> indices(triCount * static_cast<size_t>(3));
+     auto triOffset = 0u;
+     for (const auto& object : common.m_objects)
+     {
+diff --git a/src/ObjWriting/Dumping/AbstractAssetDumper.h b/src/ObjWriting/Dumping/AbstractAssetDumper.h
+index a2e493b..9d0da0b 100644
+--- a/src/ObjWriting/Dumping/AbstractAssetDumper.h
++++ b/src/ObjWriting/Dumping/AbstractAssetDumper.h
+@@ -59,6 +59,6 @@ public:
+ 
+     [[nodiscard]] size_t GetProgressTotalCount(AssetDumpingContext& context) const override
+     {
+-        return context.m_zone.m_pools.PoolAssets<Asset_t>().empty() ? 0uz : 1uz;
++        return context.m_zone.m_pools.PoolAssets<Asset_t>().empty() ? static_cast<size_t>(0) : static_cast<size_t>(1);
+     }
+ };
+diff --git a/src/ObjWriting/Dumping/AssetDumpingContext.cpp b/src/ObjWriting/Dumping/AssetDumpingContext.cpp
+index 77e59fe..a74e6aa 100644
+--- a/src/ObjWriting/Dumping/AssetDumpingContext.cpp
++++ b/src/ObjWriting/Dumping/AssetDumpingContext.cpp
+@@ -11,8 +11,8 @@ AssetDumpingContext::AssetDumpingContext(const Zone& zone,
+       m_base_path(basePath),
+       m_output_path(outputPath),
+       m_obj_search_path(objSearchPath),
+-      m_current_progress(0uz),
+-      m_total_progress(0uz)
++      m_current_progress(static_cast<size_t>(0)),
++      m_total_progress(static_cast<size_t>(0))
+ {
+     if (progressCallback)
+         m_progress_callback = *std::move(progressCallback);
+diff --git a/src/ObjWriting/Game/IW3/Menu/MenuWriterIW3.cpp b/src/ObjWriting/Game/IW3/Menu/MenuWriterIW3.cpp
+index e9a2667..8d4dbbb 100644
+--- a/src/ObjWriting/Game/IW3/Menu/MenuWriterIW3.cpp
++++ b/src/ObjWriting/Game/IW3/Menu/MenuWriterIW3.cpp
+@@ -93,7 +93,7 @@ namespace
+                                                    && statement.entries[0]->data.op == OP_LEFTPAREN
+                                                    && FindStatementClosingParenthesis(statement, 0) >= static_cast<size_t>(statement.numEntries);
+ 
+-            for (auto i = 0uz; i < entryCount; i++)
++            for (auto i = static_cast<size_t>(0); i < entryCount; i++)
+             {
+                 const auto& entry = statement.entries[i];
+                 if (entry->type == EET_OPERAND)
+diff --git a/src/ObjWriting/Game/IW4/Menu/MenuWriterIW4.cpp b/src/ObjWriting/Game/IW4/Menu/MenuWriterIW4.cpp
+index 19b5d34..0c361d7 100644
+--- a/src/ObjWriting/Game/IW4/Menu/MenuWriterIW4.cpp
++++ b/src/ObjWriting/Game/IW4/Menu/MenuWriterIW4.cpp
+@@ -103,7 +103,7 @@ namespace
+                                                    && statement.entries[0].data.op == OP_LEFTPAREN
+                                                    && FindStatementClosingParenthesis(statement, 0) >= static_cast<size_t>(statement.numEntries);
+ 
+-            for (auto i = 0uz; i < entryCount; i++)
++            for (auto i = static_cast<size_t>(0); i < entryCount; i++)
+             {
+                 const auto& entry = statement.entries[i];
+                 if (entry.type == EET_OPERAND)
+diff --git a/src/ObjWriting/Game/IW4/StructuredDataDef/StructuredDataDefDumperIW4.cpp b/src/ObjWriting/Game/IW4/StructuredDataDef/StructuredDataDefDumperIW4.cpp
+index 4bc84e6..a301aea 100644
+--- a/src/ObjWriting/Game/IW4/StructuredDataDef/StructuredDataDefDumperIW4.cpp
++++ b/src/ObjWriting/Game/IW4/StructuredDataDef/StructuredDataDefDumperIW4.cpp
+@@ -41,22 +41,22 @@ namespace
+         case DATA_ENUM:
+             assert(!def->m_enums.empty());
+             out.m_category = CommonStructuredDataTypeCategory::ENUM;
+-            out.m_info.type_index = std::max(std::min(static_cast<size_t>(in.u.enumIndex), def->m_enums.size() - 1uz), 0uz);
++            out.m_info.type_index = std::max(std::min(static_cast<size_t>(in.u.enumIndex), def->m_enums.size() - static_cast<size_t>(1)), static_cast<size_t>(0));
+             break;
+         case DATA_STRUCT:
+             assert(!def->m_structs.empty());
+             out.m_category = CommonStructuredDataTypeCategory::STRUCT;
+-            out.m_info.type_index = std::max(std::min(static_cast<size_t>(in.u.structIndex), def->m_structs.size() - 1uz), 0uz);
++            out.m_info.type_index = std::max(std::min(static_cast<size_t>(in.u.structIndex), def->m_structs.size() - static_cast<size_t>(1)), static_cast<size_t>(0));
+             break;
+         case DATA_INDEXED_ARRAY:
+             assert(!def->m_indexed_arrays.empty());
+             out.m_category = CommonStructuredDataTypeCategory::INDEXED_ARRAY;
+-            out.m_info.type_index = std::max(std::min(static_cast<size_t>(in.u.indexedArrayIndex), def->m_indexed_arrays.size() - 1uz), 0uz);
++            out.m_info.type_index = std::max(std::min(static_cast<size_t>(in.u.indexedArrayIndex), def->m_indexed_arrays.size() - static_cast<size_t>(1)), static_cast<size_t>(0));
+             break;
+         case DATA_ENUM_ARRAY:
+             assert(!def->m_enumed_arrays.empty());
+             out.m_category = CommonStructuredDataTypeCategory::ENUM_ARRAY;
+-            out.m_info.type_index = std::max(std::min(static_cast<size_t>(in.u.enumedArrayIndex), def->m_enumed_arrays.size() - 1uz), 0uz);
++            out.m_info.type_index = std::max(std::min(static_cast<size_t>(in.u.enumedArrayIndex), def->m_enumed_arrays.size() - static_cast<size_t>(1)), static_cast<size_t>(0));
+             break;
+         case DATA_COUNT:
+         default:
+@@ -138,7 +138,7 @@ namespace
+         assert(!def->m_enums.empty());
+         out->m_element_size_in_bits = in->elementType.type == DATA_BOOL ? 1 : in->elementSize * 8;
+         out->m_array_type = ConvertType(def, in->elementType);
+-        out->m_enum_index = std::max(std::min(static_cast<size_t>(in->enumIndex), def->m_enums.size() - 1uz), 0uz);
++        out->m_enum_index = std::max(std::min(static_cast<size_t>(in->enumIndex), def->m_enums.size() - static_cast<size_t>(1)), static_cast<size_t>(0));
+ 
+         if (def->m_enums.empty())
+         {
+diff --git a/src/ObjWriting/Game/IW5/Menu/MenuWriterIW5.cpp b/src/ObjWriting/Game/IW5/Menu/MenuWriterIW5.cpp
+index 6d07772..16c661c 100644
+--- a/src/ObjWriting/Game/IW5/Menu/MenuWriterIW5.cpp
++++ b/src/ObjWriting/Game/IW5/Menu/MenuWriterIW5.cpp
+@@ -106,7 +106,7 @@ namespace
+                                                    && statement.entries[0].data.op == OP_LEFTPAREN
+                                                    && FindStatementClosingParenthesis(statement, 0) >= static_cast<size_t>(statement.numEntries);
+ 
+-            for (auto i = 0uz; i < entryCount; i++)
++            for (auto i = static_cast<size_t>(0); i < entryCount; i++)
+             {
+                 const auto& entry = statement.entries[i];
+                 if (entry.type == EET_OPERAND)
+diff --git a/src/ObjWriting/Game/T4/Sound/LoadedSoundDumperT4.cpp b/src/ObjWriting/Game/T4/Sound/LoadedSoundDumperT4.cpp
+index eeb011c..456ce84 100644
+--- a/src/ObjWriting/Game/T4/Sound/LoadedSoundDumperT4.cpp
++++ b/src/ObjWriting/Game/T4/Sound/LoadedSoundDumperT4.cpp
+@@ -13,9 +13,9 @@ namespace fs = std::filesystem;
+ 
+ namespace
+ {
+-    constexpr auto FOURCC_SIZE = 4uz;
+-    constexpr auto RIFF_WAVE_HEADER_SIZE = 12uz;
+-    constexpr auto RIFF_CHUNK_HEADER_SIZE = 8uz;
++    constexpr auto FOURCC_SIZE = static_cast<size_t>(4);
++    constexpr auto RIFF_WAVE_HEADER_SIZE = static_cast<size_t>(12);
++    constexpr auto RIFF_CHUNK_HEADER_SIZE = static_cast<size_t>(8);
+ 
+     constexpr std::string_view RIFF_ID = "RIFF";
+     constexpr std::string_view WAVE_FORM_TYPE = "WAVE";
+diff --git a/src/ObjWriting/ObjWriter.cpp b/src/ObjWriting/ObjWriter.cpp
+index 4def0e2..bbd39f9 100644
+--- a/src/ObjWriting/ObjWriter.cpp
++++ b/src/ObjWriting/ObjWriter.cpp
+@@ -18,7 +18,7 @@ bool IObjWriter::DumpZone(AssetDumpingContext& context)
+ 
+     if (context.ShouldTrackProgress())
+     {
+-        size_t totalProgress = 0uz;
++        size_t totalProgress = static_cast<size_t>(0);
+         for (const auto& dumper : m_asset_dumpers)
+             totalProgress += dumper->GetProgressTotalCount(context);
+ 
+diff --git a/src/ObjWriting/StructuredDataDef/StructuredDataDefDumper.cpp b/src/ObjWriting/StructuredDataDef/StructuredDataDefDumper.cpp
+index 93869d4..b73271d 100644
+--- a/src/ObjWriting/StructuredDataDef/StructuredDataDefDumper.cpp
++++ b/src/ObjWriting/StructuredDataDef/StructuredDataDefDumper.cpp
+@@ -205,11 +205,11 @@ void StructuredDataDefDumper::DumpStruct(const CommonStructuredDataDef& def, con
+     IncIndent();
+ 
+     auto currentOffsetInBit =
+-        def.m_root_type.m_category == CommonStructuredDataTypeCategory::STRUCT && def.m_root_type.m_info.type_index == structIndex ? 64uz : 0uz;
++        def.m_root_type.m_category == CommonStructuredDataTypeCategory::STRUCT && def.m_root_type.m_info.type_index == structIndex ? static_cast<size_t>(64) : static_cast<size_t>(0);
+     for (const auto& property : _struct.m_properties)
+         DumpProperty(def, property, currentOffsetInBit);
+ 
+-    currentOffsetInBit = utils::Align(currentOffsetInBit, 8uz);
++    currentOffsetInBit = utils::Align(currentOffsetInBit, static_cast<size_t>(8));
+     if ((currentOffsetInBit / 8) < _struct.m_size_in_byte)
+     {
+         Indent();
+diff --git a/src/ObjWriting/Techset/TechsetDumper.cpp.template b/src/ObjWriting/Techset/TechsetDumper.cpp.template
+index 397cac2..2041f7e 100644
+--- a/src/ObjWriting/Techset/TechsetDumper.cpp.template
++++ b/src/ObjWriting/Techset/TechsetDumper.cpp.template
+@@ -369,7 +369,7 @@ namespace
+             {
+                 const size_t totalArgCount = pass.perPrimArgCount + pass.perObjArgCount + pass.stableArgCount;
+                 commonPass.m_args.reserve(totalArgCount);
+-                for (auto argIndex = 0uz; argIndex < totalArgCount; argIndex++)
++                for (auto argIndex = static_cast<size_t>(0); argIndex < totalArgCount; argIndex++)
+                     commonPass.m_args.emplace_back(ConvertToCommonArg(pass.args[argIndex]));
+             }
+ 
+diff --git a/src/ObjWriting/XAnim/CompiledXAnimWriter.cpp b/src/ObjWriting/XAnim/CompiledXAnimWriter.cpp
+index 44b0d93..9872fa7 100644
+--- a/src/ObjWriting/XAnim/CompiledXAnimWriter.cpp
++++ b/src/ObjWriting/XAnim/CompiledXAnimWriter.cpp
+@@ -84,7 +84,7 @@ namespace
+         if (indices.size() != numLoopFrames)
+             return false;
+ 
+-        for (auto i = 0uz; i < indices.size(); i++)
++        for (auto i = static_cast<size_t>(0); i < indices.size(); i++)
+         {
+             if (indices[i] != i)
+                 return false;
+@@ -99,7 +99,7 @@ namespace
+     template<XQuatOrXQuat2 T> [[nodiscard]] int64_t ComputeQuatDot(const T& lhs, const T& rhs)
+     {
+         int64_t result = 0;
+-        for (auto i = 0uz; i < std::extent_v<decltype(lhs.value)>; i++)
++        for (auto i = static_cast<size_t>(0); i < std::extent_v<decltype(lhs.value)>; i++)
+             result += static_cast<int64_t>(lhs.value[i]) * static_cast<int64_t>(rhs.value[i]);
+ 
+         return result;
+@@ -349,7 +349,7 @@ namespace
+ 
+         case QuatType::HALF_QUAT_NO_SIZE:
+         {
+-            assert(encodedQuat.m_stored_values.size() == 1uz);
++            assert(encodedQuat.m_stored_values.size() == static_cast<size_t>(1));
+             stream::WriteValue(stream, static_cast<uint16_t>(1));
+             stream::WriteValue(stream, encodedQuat.m_stored_values[0]);
+             break;
+@@ -357,7 +357,7 @@ namespace
+ 
+         case QuatType::FULL_QUAT_NO_SIZE:
+         {
+-            assert(encodedQuat.m_stored_values.size() == 3uz);
++            assert(encodedQuat.m_stored_values.size() == static_cast<size_t>(3));
+             stream::WriteValue(stream, static_cast<uint16_t>(1));
+             for (const auto value : encodedQuat.m_stored_values)
+                 stream::WriteValue(stream, value);
+@@ -367,7 +367,7 @@ namespace
+         case QuatType::HALF_QUAT:
+         {
+             const auto frameCount = quat.m_indices.size();
+-            assert(frameCount > 0uz);
++            assert(frameCount > static_cast<size_t>(0));
+             assert(quat.m_frames2.size() == frameCount);
+             assert(encodedQuat.m_stored_values.size() == frameCount);
+ 
+@@ -381,9 +381,9 @@ namespace
+         case QuatType::FULL_QUAT:
+         {
+             const auto frameCount = quat.m_indices.size();
+-            assert(frameCount > 0uz);
++            assert(frameCount > static_cast<size_t>(0));
+             assert(quat.m_frames.size() == frameCount);
+-            assert(encodedQuat.m_stored_values.size() == frameCount * 3uz);
++            assert(encodedQuat.m_stored_values.size() == frameCount * static_cast<size_t>(3));
+ 
+             stream::WriteValue(stream, static_cast<uint16_t>(frameCount));
+             WriteIndicesIfNeeded(stream, quat.m_indices, numLoopFrames, useByteIndices);
+@@ -415,7 +415,7 @@ namespace
+         case TransType::SMALL_TRANS:
+         {
+             const auto frameCount = trans.m_indices.size();
+-            assert(frameCount > 0uz);
++            assert(frameCount > static_cast<size_t>(0));
+             assert(trans.m_frames_u8.size() == frameCount);
+ 
+             stream::WriteValue(stream, static_cast<uint16_t>(frameCount));
+@@ -436,7 +436,7 @@ namespace
+         case TransType::FULL_TRANS:
+         {
+             const auto frameCount = trans.m_indices.size();
+-            assert(frameCount > 0uz);
++            assert(frameCount > static_cast<size_t>(0));
+             assert(trans.m_frames_u16.size() == frameCount);
+ 
+             stream::WriteValue(stream, static_cast<uint16_t>(frameCount));
+@@ -461,7 +461,7 @@ namespace
+         const auto notifyCount = parts.m_notifies.size();
+ 
+         auto rawNotifyCount = notifyCount;
+-        if (notifyCount > 0uz)
++        if (notifyCount > static_cast<size_t>(0))
+         {
+             const auto& lastNotify = parts.m_notifies[notifyCount - 1];
+ 
+@@ -470,11 +470,11 @@ namespace
+                 rawNotifyCount--;
+         }
+ 
+-        assert(rawNotifyCount < 255uz);
++        assert(rawNotifyCount < static_cast<size_t>(255));
+         const auto rawNotifyCountByte = static_cast<uint8_t>(rawNotifyCount);
+         stream::WriteValue(stream, rawNotifyCountByte);
+ 
+-        for (auto i = 0uz; i < rawNotifyCount; i++)
++        for (auto i = static_cast<size_t>(0); i < rawNotifyCount; i++)
+         {
+             const auto& notify = parts.m_notifies[i];
+             stream::WriteCString(stream, notify.m_name);
+diff --git a/src/ObjWriting/XAnim/FlatXAnimReader.cpp b/src/ObjWriting/XAnim/FlatXAnimReader.cpp
+index 8f63818..bccde25 100644
+--- a/src/ObjWriting/XAnim/FlatXAnimReader.cpp
++++ b/src/ObjWriting/XAnim/FlatXAnimReader.cpp
+@@ -12,12 +12,12 @@ namespace
+ 
+     [[nodiscard]] std::vector<uint16_t> ReadPackedIndices(FlatXAnimReadCursor& cursor, const uint16_t storedSize, const bool useByteIndices)
+     {
+-        const auto count = static_cast<size_t>(storedSize) + 1uz;
++        const auto count = static_cast<size_t>(storedSize) + static_cast<size_t>(1);
+         std::vector<uint16_t> result(count);
+ 
+         if (useByteIndices)
+         {
+-            for (auto i = 0uz; i < count; i++)
++            for (auto i = static_cast<size_t>(0); i < count; i++)
+                 result[i] = cursor.PopDataByte();
+ 
+             return result;
+@@ -32,7 +32,7 @@ namespace
+             // The game inserts checkpoint values in dataShort
+             // Those checkpoint values are copied from positions in the full index list: the first entry, then every 256th entry, and always the final entry.
+             // The final entry is included even when it does not land exactly on a 256-entry boundary.
+-            cursor.SkipDataShort(((count - 2uz) / 256u) + 2uz);
++            cursor.SkipDataShort(((count - static_cast<size_t>(2)) / 256u) + static_cast<size_t>(2));
+             return result;
+         }
+ 
+@@ -285,7 +285,7 @@ namespace xanim
+                 auto& quat = boneTracks[boneIndex].m_quat;
+                 quat.m_type = QuatType::HALF_QUAT;
+                 const auto storedSize = static_cast<uint16_t>(cursor.PopDataShort());
+-                const auto frameCount = static_cast<size_t>(storedSize) + 1uz;
++                const auto frameCount = static_cast<size_t>(storedSize) + static_cast<size_t>(1);
+                 quat.m_indices = ReadPackedIndices(cursor, storedSize, useByteIndices);
+ 
+                 static_assert(sizeof(decltype(quat.m_frames2)::value_type) == sizeof(int16_t) * 2);
+@@ -298,7 +298,7 @@ namespace xanim
+                 auto& quat = boneTracks[boneIndex].m_quat;
+                 quat.m_type = QuatType::FULL_QUAT;
+                 const auto storedSize = static_cast<uint16_t>(cursor.PopDataShort());
+-                const auto frameCount = static_cast<size_t>(storedSize) + 1uz;
++                const auto frameCount = static_cast<size_t>(storedSize) + static_cast<size_t>(1);
+                 quat.m_indices = ReadPackedIndices(cursor, storedSize, useByteIndices);
+ 
+                 static_assert(sizeof(decltype(quat.m_frames)::value_type) == sizeof(int16_t) * 4);
+@@ -338,7 +338,7 @@ namespace xanim
+                 trans.m_type = TransType::SMALL_TRANS;
+ 
+                 const auto storedSize = static_cast<uint16_t>(cursor.PopDataShort());
+-                const auto frameCount = static_cast<size_t>(storedSize) + 1uz;
++                const auto frameCount = static_cast<size_t>(storedSize) + static_cast<size_t>(1);
+                 trans.m_mins = ReadFloat3(cursor);
+                 trans.m_size = ReadFloat3(cursor);
+                 trans.m_indices = ReadPackedIndices(cursor, storedSize, useByteIndices);
+@@ -358,14 +358,14 @@ namespace xanim
+                 trans.m_type = TransType::FULL_TRANS;
+ 
+                 const auto storedSize = static_cast<uint16_t>(cursor.PopDataShort());
+-                const auto frameCount = static_cast<size_t>(storedSize) + 1uz;
++                const auto frameCount = static_cast<size_t>(storedSize) + static_cast<size_t>(1);
+                 trans.m_mins = ReadFloat3(cursor);
+                 trans.m_size = ReadFloat3(cursor);
+                 trans.m_indices = ReadPackedIndices(cursor, storedSize, useByteIndices);
+ 
+                 static_assert(sizeof(decltype(trans.m_frames_u16)::value_type) == sizeof(int16_t) * 3u);
+                 trans.m_frames_u16.resize(frameCount);
+-                cursor.ReadRandomDataShort(trans.m_frames_u16.data(), frameCount * 3uz);
++                cursor.ReadRandomDataShort(trans.m_frames_u16.data(), frameCount * static_cast<size_t>(3));
+             }
+ 
+             for (auto i = 0u; i < boneCounts.GetCountForTransType(TransType::TRANS_NO_SIZE); i++)
+@@ -388,7 +388,7 @@ namespace xanim
+                 transAssigned[bone] = true;
+             }
+ 
+-            for (auto i = 0uz; i < boneCount; i++)
++            for (auto i = static_cast<size_t>(0); i < boneCount; i++)
+                 assert(transAssigned[i]);
+         }
+         catch (const FlatDataReadException& exception)
+diff --git a/src/ObjWriting/XModel/Export/XModelBinWriter.cpp b/src/ObjWriting/XModel/Export/XModelBinWriter.cpp
+index f9370d3..26b6a85 100644
+--- a/src/ObjWriting/XModel/Export/XModelBinWriter.cpp
++++ b/src/ObjWriting/XModel/Export/XModelBinWriter.cpp
+@@ -297,7 +297,7 @@ class XModelBinWriter7 final : public XModelBinWriterBase
+ 
+     void WriteFaces(const XModelCommon& xmodel)
+     {
+-        auto totalFaceCount = 0uz;
++        auto totalFaceCount = static_cast<size_t>(0);
+         for (const auto& object : xmodel.m_objects)
+             totalFaceCount += object.m_faces.size();
+ 
+diff --git a/src/ObjWriting/XModel/Export/XModelExportWriter.cpp b/src/ObjWriting/XModel/Export/XModelExportWriter.cpp
+index b8531a6..c2d5bbb 100644
+--- a/src/ObjWriting/XModel/Export/XModelExportWriter.cpp
++++ b/src/ObjWriting/XModel/Export/XModelExportWriter.cpp
+@@ -122,7 +122,7 @@ class XModelExportWriter6 final : public XModelExportWriterBase
+ 
+     void WriteFaces(const XModelCommon& xmodel) const
+     {
+-        auto totalFaceCount = 0uz;
++        auto totalFaceCount = static_cast<size_t>(0);
+         for (const auto& object : xmodel.m_objects)
+             totalFaceCount += object.m_faces.size();
+ 
+diff --git a/src/ObjWriting/XModel/Gltf/GltfWriter.cpp b/src/ObjWriting/XModel/Gltf/GltfWriter.cpp
+index ecac06e..2eb5cac 100644
+--- a/src/ObjWriting/XModel/Gltf/GltfWriter.cpp
++++ b/src/ObjWriting/XModel/Gltf/GltfWriter.cpp
+@@ -566,7 +566,7 @@ namespace
+             const auto expectedBufferSize = GetExpectedBufferSize(xmodel, hasNonDefaultColorData);
+             bufferData.resize(expectedBufferSize);
+ 
+-            auto currentBufferOffset = 0uz;
++            auto currentBufferOffset = static_cast<size_t>(0);
+ 
+             float minPosition[3]{
+                 std::numeric_limits<float>::max(),
+@@ -710,7 +710,7 @@ namespace
+ 
+         static size_t GetExpectedBufferSize(const XModelCommon& xmodel, const bool hasNonDefaultColorData)
+         {
+-            auto result = 0uz;
++            auto result = static_cast<size_t>(0);
+ 
+             result += xmodel.m_vertices.size() * sizeof(GltfVertex);
+ 
+diff --git a/src/Parser/Parsing/Impl/DefinesStreamProxy.cpp b/src/Parser/Parsing/Impl/DefinesStreamProxy.cpp
+index c2e20fb..f380ce5 100644
+--- a/src/Parser/Parsing/Impl/DefinesStreamProxy.cpp
++++ b/src/Parser/Parsing/Impl/DefinesStreamProxy.cpp
+@@ -583,7 +583,7 @@ bool DefinesStreamProxy::MatchDefinedExpression(const ParserLine& line, size_t&
+ 
+ void DefinesStreamProxy::ExpandDefinedExpressions(ParserLine& line) const
+ {
+-    auto currentPos = 0uz;
++    auto currentPos = static_cast<size_t>(0);
+ 
+     while (true)
+     {
+@@ -849,7 +849,7 @@ void DefinesStreamProxy::InsertMacroParameters(std::ostringstream& out, const De
+         return;
+     }
+ 
+-    auto lastPos = 0uz;
++    auto lastPos = static_cast<size_t>(0);
+     for (const auto& parameterPosition : macro->m_parameter_positions)
+     {
+         if (lastPos < parameterPosition.m_parameter_position)
+@@ -1116,7 +1116,7 @@ ParserLine DefinesStreamProxy::NextLine()
+     {
+         if (m_in_define)
+         {
+-            auto currentPos = 0uz;
++            auto currentPos = static_cast<size_t>(0);
+ 
+             if (m_parameter_state != ParameterState::NOT_IN_PARAMETERS)
+             {
+diff --git a/src/Parser/Parsing/TokenPos.cpp b/src/Parser/Parsing/TokenPos.cpp
+index d8dcf46..e553cd5 100644
+--- a/src/Parser/Parsing/TokenPos.cpp
++++ b/src/Parser/Parsing/TokenPos.cpp
+@@ -7,8 +7,8 @@ namespace
+ 
+ TokenPos::TokenPos()
+     : m_filename(EMPTY_FILENAME),
+-      m_line(1uz),
+-      m_column(1uz)
++      m_line(static_cast<size_t>(1)),
++      m_column(static_cast<size_t>(1))
+ {
+ }
+ 
+diff --git a/src/Unlinking/UnlinkerArgs.cpp b/src/Unlinking/UnlinkerArgs.cpp
+index 9e2bac8..9a3f4ae 100644
+--- a/src/Unlinking/UnlinkerArgs.cpp
++++ b/src/Unlinking/UnlinkerArgs.cpp
+@@ -254,7 +254,7 @@ void UnlinkerArgs::AddSpecifiedAssetType(std::string value)
+ 
+ void UnlinkerArgs::ParseCommaSeparatedAssetTypeString(const std::string& input)
+ {
+-    auto currentPos = 0uz;
++    auto currentPos = static_cast<size_t>(0);
+     size_t endPos;
+ 
+     std::string lowerInput(input);
+diff --git a/src/Utils/Utils/Arguments/ArgumentParser.cpp b/src/Utils/Utils/Arguments/ArgumentParser.cpp
+index 14fc2e3..9ed4372 100644
+--- a/src/Utils/Utils/Arguments/ArgumentParser.cpp
++++ b/src/Utils/Utils/Arguments/ArgumentParser.cpp
+@@ -43,7 +43,7 @@ bool ArgumentParser::ParseArguments(std::vector<std::string>& args)
+     m_path = args[0];
+ 
+     const auto argCount = args.size();
+-    for (auto argIndex = 1uz; argIndex < argCount; argIndex++)
++    for (auto argIndex = static_cast<size_t>(1); argIndex < argCount; argIndex++)
+     {
+         auto& arg = args[argIndex];
+ 
+@@ -107,7 +107,7 @@ bool ArgumentParser::ParseArguments(std::vector<std::string>& args)
+             }
+ 
+             auto& parameters = m_matched_options[matchedOption];
+-            for (auto parameterIndex = 0uz; parameterIndex < parameterCount; parameterIndex++)
++            for (auto parameterIndex = static_cast<size_t>(0); parameterIndex < parameterCount; parameterIndex++)
+             {
+                 std::string& param = args[argIndex + parameterIndex + 1];
+ 
+diff --git a/src/XMemCompress/XMemDecompress.cpp b/src/XMemCompress/XMemDecompress.cpp
+index 4953c6e..6e5909b 100644
+--- a/src/XMemCompress/XMemDecompress.cpp
++++ b/src/XMemCompress/XMemDecompress.cpp
+@@ -57,10 +57,10 @@ void XMemDecompressContext::Reset() const
+ 
+ std::optional<size_t> XMemDecompressContext::Process(const uint8_t* input, const size_t inputLength, uint8_t* output, const size_t outputBufferSize) const
+ {
+-    size_t curInputOffset = 0uz;
++    size_t curInputOffset = static_cast<size_t>(0);
+     size_t curInputSize = inputLength;
+ 
+-    size_t curOutputOffset = 0uz;
++    size_t curOutputOffset = static_cast<size_t>(0);
+     size_t curOutputSize = outputBufferSize;
+ 
+     uint8_t lowByte;
+diff --git a/src/ZoneCodeGeneratorLib/Domain/Computations/MemberDeclarationModifierComputations.cpp b/src/ZoneCodeGeneratorLib/Domain/Computations/MemberDeclarationModifierComputations.cpp
+index 5f77f86..05db12c 100644
+--- a/src/ZoneCodeGeneratorLib/Domain/Computations/MemberDeclarationModifierComputations.cpp
++++ b/src/ZoneCodeGeneratorLib/Domain/Computations/MemberDeclarationModifierComputations.cpp
+@@ -75,7 +75,7 @@ std::vector<DeclarationModifier*> DeclarationModifierComputations::GetFollowingD
+ 
+     if (m_modifier_indices.size() + 1 < declarationModifiers.size())
+     {
+-        for (auto i = declarationModifiers.begin() + m_modifier_indices.size() + 1uz; i != declarationModifiers.end(); ++i)
++        for (auto i = declarationModifiers.begin() + m_modifier_indices.size() + static_cast<size_t>(1); i != declarationModifiers.end(); ++i)
+         {
+             following.push_back(i->get());
+         }
+diff --git a/src/ZoneCodeGeneratorLib/Generating/Templates/ZoneLoadTemplate.cpp b/src/ZoneCodeGeneratorLib/Generating/Templates/ZoneLoadTemplate.cpp
+index 3442e10..4e61c2b 100644
+--- a/src/ZoneCodeGeneratorLib/Generating/Templates/ZoneLoadTemplate.cpp
++++ b/src/ZoneCodeGeneratorLib/Generating/Templates/ZoneLoadTemplate.cpp
+@@ -388,7 +388,7 @@ namespace
+                 LINEF("fillAccessor.Fill({0}[0], {1});", MakeMemberAccess(&structInfo, &memberInfo, modifier), memberInfo.m_member->m_offset)
+             }
+ 
+-            LINEF("for (auto i = 1uz; i < dynamicArraySize; i++)", structInfo.m_definition->m_name, memberInfo.m_member->m_name)
++            LINEF("for (auto i = static_cast<size_t>(1); i < dynamicArraySize; i++)", structInfo.m_definition->m_name, memberInfo.m_member->m_name)
+             LINE("{")
+             m_intendation++;
+             if (callFillForMember)
+@@ -1163,7 +1163,7 @@ namespace
+             {
+                 LINEF("const auto fillArraySize = static_cast<size_t>({0});", MakeEvaluation(modifier.GetArrayPointerCountEvaluation()))
+                 LINEF("const auto fill = m_stream.LoadWithFill({0} * fillArraySize);", member->m_member->m_type_declaration->m_type->GetSize())
+-                LINE("for (auto i = 0uz; i < fillArraySize; i++)")
++                LINE("for (auto i = static_cast<size_t>(0); i < fillArraySize; i++)")
+                 LINE("{")
+                 m_intendation++;
+                 LINEF("{0} = &{1}[i];", MakeTypeVarName(member->m_type->m_definition), MakeMemberAccess(info, member, modifier))
+diff --git a/src/ZoneCodeGeneratorLib/Generating/Templates/ZoneWriteTemplate.cpp b/src/ZoneCodeGeneratorLib/Generating/Templates/ZoneWriteTemplate.cpp
+index fd484bb..1a00f87 100644
+--- a/src/ZoneCodeGeneratorLib/Generating/Templates/ZoneWriteTemplate.cpp
++++ b/src/ZoneCodeGeneratorLib/Generating/Templates/ZoneWriteTemplate.cpp
+@@ -490,7 +490,7 @@ namespace
+                 if (!computations.IsInRuntimeBlock())
+                 {
+                     LINEF("const auto fill = m_stream->WriteWithFill({0} * fillArraySize);", member->m_member->m_type_declaration->m_type->GetSize())
+-                    LINE("for (auto i = 0uz; i < fillArraySize; i++)")
++                    LINE("for (auto i = static_cast<size_t>(0); i < fillArraySize; i++)")
+                     LINE("{")
+                     m_intendation++;
+                     LINEF("{0} = &{1}[i];", MakeTypeVarName(member->m_type->m_definition), MakeMemberAccess(info, member, modifier))
+diff --git a/src/ZoneCodeGeneratorLib/Parsing/Commands/Impl/CommandsParserState.cpp b/src/ZoneCodeGeneratorLib/Parsing/Commands/Impl/CommandsParserState.cpp
+index 44ae660..e5b1db7 100644
+--- a/src/ZoneCodeGeneratorLib/Parsing/Commands/Impl/CommandsParserState.cpp
++++ b/src/ZoneCodeGeneratorLib/Parsing/Commands/Impl/CommandsParserState.cpp
+@@ -117,7 +117,7 @@ bool CommandsParserState::GetTypenameAndMembersFromTypename(const std::string& t
+     }
+ 
+     DataDefinition* foundDefinition = nullptr;
+-    auto currentSeparatorPos = 0uz;
++    auto currentSeparatorPos = static_cast<size_t>(0);
+     while (GetNextTypenameSeparatorPos(typeNameValue, currentSeparatorPos, currentSeparatorPos))
+     {
+         std::string currentTypename(typeNameValue, 0, currentSeparatorPos);
+diff --git a/src/ZoneCommon/Zone/XChunk/AbstractSalsa20Processor.cpp b/src/ZoneCommon/Zone/XChunk/AbstractSalsa20Processor.cpp
+index 0196818..94a13a1 100644
+--- a/src/ZoneCommon/Zone/XChunk/AbstractSalsa20Processor.cpp
++++ b/src/ZoneCommon/Zone/XChunk/AbstractSalsa20Processor.cpp
+@@ -15,14 +15,14 @@ AbstractSalsa20Processor::AbstractSalsa20Processor(const unsigned streamCount, c
+ void AbstractSalsa20Processor::InitStreams(const std::string& zoneName, const uint8_t* salsa20Key, const size_t keySize)
+ {
+     // Original buffer must have been 32 bytes because the zoneName can at most be 31 characters be long before being cut off
+-    const auto zoneNameLength = std::min(zoneName.length(), 31uz);
++    const auto zoneNameLength = std::min(zoneName.length(), static_cast<size_t>(31));
+ 
+     const size_t blockHashBufferSize = BLOCK_HASHES_COUNT * m_stream_count * SHA1_HASH_SIZE;
+ 
+     assert(blockHashBufferSize % 4 == 0);
+ 
+     size_t zoneNameOffset = 0;
+-    for (auto i = 0uz; i < blockHashBufferSize; i += 4)
++    for (auto i = static_cast<size_t>(0); i < blockHashBufferSize; i += 4)
+     {
+         memset(&m_block_hashes[i], zoneName[zoneNameOffset++], 4u);
+ 
+diff --git a/src/ZoneLoading/Loading/Steps/StepDumpData.cpp b/src/ZoneLoading/Loading/Steps/StepDumpData.cpp
+index 906fce4..e7cd5a8 100644
+--- a/src/ZoneLoading/Loading/Steps/StepDumpData.cpp
++++ b/src/ZoneLoading/Loading/Steps/StepDumpData.cpp
+@@ -16,7 +16,7 @@ namespace
+         void PerformStep(ZoneLoader& zoneLoader, ILoadingStream& stream) override
+         {
+             uint8_t tempBuffer[0x1000];
+-            auto dumpedBytes = 0uz;
++            auto dumpedBytes = static_cast<size_t>(0);
+ 
+             std::ofstream tempFile(m_file_name, std::fstream::out | std::fstream::binary);
+ 
+diff --git a/src/ZoneLoading/Loading/Steps/StepSkipBytes.cpp b/src/ZoneLoading/Loading/Steps/StepSkipBytes.cpp
+index b2874f5..01baeb0 100644
+--- a/src/ZoneLoading/Loading/Steps/StepSkipBytes.cpp
++++ b/src/ZoneLoading/Loading/Steps/StepSkipBytes.cpp
+@@ -13,7 +13,7 @@ namespace
+         void PerformStep(ZoneLoader& zoneLoader, ILoadingStream& stream) override
+         {
+             uint8_t tempBuffer[128];
+-            auto skippedBytes = 0uz;
++            auto skippedBytes = static_cast<size_t>(0);
+ 
+             while (skippedBytes < m_skip_count)
+             {
+diff --git a/src/ZoneLoading/Zone/Stream/ZoneInputStream.cpp b/src/ZoneLoading/Zone/Stream/ZoneInputStream.cpp
+index 58b4465..3e47f14 100644
+--- a/src/ZoneLoading/Zone/Stream/ZoneInputStream.cpp
++++ b/src/ZoneLoading/Zone/Stream/ZoneInputStream.cpp
+@@ -62,8 +62,8 @@ namespace
+               m_offset_mask(std::numeric_limits<uintptr_t>::max() >> (sizeof(uintptr_t) * 8 - (pointerBitCount - blockBitCount))),
+               m_last_fill_size(0),
+               m_has_progress_callback(false),
+-              m_progress_current_size(0uz),
+-              m_progress_total_size(0uz)
++              m_progress_current_size(static_cast<size_t>(0)),
++              m_progress_total_size(static_cast<size_t>(0))
+         {
+             assert(pointerBitCount % 8u == 0u);
+             assert(insertBlock < static_cast<block_t>(blocks.size()));
+@@ -474,7 +474,7 @@ namespace
+ 
+         [[nodiscard]] size_t CalculateTotalSize() const
+         {
+-            size_t result = 0uz;
++            size_t result = static_cast<size_t>(0);
+ 
+             for (const auto& block : m_blocks)
+             {
+diff --git a/src/ZoneWriting/Writing/Steps/StepWriteZero.cpp b/src/ZoneWriting/Writing/Steps/StepWriteZero.cpp
+index 46bff10..83f3677 100644
+--- a/src/ZoneWriting/Writing/Steps/StepWriteZero.cpp
++++ b/src/ZoneWriting/Writing/Steps/StepWriteZero.cpp
+@@ -12,7 +12,7 @@ void StepWriteZero::PerformStep(ZoneWriter* zoneWriter, IWritingStream* stream)
+     constexpr uint64_t num = 0;
+     size_t toWrite;
+ 
+-    for (auto i = 0uz; i < m_count; i += toWrite)
++    for (auto i = static_cast<size_t>(0); i < m_count; i += toWrite)
+     {
+         toWrite = std::min(sizeof(uint64_t), m_count - i);
+         stream->Write(&num, toWrite);

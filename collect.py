@@ -1,0 +1,58 @@
+"""Refresh this repo from the working projects, then review with `git status` and commit.
+
+Copies only our own reverse-engineering output (struct headers, size probes, OAT
+patches, binary-format decoders, notes) - never game files or dumped assets.
+"""
+import shutil, subprocess
+from pathlib import Path
+
+HERE = Path(__file__).parent
+CONV = Path(r'E:\Documents\BO1MapConverter')
+
+COPIES = {
+    'headers': [CONV / 'research' / n for n in ('T5.h', 'T5_Assets.h')]
+               + [CONV / 'research' / 'probe' / n for n in ('T6_Assets.h', 'sizes.cpp', 'sizes.txt', 'b.bat')],
+    'tools': [CONV / 'research' / n for n in ('structdiff.py', 'structdiff.txt')],
+    # B2W's own code and handoff log are not ours to publish (no license; other people's paths)
+    'notes': [CONV / 'research' / 'bo1_to_bo2_porting.md'],
+    # ZM Workshop's code stays private: the user doesn't want the tool uploaded
+}
+
+# local OAT trees: our uncommitted changes as a patch plus our new untracked files
+OAT_TREES = ('oat', 'oat-bsp', 'oat_ext')
+
+
+def git(tree, *args):
+    return subprocess.run(['git', '-C', str(tree), *args], capture_output=True, text=True,
+                          encoding='utf-8', errors='replace', check=True).stdout
+
+
+def main():
+    for dest, sources in COPIES.items():
+        out = HERE / dest
+        out.mkdir(parents=True, exist_ok=True)
+        for src in sources:
+            if src.is_file():
+                shutil.copy2(src, out / src.name)
+            else:
+                print('missing', src)
+    for name in OAT_TREES:
+        tree = CONV / name
+        out = HERE / 'oat-patches' / name
+        if out.exists():
+            shutil.rmtree(out)
+        out.mkdir(parents=True)
+        base = git(tree, 'rev-parse', 'HEAD').strip()
+        (out / 'BASE_COMMIT').write_text(base + '\n')
+        (out / 'changes.patch').write_text(git(tree, 'diff', '--binary'), encoding='utf-8')
+        for rel in git(tree, 'ls-files', '--others', '--exclude-standard').splitlines():
+            if rel.startswith('src/waw2bo2/') or not rel.startswith('src/'):
+                continue  # converter copies and build output live elsewhere
+            target = out / 'new' / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(tree / rel, target)
+    print('done')
+
+
+if __name__ == '__main__':
+    main()

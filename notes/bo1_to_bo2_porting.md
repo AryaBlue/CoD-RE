@@ -1,0 +1,320 @@
+# Porting BO1 (T5) zombie maps to BO2 (T6): research notes
+
+Target: **Kino der Toten** (`zombie_theater`) as a BO2 Zombies map, `zm_kino`.
+First milestone: load into the map and walk around without falling through the floor. No gameplay scripts.
+
+Researched 2026-10-18. Sources:
+- OpenAssetTools (OAT) v0.33 struct headers: `T5_Assets.h` and `T6_Assets.h`.
+- A size probe compiled against both headers (x86, MSVC).
+- A full OAT dump of `zombie_theater.ff`.
+- An OAT listing of BO2's `zm_nuked.ff`.
+- The BO1 game and mod-tools folders.
+
+Working files are in `research\` next to this note:
+- `structdiff.txt`: field-by-field diff.
+- `probe\sizes.txt`: struct sizes.
+- `theater_list.txt` and `nuked_list.txt`: zone listings.
+- `theater\`: the dump.
+
+---
+
+## 1. Where BO1 keeps its data
+
+| What | Where |
+|---|---|
+| Game | `D:\SteamLibrary\steamapps\common\Call of Duty Black Ops` |
+| Kino fastfile | `zone\Common\zombie_theater.ff` (+ `zombie_theater_patch.ff`) |
+| Shared zombie assets | `zone\Common\common_zombie.ff` (and `common.ff`, `code_post_gfx.ff`) |
+| Localized strings and sounds | `zone\English\en_zombie_theater.ff` and the other `en_*.ff` files |
+| Mod tools | `D:\SteamLibrary\steamapps\common\Call of Duty Black Ops 42740` |
+
+**Engine side.** BO1 Zombies runs on the **SP (campaign) engine**:
+- The map's world is `maps/zombie_theater.d3dbsp`.
+- AI paths live in a **GameWorldSp**.
+- BO2 Zombies runs on the **MP engine**: `maps/mp/zm_*.d3dbsp` with **GameWorldMp**.
+
+**Mod tools (what's actually there):**
+- `bin`: asset_manager, converter, linker_pc, AssetViewer, effectsed3 and the Launcher. **No Radiant, cod2map or cod2rad in this install.** BO1 custom maps were made with Radiant from the mod tools, so the install may be incomplete. Verifying the files in Steam may help.
+- `map_source\zombie_theater.map` and the other official maps are **50-byte placeholders** ("// Blank // Used By Launcher To Populate Map List"). Treyarch never shipped the source of its maps, so **there is no Kino .map to recompile**.
+- `raw\` holds GDT-era source data:
+  - materials, images, animtrees, character and aitype scripts, `level_dependencies.csv`, `coopmaps.arena`;
+  - gsc for `zombie_pentagon` only.
+- `model_export`, `deffiles` and `materialfactory` are the asset-pipeline inputs. They're useful as reference for material types.
+
+**Conclusion.** Every port has to start from the **compiled** assets in `zombie_theater.ff`. No route goes through source.
+
+### What is inside zombie_theater.ff (OAT `--list`)
+
+| Asset type | Count | Notes |
+|---|---|---|
+| material | 1377 | 622 use `l_*` (lit model) techsets, 344 `mc_*`, 189 `wc_*` (world) |
+| image | 1318 | in the ff itself |
+| xmodel | 344 | static props, characters, weapons |
+| techniqueset | 198 | D3D9 shader bytecode |
+| xanim | 177 | |
+| fx | 129 | |
+| rawfile | 50 | **GSC/CSC source as plain text**, readable |
+| physpreset | 14 | |
+| weapon | 13 | |
+| stringtable, soundbank, lightdef | 1 each | |
+| **gfxworld** | 1 | `maps/zombie_theater.d3dbsp`: render geometry, lightmaps, visibility |
+| **clipmap** | 1 | collision. **This is what stops you falling through** |
+| **comworld** | 1 | primary lights |
+| **gameworldsp** | 1 | AI path nodes |
+| **mapents** | 1 | entity string |
+
+What OAT can dump to files:
+
+| Dumped by OAT | Not dumped (loaded, but no dumper) |
+|---|---|
+| xmodels (GLB + JSON) | gfxworld |
+| materials (JSON) | clipmap |
+| techsets and techniques (+ shader blobs) | comworld |
+| xanims (binary) | gameworldsp |
+| weapons, rawfiles | |
+| lights, vision, sun, physic | |
+| mapents (`maps/zombie_theater.d3dbsp.ents`) | |
+
+For the four world assets, the converter has to read them from OAT's in-memory structures (see §5).
+
+### Kino's entity string (2794 entities)
+
+| Count | Class | Port action |
+|---|---|---|
+| 1460 | `node_pathnode` | keep the data in PathData. The ents copy is only for reference |
+| 501 | `script_struct` | **needed later** for gameplay scripts (spawns, box, perks…) |
+| 275 | `script_brushmodel` | doors and debris. They reference `*N` collision submodels |
+| 108 | `script_model` | keep |
+| 73 / 54 / 14 / 2 | `trigger_use` / `trigger_multiple` / `trigger_once` / `trigger_damage` | **T6 needs MapTriggers built for these** (§4.6) |
+| 54 + 54 | `node_negotiation_begin` / `_end` | traversals (pathing) |
+| 28 / 21 / 1 | `actor_zombie_*` spawners | BO1-SP only. Drop for milestone 1 |
+| 1 | `info_player_start` | `-1 -1379 128`. Start position |
+| 4 | `script_struct targetname initial_spawn_points` | the co-op start spots BO2 ZM also uses |
+| | `worldspawn` | sun and skybox (`skybox_zombie_theater`), exposure etc. |
+
+---
+
+## 2. Struct-level differences (sizes measured, x86)
+
+Full field diff: `structdiff.txt`. ✅ = same layout, ⚠ = changed, ❌ = rebuilt.
+
+### Models, materials, images
+
+| Struct | T5 | T6 | What changed |
+|---|---|---|---|
+| XModel | 252 | 248 | ⚠ T5 `lodDistAutoGenerated` and `XModelStreamInfo` removed. T6 adds `himipInvSqRadii*` and `lightingOriginOffset/Range` |
+| XModelLodInfo | 32 | 28 | ⚠ T5 `lod/smcIndexPlusOne/smcAllocBits` bytes removed |
+| XSurface | 68 | 80 | ⚠ T5 `baseTriIndex` removed. Now 16-aligned with D3D11 buffers |
+| GfxPackedVertex | 32 | 32 | ✅ identical (xyz, binormalSign, color, packed texcoord, packed normal/tangent) |
+| XBoneInfo, XModelCollSurf_s, XRigidVertList, XSurfaceVertexInfo | = | = | ✅ |
+| Material | 192 | 112 | ⚠ `stateBitsEntry[130]` → `[36]` (fewer techniques). `maxStreamedMips` → `probeMipBits`. Adds `thermalMaterial` |
+| MaterialInfo | 40 | 48 | ⚠ adds `surfaceFlags` and `contents`. The `GfxDrawSurf` bitfield is repacked (T5 has fade/hdr/glight bits, T6 has dlightMask, wider customIndex and probe index) |
+| MaterialTechniqueSet | 528 | 152 | ❌ different technique list. **T5 shaders are D3D9 SM3 bytecode and T6 is D3D11, so they can't be reused.** Remap each material to an existing T6 techset |
+| GfxImage | 52 | 80 | ⚠ adds `streamedParts[]` (ipak streaming) and `streamedPartCount`. `mapType` becomes an enum. Pixels go through OAT (BO1 IWI v13 → BO2 IWI v27 / DDS) |
+| XAnimParts | 104 | 104 | same size, but **OAT has no T6 xanim loader**, so it can't relink anims yet |
+
+**Models are already a solved problem.** OAT exports T5 xmodels to GLB + JSON (`"_game": "t5"`). ZM Workshop already turns GLB into T6 xmodels and handles:
+- the 65535-face limit;
+- the 32767-vertex limit for animated models;
+- the 65535-vertex limit for rigid models;
+- `collLod` fixes;
+- pulling missing materials from other zones.
+
+**Materials need a techset remap**, by technique type:
+- BO1 world: `wc_l_sm_*`. BO2: `wc_lit_sm_*_<hash>` (zm_nuked carries e.g. `wc_lit_sm_b0c0n0s0_w16w6e35`).
+- BO1 models: `l_sm_*` / `mc_l_sm_*`. These map to the BO2 `mc_lit_sm_*` / `lit_sm_*` families.
+- Pull the T6 techsets from a stock zone with `--load` (zm_nuked.ff / common_zm.ff), the same way missing materials are pulled today.
+
+### Map world
+
+| Struct | T5 | T6 | What changed |
+|---|---|---|---|
+| **GfxWorld** | 1084 | 1028 | ⚠ see the list below |
+| GfxWorldDraw | 192 | 68 | ❌ see the list below |
+| GfxSurface / srfTriangles_t | | | ⚠ fields reordered: `vertexLayerData` → `vertexDataOffset0/1`; `himipRadiusSq` → `himipRadiusInvSq` (invert it); `stream2ByteOffset` removed |
+| GfxWorldDpvsStatic | 112 | 116 | ⚠ surface ranges re-categorised (`decal*` → `litTrans*`, `emissive*` split opaque/trans). `dynamicSModelCount`, `lodData` and `cullGroups` removed. Adds `surfaceCastsShadow` and `smodelCastsShadow` bit arrays |
+| GfxStaticModelDrawInst | 76 | 152 | ⚠ `smodelCacheIndex` removed. Adds `invScaleSq`, `colorsIndex`, quantised `lightingSH`, `visibility`, `smid`, `lmapVertexInfo[4]` (per-vertex lightmap colours) |
+| GfxStaticModelInst | 40 | 36 | ⚠ |
+| GfxCell | 56 | 48 | ⚠ cull groups removed |
+| GfxPortal | 68 | 92 | ⚠ adds `bounds[2]` |
+| GfxLightGrid | 56 | 72 | ⚠ `hasLightRegions` removed. Adds `offset`, SH `coeffs[]`, `skyGridVolumes[]` |
+| GfxReflectionProbe | 24 | 76 | ⚠ adds `lightingSH` and `mipLodBias` |
+| GfxLightmapArray | 12 | 8 | ⚠ `secondaryB` dropped (T5 uses 3 lightmap images, T6 uses 2) |
+| GfxBrushModel | 60 | 64 | ⚠ |
+| SunLightParseParams | 180 | 216 | ⚠ |
+| GfxAabbTree, GfxWorldDpvsPlanes, GfxShadowGeometry, GfxWorldStreamInfo | = | = | ✅ |
+| **clipMap_t** | 332 | 332 | ⚠ same size but **reorganised** (see the next list) |
+| ClipInfo (T6 only) | | 72 | planes, materials, brush sides, leafbrush nodes, leafbrushes, brushVerts, uinds, brushes, plus **new** `brushBounds[]` and `brushContents[]` |
+| dmaterial_t → ClipMaterial | 72 | 12 | `char material[64]` → `const char* name` |
+| cbrush_t | 96 | 96 | ✅ same fields (vec3 typedefs). In T6 it sits in an aligned array |
+| cLeaf_s, cLeafBrushNode_s, cbrushside_t, cplane_s | = | = | ✅ |
+| cmodel_t | 72 | 76 | ⚠ adds `ClipInfo* info` (for submodels/brushmodels) |
+| cStaticModel_s | 80 | 84 | ⚠ adds `int contents` |
+| CollisionPartition | 20 | 16 | ⚠ borders removed (T6 has no `CollisionBorder`) |
+| **ComWorld** | 64 | 16 | ⚠ water and burnable cell data removed. Keep only primaryLights |
+| ComPrimaryLight | 220 | 196 | ⚠ T5 `specularColor` and `attenuation[4]` collapse into `dAttenuation` and `roundness`. Adds `useCookie` and `shadowmapVolume` |
+| **GameWorldSp → GameWorldMp** | 44 | 44 | ✅ **identical layout** (`name` + `PathData`). Only the asset type and name change |
+| PathData | 40 | 40 | ⚠ adds `originalNodeCount`. Chain-node arrays removed. Adds `smoothBytes/smoothCache` |
+| pathnode_t | 128 | 144 | ⚠ constant part: `spawnflags` u16 → int, `wChainId/Depth/Parent` removed. Dynamic part grows |
+| **MapEnts** | 12 | 36 | ⚠ adds **`MapTriggers trigger`** (trigger models, hulls and slabs) |
+
+GfxWorld changes:
+- Removed: sky surface list, `sunColorFromBsp`, `cullGroupCount`, the world LOD chain arrays, and `nonSunPrimaryLightForModelDynEnt`.
+- Added:
+  - fog, fog modifier and LUT volumes;
+  - `siegeSkinInsts`;
+  - `lutMaterial`;
+  - `lightingFlags` and `lightingQuality`.
+- `sceneDynModel` changes type.
+
+GfxWorldDraw:
+- T5 has a single 44-byte `GfxWorldVertex` stream (xyz, binormalSign, color, uv, **lmapCoord**, normal, tangent), plus a separate "layer" stream and the `terrainScorchImages[31]` array.
+- T6 has **two raw vertex streams, `vd0` / `vd1`** (byte blobs + D3D11 buffers), and the scorch images are gone. You have to re-encode every world vertex into the T6 format.
+
+clipMap_t:
+- T5 keeps planes, materials, brush sides, leafbrushes, brushVerts, uinds and brushes **directly** in clipMap_t.
+- T6 moves them into `ClipInfo info` (+ `pInfo`, which points at it).
+- T5 `leafsurfaces` and `borders` are gone.
+- `triIndices` keeps the same data, typed as `uint16[3]`.
+- Dyn-ent, constraint and rope arrays keep the same shape.
+
+### Size notes
+
+These are x86 sizes from the OAT headers. The engine sizes match the ones confirmed earlier against the BO2 server PDB (XModel 0xF8 = 248, XSurface 0x50 = 80).
+
+---
+
+## 3. Tool support today
+
+| Need | BO1 read (T5) | BO2 write (T6) |
+|---|---|---|
+| xmodel | ✅ OAT dump to GLB/JSON | ✅ OAT linker from GLB (ZM Workshop uses this) |
+| material | ✅ JSON | ✅ JSON, but needs a **T6 techset name** |
+| image | ✅ DDS/IWI | ✅ |
+| techset/shaders | ✅ (useless: D3D9) | reuse existing T6 techsets from stock zones |
+| xanim | ✅ binary | ❌ no T6 loader |
+| rawfile/gsc | ✅ plain source text | ✅ (compile with gsc-tool `-g t6` if needed) |
+| mapents | ✅ `.ents` text | ❌ **no T6 loader** (OAT only *dumps* T6 addon map ents) |
+| gfxworld / clipmap / comworld / gameworld | ✅ loaded in memory, ❌ not dumped | ❌ **no T6 loader**. No public T6 BSP compiler exists either |
+
+Note: OAT's zone *writer* is code-generated for **every** T6 asset type (`src/ZoneCode/Game/T6/XAssets/GfxWorld.txt`, `clipMap_t.txt`, `ComWorld.txt`, `GameWorldMp.txt`, `MapEnts.txt`). The only missing piece is something that **fills the T6 structs**; serialising them into a fastfile already works.
+
+---
+
+## 4. Minimum for "load in and walk around without falling through"
+
+A stock T6 ZM map zone (`zm_nuked.ff`) contains exactly:
+- `comworld`, `gfxworld`, `gameworldmp`, `mapents` and `clipmap`, all named `maps/mp/zm_nuked.d3dbsp`;
+- skinnedverts, footsteptable/footstepfxtable, keyvaluepairs, glasses, zbarrier, destructibles, plus models, materials and images.
+
+So `zm_kino.ff` needs the five world assets named **`maps/mp/zm_kino.d3dbsp`**, plus the models, materials and images they reference.
+
+### 4.1 clipmap: the "don't fall through" part (highest priority)
+
+Convert T5 `clipMap_t` → T6:
+1. Move planes, materials, brushsides, leafbrushNodes, leafbrushes, brushVerts, uinds and brushes into `info`, and set `pInfo = &info`.
+2. `dmaterial_t{char[64]}` → `ClipMaterial{const char*}`, keeping surfaceFlags and contentFlags.
+3. Compute the new `info.brushBounds[i]` from `cbrush_t.mins/maxs`, and `info.brushContents[i]` from `cbrush_t.contents`.
+4. Copy nodes, leafs, verts, triIndices, triEdgeIsWalkable, partitions (drop the borders) and aabbTrees.
+5. `cmodel_t`: copy and set `info` (`&clip.info` for brush submodels). `cStaticModel_s`: copy, and set `contents` from the model.
+6. Copy visibility and clusters. Set the dyn-ent, constraint and rope counts to **0** for milestone 1.
+7. Static models in the clipmap reference **T6 xmodels** (the ported Kino props), so the props must be ported first.
+
+Content and surface flag bit meanings can differ between games. **Verify** CONTENTS_SOLID / PLAYERCLIP / surface types against T6, for example with a known BO2 brush. This is the most likely reason for still falling through.
+
+### 4.2 gameworldmp
+
+Same struct as T5 GameWorldSp:
+1. Rename it.
+2. Convert PathData: add `originalNodeCount = nodeCount`, drop the chain arrays, and set `smoothBytes = 0`.
+3. Re-pack each `pathnode_t` (128 → 144).
+
+For milestone 1 (no AI) you can ship **0 nodes**. Real conversion only matters once zombies need to path.
+
+### 4.3 comworld
+
+Copy the primary lights, folding T5's attenuation and specular into T6's fields. Drop water and burnable.
+
+Minimum: just the sun as light 0. That keeps GfxWorld's `sunPrimaryLightIndex` valid.
+
+### 4.4 gfxworld: you need to *see* the floor (hardest part)
+
+1. **Vertices.** Re-encode T5 `GfxWorldVertex` (44 B) into T6 `vd0`/`vd1`.
+   - **Open question:** the exact T6 world-vertex stride and field order of each stream. Measure it from zm_nuked's GfxWorld (`vertexDataSize0 / vertexCount`). This needs a tiny OAT-based dumper, because OAT doesn't write gfxworld to disk.
+2. **Surfaces.** Reorder the `srfTriangles_t` fields and invert himipRadius. Remap materials to the ported T6 materials. Rebuild `GfxDrawSurf` keys with the T6 bitfield layout and the T6 material sort indices (`materialMemory`).
+3. **DPVS.** Copy cells, portals (add `bounds`), aabb trees and planes. Drop cull groups. Re-bucket the surface ranges (lit / litTrans / emissive). Allocate the vis bit arrays (128-byte aligned) and the new shadow bit arrays.
+4. **Lighting.**
+   - Option A, fastest: one neutral grey primary and secondary lightmap, a flat light grid (1 entry, colours mid-grey, `coeffs` zeroed), and 1 reflection probe using a stock T6 cubemap. The map renders evenly lit.
+   - Option B: convert T5 lightmaps (3 images → 2: primary + secondary; decide what to do with secondaryB) and the light grid colours.
+5. **Static models.** Expand `GfxStaticModelDrawInst` (76 → 152): default lighting SH, `lmapVertexInfo` empty, `smid` = index.
+6. **Sky.** Set `skyBoxModel = "skybox_zombie_theater"` (port that model) or a stock T6 skybox. T5's sky surface list has no T6 field.
+7. **Unused volumes** (fog, LUT, siege, hero lights, occluders, outdoor bounds): set the counts to 0. `outdoorImage` / `lutMaterial` should point at stock T6 assets, which are null-safe defaults to test.
+
+### 4.5 mapents
+
+1. Take `zombie_theater.d3dbsp.ents`.
+2. Drop the `actor_*` spawners, `node_*` and `rope` entities, plus `misc_turret` and anything else T6 doesn't know.
+3. Keep `worldspawn`, `info_player_start`, the `initial_spawn_points` structs and the `script_model`s.
+4. Fill `MapTriggers` from the trigger entities' `*N` cmodels (brush → hull/slab). For milestone 1, **drop the trigger entities** and leave `MapTriggers` empty.
+
+### 4.6 Loading it
+
+- Zone file `zone\all\zm_kino.ff`. ZM Workshop already writes zones there.
+- Globe entry: see §6. That part already works.
+- Level script: T6 calls `maps/mp/zm_kino::main` and the `zclassic` gametype scripts expect a ZM level setup. For a walk-only test:
+  - ship a **stub** `maps/mp/zm_kino.gsc` that does the minimum (no zombies);
+  - **or** first test with `devmap zm_kino` in a non-ZM gametype (t6mp, `dm`/`tdm`), which also needs an `mp_dm_spawn`/`mp_tdm_spawn` entity at the start position.
+  - Which one boots with the least scripting is **still to be tested**.
+- The dedicated server only needs clipmap, gameworld and mapents. That makes a good **first test**: does the collision load and does the player stand on it, before gfxworld is right?
+
+---
+
+## 5. Recommended implementation plan
+
+There is no source map and no T6 compiler, so the realistic path is a **T5 → T6 world converter built on OAT**: a small fork, or a separate exe linking OAT's libraries.
+1. Load `zombie_theater.ff` with OAT's T5 ZoneLoading. This gives the in-memory T5 structs, the same ones OAT already loads with 0 errors.
+2. Convert:
+   - clipMap_t, GameWorldSp → Mp and ComWorld (straightforward, §4.1–4.3);
+   - then GfxWorld (§4.4);
+   - then MapEnts (§4.5).
+3. Port the xmodels, materials and images through the existing ZM Workshop GLB path, with a **techset remap table** (T5 technique name → T6 techset borrowed from zm_nuked / common_zm).
+4. Register the converted T6 assets in a T6 zone and write it with OAT's T6 ZoneWriting into `zone\all\zm_kino.ff`.
+5. Test order:
+   1. collision only (dedicated server / t6mp, `devmap`);
+   2. add gfxworld with flat lighting;
+   3. ZM boot with the stub script;
+   4. real lighting, triggers, paths;
+   5. gameplay scripts (a later milestone).
+
+Fallback that works today: the existing Maps-tab method. It loads Kino's geometry as rigid xmodel pieces inside a stock map, with collision boxes. There's no real BSP, lighting or visibility. It can be a quick demo, but it isn't a real map.
+
+### Open questions to resolve during implementation
+
+1. T6 world vertex streams `vd0`/`vd1`: layout and stride (measure from zm_nuked).
+2. T6 `GfxDrawSurf` sort-key rules and `materialMemory` construction.
+3. Whether contents and surface-flag bits differ between T5 and T6 collision.
+4. The minimum script needed for t6zm to spawn a player on a new map. The alternative is booting in t6mp first.
+5. Whether Plutonium t6zm loads a non-stock map zone from `zone\all` or a mod folder without extra registration. The globe entry already proves the UI side.
+
+---
+
+## 6. Globe entry (already working, for reference)
+
+- The ZM map list (private/solo) comes from `zm/mapsTable.csv`, loaded by t6zm `0x5D0EF0` into a table (count `0x29358B8`, 0x130-byte entries).
+- `Engine.GetMaps()` (`0x96DE10`) reads that table.
+- Column 11 is the **map pack index**, filtered by the owned-content check `0x515410`. It **must be 0**: 7 hid the entry.
+- Columns 16/17 are the globe position. Column 16 is also the sort key.
+- `zm/gametypestable.csv` needs:
+  - a startloc row (`5,16,zm_kino,kino,…`);
+  - a startloc_gamemode_map row (`6,20,zm_kino,kino,zclassic,0,…`), whose map pack index must also be 0.
+- Test entry: `zm_kino,…,-45,58,0,top`, built by `build_globe_mod.py` into `mods/zm_workshop/mod.ff`.
+- It's not yet part of the tool: a sound rebuild in the tool overwrites it.
+
+---
+
+## 7. Scripts (for later milestones)
+
+- BO1 zombie scripts are **plain-text GSC/CSC rawfiles**. Examples: `maps/zombie_theater.gsc`, `_magic_box`, `_movie_screen`, `_teleporter`, `_quad`, `aitype/*.gsc`, `character/*.gsc`, clientscripts `.csc`.
+- They're built on BO1's `_zombiemode*` framework. BO2's is `maps/mp/zombies/_zm*`, so this is a **rewrite against the BO2 framework, not a recompile**.
+- Compile the result with gsc-tool `-g t6`.
+- Kino's `script_struct`s, triggers and brushmodels from the entity string are the data those scripts need.

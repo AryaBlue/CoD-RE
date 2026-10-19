@@ -18,6 +18,8 @@ os.environ["PYTHONPATH"] = str(ROOT / "b2w_bo1" / "src")
 os.environ.setdefault("WAW2BO2_ALLOW_STAGE_ERRORS", "1")
 # use BO2's own weapons (same name, or b2w_bo1/src/waw2bo2/compat/bo1_bo2_weapons.json) instead of porting BO1's
 os.environ.setdefault("WAW2BO2_BO2_WEAPONS", "1")
+# translated shaders shared by every map's build (b2w_bo1/src/waw2bo2/shaders.py)
+os.environ.setdefault("WAW2BO2_SHADER_CACHE", str(ROOT / "b2w_work" / "shader_cache"))
 
 BO1 = r"D:\SteamLibrary\steamapps\common\Call of Duty Black Ops"
 BO2 = r"D:\SteamLibrary\steamapps\common\Call of Duty Black Ops II"

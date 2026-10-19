@@ -554,6 +554,38 @@ index cd29a7fb..69eb7db6 100644
      // REGISTER_DUMPER(AssetDumperGfxWorld, m_gfx_world)
      RegisterAssetDumper(std::make_unique<light_def::DumperT5>());
      RegisterAssetDumper(std::make_unique<font::JsonDumperT5>());
+diff --git a/src/ObjWriting/Image/ImageDumper.cpp.template b/src/ObjWriting/Image/ImageDumper.cpp.template
+index 71986d91..8abfcee3 100644
+--- a/src/ObjWriting/Image/ImageDumper.cpp.template
++++ b/src/ObjWriting/Image/ImageDumper.cpp.template
+@@ -106,7 +106,27 @@ namespace image
+         const auto* image = asset.Asset();
+         auto texture = CONVERTER_NAME().Convert(asset, context.m_obj_search_path);
+         if (!texture)
++        {
++            // waw2bo2: say why instead of skipping silently (the caller logs "Dumped image" either way)
++            const auto* loadDef = image->texture.loadDef;
++            con::warn("Not dumping image {}: could not convert it (loadDef format {}, resourceSize {})",
++                      image->name,
++                      loadDef ? static_cast<int>(loadDef->format) : -1,
++                      loadDef ? static_cast<int>(loadDef->resourceSize) : -1);
++            // keep the raw pixels so a format the loader lacks can be decoded outside (waw2bo2 lightmaps)
++            if (loadDef && loadDef->resourceSize > 0)
++            {
++                const auto rawFile = context.OpenAssetFile(GetFileNameForAsset(asset.m_name, ".loaddef.bin"));
++                if (rawFile)
++                {
++                    const int header[6] = {static_cast<int>(loadDef->format), static_cast<int>(loadDef->resourceSize), image->width,
++                                           image->height, image->depth, static_cast<int>(loadDef->flags)};
++                    rawFile->write(reinterpret_cast<const char*>(header), sizeof(header));
++                    rawFile->write(loadDef->data, loadDef->resourceSize);
++                }
++            }
+             return;
++        }
+         
+         auto convertedTexture = ConvertTextureForDdsFileOutputIfNecessary(texture.get());
+         if (convertedTexture)
 diff --git a/src/ObjWriting/Material/MaterialJsonDumper.cpp.template b/src/ObjWriting/Material/MaterialJsonDumper.cpp.template
 index 592e20e3..3c21d0e1 100644
 --- a/src/ObjWriting/Material/MaterialJsonDumper.cpp.template

@@ -23,17 +23,18 @@ init()
     level.zmwp_ids = [];
     level.zmwp_spare = zmwp_specialties();
     zmwp_register_all();
+    // the tool's commands (Player tab: points, stock perks, ammo...) work without any custom perk
+    level.zmwp_cmd_last = getdvar( "zmw_perk_cmd" );
+    level thread zmwp_watch_commands();
 
     if ( level.zmwp_ids.size == 0 )
         return;
 
-    level.zmwp_cmd_last = getdvar( "zmw_perk_cmd" );
     maps\mp\zombies\_zm::register_player_damage_callback( ::zmwp_player_damage );
     maps\mp\zombies\_zm_spawner::register_zombie_death_event_callback( ::zmwp_zombie_death );
     level thread zmwp_hook_actor_damage();
     level thread zmwp_connect();
     level thread zmwp_rounds();
-    level thread zmwp_watch_commands();
     level thread zmwp_spawn_machines();
 }
 

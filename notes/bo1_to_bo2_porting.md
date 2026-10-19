@@ -318,3 +318,35 @@ Fallback that works today: the existing Maps-tab method. It loads Kino's geometr
 - They're built on BO1's `_zombiemode*` framework. BO2's is `maps/mp/zombies/_zm*`, so this is a **rewrite against the BO2 framework, not a recompile**.
 - Compile the result with gsc-tool `-g t6`.
 - Kino's `script_struct`s, triggers and brushmodels from the entity string are the data those scripts need.
+
+## BO1 (T5) lightmap pages (2026-10-19)
+
+Measured on Kino (`zombie_theater`) and its world pixel programs (`ps_pimp_shader_layer_lmap_*`, ps_3_0).
+Per lightmap page `i` the GfxLightmapArray holds three images; for a W x H layer (Kino page 0: 512 x 1024):
+
+| image | size | D3DFORMAT | sampled as | content |
+|---|---|---|---|---|
+| `*lightmap<i>_primary` | 2W x 2H | DXT1 | s12 `.y` at lightmap uv | sun visibility (green channel; red/blue are 0) |
+| `*lightmap<i>_secondary` | W x 2H | 23 = R5G6B5 | s13 at (u, v/2) = A and (u, v/2 + 1/2) = B | `.x` red share, `.y` one direction component, `.z` blue share |
+| `*lightmap<i>_secondaryb` | W x H | 34 = G16R16 | s14 at lightmap uv | `.x` brightness of A, `.y` brightness of B (unorm16) |
+
+Decode (from the program; c2.w = 31.875, c4 = (4, -2)):
+- `s = secondaryB * 31.875` per half; `colour = s * (4 r, 2 (1 - r - b), 4 b)` - shares of 0.25 are neutral grey.
+- direction `d = (A.y, B.y) * 4 - 2` (tangent space); with the bumped normal's tangent xy `n`:
+  `t = 0.6 exp(-|n|^2) + 0.4`, `w0 = (0.6 exp(-|d|^2) + 0.4) * t`, lighting `= A * t + B * sat(dot(d, n) * w0 + w0)`;
+  at a flat normal that is `A + B * (0.6 exp(-|d|^2) + 0.4)`.
+- The result multiplies `albedo^2` and the program ends with `sqrt(sat(hdrControl0.x * colour))`: BO1 lightmap
+  lighting is linear like T6 (WaW was gamma).
+
+OAT's Dx9TextureLoader has no R5G6B5 / G16R16 entry, so `ImageDumper` dropped both silently (the log still said
+"Dumped image"). Our dumper now warns and writes the raw pixels to `<image>.loaddef.bin`
+(int32 format, resourceSize, width, height, depth, flags, then the pixels).
+Without these pages the converted map fell back to a flat lightmap whose directional page decodes cyan-green.
+
+## Clientfields: computed powerup fields (2026-10-19)
+
+`_zm_powerups::add_zombie_powerup` registers a toplayer field per included powerup (server arg 9, client arg 2,
+version default 1), so a static scan of `registerclientfield` misses them. BO1 maps list some powerups only in
+GSC (Five: `bonfire_sale`, `minigun`): the client must `include_powerup` the same set or the game disconnects
+with EXE_CLIENT_FIELD_MISMATCH. Also: a `//*****` banner line contains `/*` - strip comments in one
+left-to-right pass, or ~80 lines after it vanish.

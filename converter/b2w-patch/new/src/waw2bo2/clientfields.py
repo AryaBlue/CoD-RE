@@ -20,7 +20,11 @@ REFERENCE_RE = re.compile(r"#include\s+([\w\\/]+)\s*;|\b((?:maps|clientscripts|c
 CALL_RE = re.compile(r"\b(registerclientfield|vsmgr_register_info|vsmgr_register_visionset_info"
                      r"|vsmgr_register_overlay_info_style_\w+)\s*\(", re.I)
 STRING_RE = re.compile(r'^"([^"]*)"$')
+COMMENT_RE = re.compile(r'"(?:\\.|[^"\\\n])*"|//[^\n]*|/\*.*?\*/', re.S)
 TRAP_OVERLAYS = {"electric": "zm_trap_electric", "fire": "zm_trap_burn"}
+# _zm_powerups::add_zombie_powerup registers a toplayer field per included powerup (computed name)
+POWERUP_SCRIPTS = {"server": ("maps/mp/zombies/_zm_powerups", "include_zombie_powerup", 8, 11),
+                   "client": ("clientscripts/mp/zombies/_zm_powerups", "include_powerup", 1, 2)}
 
 
 def _arguments(text: str, start: int) -> list[str]:
@@ -63,8 +67,8 @@ def _live(versions: list[int | None], highest: int) -> bool:
 
 
 def _strip_comments(text: str) -> str:
-    text = re.sub(r"/\*.*?\*/", lambda m: "\n" * m[0].count("\n"), text, flags=re.S)
-    return re.sub(r"//[^\n]*", "", text)
+    # one left-to-right pass: a "//*****" banner line is a line comment, not the start of a block comment
+    return COMMENT_RE.sub(lambda m: m[0] if m[0].startswith('"') else "\n" * m[0].count("\n"), text)
 
 
 class Side:
@@ -125,6 +129,30 @@ class Side:
             for trap in sorted(trap_types & TRAP_OVERLAYS.keys()):
                 self.vsmgr.setdefault("overlay", {}).setdefault(TRAP_OVERLAYS[trap], {"version": "16000", "where": []})["where"].append(where)
 
+    def add_powerups(self) -> None:
+        script, include_call, field_arg, version_arg = POWERUP_SCRIPTS[self.name]
+        if script not in self.files:
+            return
+        table = {}                                      # powerup -> (field, version)
+        text = _strip_comments(self.files[script].read_text(encoding="utf-8", errors="replace"))
+        for match in re.finditer(r"^[ \t]+add_zombie_powerup\s*\(", text, re.M):
+            args = _arguments(text, match.end())
+            name = _literal(args[0]) if args else None
+            field = _literal(args[field_arg]) if len(args) > field_arg else None
+            if name and field:
+                version = _int(args[version_arg]) if len(args) > version_arg else None
+                table[name] = (field, version or 1)
+        included = set()
+        for script_name, path in self.files.items():
+            body = _strip_comments(path.read_text(encoding="utf-8", errors="replace"))
+            included |= set(re.findall(r'\b' + include_call + r'\s*\(\s*"(\w+)"', body))
+        where = f"powerups: {include_call} " + (", ".join(sorted(included)) if included else "(none: every powerup)")
+        for name, (field, version) in table.items():
+            if not included or name in included:
+                info = self.fields.setdefault(("toplayer", field), {"versions": [], "bits": "2", "type": "int", "where": []})
+                info["versions"].append(version)
+                info["where"].append(where)
+
     def all_fields(self) -> dict[tuple[str, str], dict]:
         fields = dict(self.fields)
         for vs_type, infos in self.vsmgr.items():
@@ -149,6 +177,8 @@ def audit(project_root: Path, project: str, bo2_root: Path) -> dict:
                              "entities.json: zombie_trap triggers (server _zm_traps::register_visionsets)")
     client.add_trap_overlays({e.get("script_noteworthy", "") for e in entities if e.get("targetname") == "zm_traps"},
                              "entities.json: zm_traps structs (client _zm_traps::init)")
+    server.add_powerups()
+    client.add_powerups()
     server_fields, client_fields = server.all_fields(), client.all_fields()
     # both sides keep only the fields live at the server's highest registered version
     highest = max((v for info in server_fields.values() for v in info["versions"] if v and v > 0), default=0)

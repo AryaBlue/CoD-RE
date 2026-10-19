@@ -13,13 +13,18 @@ COPIES = {
     'headers': [CONV / 'research' / n for n in ('T5.h', 'T5_Assets.h')]
                + [CONV / 'research' / 'probe' / n for n in ('T6_Assets.h', 'sizes.cpp', 'sizes.txt', 'b.bat')],
     'tools': [CONV / 'research' / n for n in ('structdiff.py', 'structdiff.txt')],
-    # B2W's own code and handoff log are not ours to publish (no license; other people's paths)
+    # B2W's handoff log stays out (other people's paths); its code goes in as our patch below
     'notes': [CONV / 'research' / 'bo1_to_bo2_porting.md'],
+    'converter': [CONV / 'run_bo1.py', CONV / 'README.md'],
+    'converter/tools': sorted((CONV / 'tools').glob('*.py')),
     # ZM Workshop's code stays private: the user doesn't want the tool uploaded
 }
 
 # local OAT trees: our uncommitted changes as a patch plus our new untracked files
 OAT_TREES = ('oat', 'oat-bsp', 'oat_ext')
+# our BO1 converter: changes against upstream B2W (github.com/Ticass/B2W), same layout
+CONVERTER_TREE = 'b2w_bo1'
+SKIP_NEW = ('.png', '.jpg', '.dds', '.iwi', '.webp')  # art isn't ours to publish
 
 
 def git(tree, *args):
@@ -36,9 +41,10 @@ def main():
                 shutil.copy2(src, out / src.name)
             else:
                 print('missing', src)
-    for name in OAT_TREES:
+    trees = [(name, HERE / 'oat-patches' / name) for name in OAT_TREES]
+    trees.append((CONVERTER_TREE, HERE / 'converter' / 'b2w-patch'))
+    for name, out in trees:
         tree = CONV / name
-        out = HERE / 'oat-patches' / name
         if out.exists():
             shutil.rmtree(out)
         out.mkdir(parents=True)
@@ -46,8 +52,10 @@ def main():
         (out / 'BASE_COMMIT').write_text(base + '\n')
         (out / 'changes.patch').write_text(git(tree, 'diff', '--binary'), encoding='utf-8')
         for rel in git(tree, 'ls-files', '--others', '--exclude-standard').splitlines():
-            if rel.startswith('src/waw2bo2/') or not rel.startswith('src/'):
-                continue  # converter copies and build output live elsewhere
+            if not rel.startswith('src/') or rel.lower().endswith(SKIP_NEW):
+                continue  # build output and art stay out
+            if name != CONVERTER_TREE and rel.startswith('src/waw2bo2/'):
+                continue  # converter copies inside OAT trees
             target = out / 'new' / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(tree / rel, target)

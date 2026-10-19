@@ -1,0 +1,2220 @@
+diff --git a/src/waw2bo2/all2raw.py b/src/waw2bo2/all2raw.py
+index 7158b0d..031c215 100644
+--- a/src/waw2bo2/all2raw.py
++++ b/src/waw2bo2/all2raw.py
+@@ -18,6 +18,21 @@ import uuid
+ SCHEMA = 3
+ WAW_ASSETS = ('clipmap,mapents,gfxworld,gameworldsp,material,image,fx,xmodel,weapon,xanim,sound,'
+               'loadedsound,rawfile,comworld,lightdef,physpreset,snddriverglobals,localize')
++# Black Ops (T5) source maps: same world/gameplay set; BO1 keeps both clipmap slots and has no WaW
++# loaded-sound assets (sound banks are converted separately)
++BO1_ASSETS = ('clipmap,clipmap_unused,mapents,gfxworld,gameworldsp,material,image,fx,xmodel,weapon,xanim,'
++              'rawfile,comworld,lightdef,physpreset,localize')
++# BO1 zones that hold the zombies framework and shared runtime assets
++BO1_STOCK_ZONES = {'common', 'common_zombie', 'common_zombie_patch', 'code_pre_gfx', 'code_post_gfx', 'patch'}
++
++
++def source_engine(game: Path) -> str:
++    """Engine of the source game install: Black Ops (T5) or World at War (T4)."""
++    return 'T5' if (Path(game) / 'BlackOps.exe').is_file() else 'T4'
++
++
++def source_assets(engine: str) -> str:
++    return BO1_ASSETS if engine == 'T5' else WAW_ASSETS
+ 
+ 
+ # Only the converter's patched T4 Unlinker (vendor/OpenAssetTools.patch) writes
+@@ -50,7 +65,7 @@ def require_waw_extractor(tool: Path) -> None:
+ 
+ def stock_assets(engine: str, ff: Path) -> str:
+     """Cache conversion metadata across maps without exporting entire games."""
+-    if engine == 'T4':
++    if engine in ('T4', 'T5'):
+         if ff.stem == 'code_post_gfx':
+             return 'rawfile,image,lightdef'
+         # Keep scripts and a complete definition index. Other stock payloads
+@@ -512,6 +527,8 @@ def _rank(name: str) -> tuple[int, str]:
+ 
+ def stock_zones(game: Path, engine: str) -> list[Path]:
+     zones = (game / 'zone').rglob('*.ff')
++    if engine == 'T5':
++        zones = (p for p in zones if p.stem in BO1_STOCK_ZONES)
+     if engine == 'T6':
+         # Nuketown donors and its always-loaded Zombies framework. The basic
+         # wooden barrier is defined in prison, not in Nuketown's magic box.
+@@ -564,7 +581,7 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
+     zones = stock_zones(game, engine)
+     if not zones:
+         raise FileNotFoundError(f'No installed fastfiles found in {game / "zone"}')
+-    if engine == 'T4':
++    if engine in ('T4', 'T5'):
+         require_waw_extractor(tool)
+     inputs = inventory(game, tool, engine)
+     tool_hash = inputs['tool']
+@@ -579,7 +596,7 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
+             folder, data = extract_zone(ff, tool, zone_root,
+                 search_paths((ff.parent, game / 'zone/all', game / 'main', game / 'sound', game)),
+                 assets=stock_assets(engine, ff),
+-                image_format='DDS' if engine == 'T4' else 'IWI', tool_digest=tool_hash,
++                image_format='DDS' if engine in ('T4', 'T5') else 'IWI', tool_digest=tool_hash,
+                 dependencies=archives, refresh=refresh)
+             if engine == 'T6' and ff.stem == 'zm_prison':
+                 data = trim_barrier_payload(folder, data)
+@@ -633,7 +650,8 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
+ 
+ def extract_all(settings, *, refresh=False, cache_paths: CachePaths | None = None) -> tuple[Path, Path]:
+     paths = cache_paths or CachePaths.for_settings(settings)
+-    waw = prepare(Path(settings.waw), Path(settings.t4) / 'Unlinker.exe', paths.waw, engine='T4', refresh=refresh)
++    waw = prepare(Path(settings.waw), Path(settings.t4) / 'Unlinker.exe', paths.waw, engine=source_engine(settings.waw),
++                  refresh=refresh)
+     bo2 = prepare(Path(settings.bo2), Path(settings.t6) / 'Unlinker.exe', paths.bo2, engine='T6', refresh=refresh)
+     if settings.fastfile and Path(settings.fastfile).is_file():
+         source_dumps(settings, paths, refresh=refresh)
+@@ -662,6 +680,12 @@ def source_dumps(settings, paths: CachePaths, *, refresh=False) -> dict[str, Pat
+                           'localized_' + source.stem + '_patch'}
+             extras = [ff for ff in extras if ff.stem in companions]
+         selected += [('extra:' + ff.stem, ff) for ff in extras if ff not in expected]
++        if source_engine(Path(settings.waw)) == 'T5':
++            # BO1 splits each level: zone/<Language>/<xx>_<map>.ff holds part of its images and models
++            # (Kino's main door, lobby door). English first, else any installed language.
++            languages = sorted((Path(settings.waw) / 'zone').glob(f'*/??_{source.stem}.ff'),
++                               key=lambda p: (p.parent.name.lower() != 'english', str(p)))
++            selected += [('extra:' + ff.stem, ff) for ff in languages[:1]]
+         selected = [(role, ff) for role, ff in selected if ff.is_file()]
+         unique = list(dict.fromkeys(ff for _, ff in selected))
+         # ":short-staging" retires custom-map dumps published before exports
+@@ -670,7 +694,7 @@ def source_dumps(settings, paths: CachePaths, *, refresh=False) -> dict[str, Pat
+         def extract(ff):
+             print(f'Extract All: custom map starting {ff.name}', flush=True)
+             output, data = extract_zone(ff, tool, root / key(str(ff)),
+-                search_paths((folder, Path(settings.waw) / 'main')), assets=WAW_ASSETS,
++                search_paths((folder, Path(settings.waw) / 'main')), assets=source_assets(source_engine(settings.waw)),
+                 image_format='DDS', tool_digest=tool_hash, dependencies=dependencies, refresh=refresh)
+             require_world_dumps(ff, output, data, tool)
+             return output
+diff --git a/src/waw2bo2/animnotes.py b/src/waw2bo2/animnotes.py
+index d0a25f8..0befc86 100644
+--- a/src/waw2bo2/animnotes.py
++++ b/src/waw2bo2/animnotes.py
+@@ -11,6 +11,9 @@ def add_sound_events(raw: bytes, sound_map: dict[str, str]) -> tuple[bytes, list
+     keys = {key: alias for key, alias in sound_map.items() if not key.startswith('sndnt#')}
+     if not any(key.encode() + b'\0' in raw for key in keys):
+         return raw, []
++    if len(raw) >= 4 and struct.unpack_from('<H', raw)[0] == 19:
++        # BO1 (v19) animations: notetrack sound adaptation is not ported yet; keep the motion as-is
++        return raw, []
+     if len(raw) < 4 or struct.unpack_from('<H', raw)[0] != 17:
+         raise weapons.WeaponError('weapon sound notifications require a raw v17 animation')
+     frames = struct.unpack_from('<H', raw, 2)[0]
+diff --git a/src/waw2bo2/builddriver.py b/src/waw2bo2/builddriver.py
+index 9f3963e..7960ac5 100644
+--- a/src/waw2bo2/builddriver.py
++++ b/src/waw2bo2/builddriver.py
+@@ -61,7 +61,7 @@ def build(settings: Settings, *, redump: bool = False, root: Path | None = None,
+     # Prepare only missing/stale caches before acquiring the read locks.
+     # prepare() owns the extraction lock itself and resumes cached zones.
+     for game, tool, cache, engine in (
+-            (Path(settings.waw), Path(settings.t4) / 'Unlinker.exe', caches.waw, 'T4'),
++            (Path(settings.waw), Path(settings.t4) / 'Unlinker.exe', caches.waw, all2raw.source_engine(settings.waw)),
+             (Path(settings.bo2), Path(settings.t6) / 'Unlinker.exe', caches.bo2, 'T6')):
+         try:
+             all2raw.ready(game, tool, cache, engine=engine)
+@@ -91,7 +91,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+     t6 = Path(settings.t6) / 'Unlinker.exe'
+     # Builds never extract or list a stock FF. Extract All owns every static
+     # asset, index, sound driver and API cache.
+-    wawraw = all2raw.ready(waw, t4, caches.waw, engine='T4')
++    wawraw = all2raw.ready(waw, t4, caches.waw, engine=all2raw.source_engine(waw))
+     stock = all2raw.ready(bo2, t6, caches.bo2, engine='T6')
+     stage, mod = paths.stage, paths.mod
+     # Stage in the worker as well: standalone CLI and Wine builds do not
+@@ -136,16 +136,33 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+     if settings.source_fx:
+         args += ['--waw-mod-tools', settings.waw_tools, '--waw-source-fx',
+                  '--waw-source-dumps', str(caches.waw / 'source')]
+-    run(cli_command(*args))
++    # WAW2BO2_FROM_STEP resumes a build whose earlier steps' output is unchanged (BO1 bring-up)
++    steps = ['stage', 'build-mod', 'compile-scripts', 'bridge-link', 'audit']
++    first = steps.index(os.environ.get('WAW2BO2_FROM_STEP') or 'stage')
++    if first <= 0:
++        run(cli_command(*args))
++    else:
++        print(f'== resuming at {steps[first]} (earlier steps reused)', flush=True)
+     ensure_laa(linker)
+     print('== 3a. linking gameplay mod.ff with the BO2 mod tools linker', flush=True)
+-    run(cli_command('build-mod', str(stage), project, '--bo2', str(bo2), '--work', str(mod),
+-                    '--unlinker', str(t6), '--linker', str(linker), '--techset-dump', str(stock)))
++    if first <= 1:
++        run(cli_command('build-mod', str(stage), project, '--bo2', str(bo2), '--work', str(mod),
++                        '--unlinker', str(t6), '--linker', str(linker), '--techset-dump', str(stock)))
+     print('== 3b. compiling map scripts with the BO2 mod tools linker', flush=True)
+-    run(cli_command('compile-scripts', str(stage), project, '--bo2', str(bo2), '--unlinker', str(t6)))
++    if first <= 2:
++        run(cli_command('compile-scripts', str(stage), project, '--bo2', str(bo2), '--unlinker', str(t6)))
+     print(f'== 4. linking {project} with the T6 bridge', flush=True)
+-    run(cli_command('bridge-link', str(stage), project, '--linker', str(linker),
+-                    '--techset-dump', str(stock), '--log', str(stage / (project + '_bridge.log'))))
++    if first <= 3:
++        run(cli_command('bridge-link', str(stage), project, '--linker', str(linker),
++                        '--techset-dump', str(stock), '--log', str(stage / (project + '_bridge.log'))))
++    print('== 5. auditing server/client clientfields', flush=True)
++    from . import clientfields
++    report = clientfields.audit(stage / 'zone_raw' / project, project, bo2)
++    findings = clientfields.write_report(report, stage)
++    for finding in findings:
++        print('WARNING clientfield', finding, flush=True)
++    print(f'{len(report["fields"]["server"])} server / {len(report["fields"]["client"])} client clientfields, '
++          f'{len(findings)} likely mismatches; see {stage / "clientfield_audit.txt"}', flush=True)
+     print('== 6. auditing built material arguments', flush=True)
+     for ff in (stage / 'zone_out' / project / (project + '.ff'), mod / 'out/mod.ff'):
+         if not ff.is_file():
+diff --git a/src/waw2bo2/cli.py b/src/waw2bo2/cli.py
+index c256284..27de672 100644
+--- a/src/waw2bo2/cli.py
++++ b/src/waw2bo2/cli.py
+@@ -292,6 +292,10 @@ def _stage_bridge(args: argparse.Namespace) -> int:
+         print(f"error: {e}", file=sys.stderr)
+     if len(report.errors) > 40:
+         print(f"... {len(report.errors) - 40} more errors in the report", file=sys.stderr)
++    if report.errors and os.environ.get("WAW2BO2_ALLOW_STAGE_ERRORS"):
++        # BO1 bring-up: keep building with the reported gaps (all listed in the stage report)
++        print(f"WAW2BO2_ALLOW_STAGE_ERRORS: continuing past {len(report.errors)} staging errors", file=sys.stderr)
++        return 0
+     return 1 if report.errors else 0
+ 
+ 
+diff --git a/src/waw2bo2/compat/_waw2bo2_compat.gsc b/src/waw2bo2/compat/_waw2bo2_compat.gsc
+index 0d808a9..1e4f2dd 100644
+--- a/src/waw2bo2/compat/_waw2bo2_compat.gsc
++++ b/src/waw2bo2/compat/_waw2bo2_compat.gsc
+@@ -52,6 +52,10 @@ init()
+     if ( isdefined( level.waw2bo2_compat_ready ) )
+         return;
+     level.waw2bo2_compat_ready = 1;
++    // logfile is not saved between sessions; without it a crash leaves no
++    // console_zm.log to read the WAW2BO2 runtime lines from (tools/check_crash.py).
++    if ( getdvarint( "logfile" ) < 2 )
++        setdvar( "logfile", "2" );
+     // Converted maps run on Plutonium T6. WaW scorebar libraries use this
+     // flag to leave TAB's scoreboard to the native client.
+     if ( !isdefined( level.isPlutonium ) )
+@@ -94,6 +98,39 @@ init()
+     level thread waw_window_paths();
+     level thread power_bridge();
+     level thread melee_wallbuy_costs();
++    level thread wallbuy_weapon_models();
++    // get_weapon_hint_ammo's only use of the flag: without it a bought wallbuy
++    // shows ZOMBIE_WEAPONCOSTAMMO_UPGRADE, whose "\n" second line cut the
++    // prompt at "Ammo [" on Kino's trigger_use wallbuys.
++    if ( !isdefined( level.has_pack_a_punch ) )
++        level.has_pack_a_punch = 0;
++}
++
++// A WaW/BO1 wallbuy's script_model is the source game's world model with
++// every attachment modelled in (BO1 Kino's M14: scope, grenade launcher,
++// suppressor). BO2 strips them with useweaponhidetags, whose tag list belongs
++// to the BO2 weapon now bought there, so show that weapon's own world model
++// (as add_dynamic_wallbuy does).
++wallbuy_weapon_models()
++{
++    while ( !isdefined( level.zombie_weapons ) )
++        wait 0.05;
++    waittillframeend;
++    triggers = getentarray( "weapon_upgrade", "targetname" );
++    for ( i = 0; i < triggers.size; i++ )
++    {
++        if ( !isdefined( triggers[i].target ) || !isdefined( triggers[i].zombie_weapon_upgrade ) )
++            continue;
++        weapon = waw_weapon( triggers[i].zombie_weapon_upgrade );
++        model = getent( triggers[i].target, "targetname" );
++        if ( !isdefined( weapon ) || !isdefined( model ) || model.classname != "script_model" )
++            continue;
++        world_model = getweaponmodel( weapon );
++        if ( !isdefined( world_model ) || world_model == "" )
++            continue;
++        model setmodel( world_model );
++        model useweaponhidetags( weapon );
++    }
+ }
+ 
+ // WaW keeps a boarded window shut to path-finding: its clip brush
+@@ -2315,3 +2352,440 @@ waw_playerpositionvalid( ent )
+ {
+     return 1;
+ }
++
++// Checked vector builtins, methods and fields (gscport.guard_vector_calls). A
++// map script that hands a non-vector to a vector builtin, method or entity
++// field raises "type string is not a vector" (or similar) and aborts its
++// thread on T6, naming nothing; a bad value that reaches the engine can do
++// worse. These log "WAW2BO2 BAD VECTOR <what> arg <n> <value> at <script>:<line>"
++// (first few per call site) and fall back to a neutral result instead.
++waw_vec_ok( v, fn, arg, site )
++{
++    if ( isvec( v ) )
++        return 1;
++    if ( !isdefined( level.waw2bo2_bad_vectors ) )
++        level.waw2bo2_bad_vectors = [];
++    key = fn + " " + site;
++    count = 0;
++    if ( isdefined( level.waw2bo2_bad_vectors[key] ) )
++        count = level.waw2bo2_bad_vectors[key];
++    level.waw2bo2_bad_vectors[key] = count + 1;
++    if ( count < 3 )
++    {
++        kind = "undefined";
++        if ( isdefined( v ) )
++            kind = "'" + v + "'";
++        println( "WAW2BO2 BAD VECTOR " + fn + " arg " + arg + " " + kind + " at " + site + " (skipped, neutral result)" );
++    }
++    return 0;
++}
++
++// a vector field assignment keeps the field's current value when the new one is not a vector
++waw_safe_field( site, value, old, name )
++{
++    if ( isvec( value ) || ( !isdefined( value ) && !isdefined( old ) ) )
++        return value;
++    waw_vec_ok( value, "." + name + " =", 1, site );
++    if ( isvec( old ) )
++        return old;
++    return ( 0, 0, 0 );
++}
++
++waw_safe_anglestoforward( site, a )
++{
++    if ( !waw_vec_ok( a, "anglestoforward", 1, site ) )
++        return ( 1, 0, 0 );
++    return anglestoforward( a );
++}
++
++waw_safe_anglestoright( site, a )
++{
++    if ( !waw_vec_ok( a, "anglestoright", 1, site ) )
++        return ( 0, -1, 0 );
++    return anglestoright( a );
++}
++
++waw_safe_anglestoup( site, a )
++{
++    if ( !waw_vec_ok( a, "anglestoup", 1, site ) )
++        return ( 0, 0, 1 );
++    return anglestoup( a );
++}
++
++waw_safe_vectortoangles( site, v )
++{
++    if ( !waw_vec_ok( v, "vectortoangles", 1, site ) )
++        return ( 0, 0, 0 );
++    return vectortoangles( v );
++}
++
++waw_safe_vectornormalize( site, v )
++{
++    if ( !waw_vec_ok( v, "vectornormalize", 1, site ) )
++        return ( 0, 0, 0 );
++    return vectornormalize( v );
++}
++
++// a bad point is treated as far away, so range checks fail instead of firing
++waw_safe_distance( site, a, b )
++{
++    if ( !waw_vec_ok( a, "distance", 1, site ) || !waw_vec_ok( b, "distance", 2, site ) )
++        return 999999;
++    return distance( a, b );
++}
++
++waw_safe_distancesquared( site, a, b )
++{
++    if ( !waw_vec_ok( a, "distancesquared", 1, site ) || !waw_vec_ok( b, "distancesquared", 2, site ) )
++        return 999999 * 999999.0;
++    return distancesquared( a, b );
++}
++
++waw_safe_distance2d( site, a, b )
++{
++    if ( !waw_vec_ok( a, "distance2d", 1, site ) || !waw_vec_ok( b, "distance2d", 2, site ) )
++        return 999999;
++    return distance2d( a, b );
++}
++
++waw_safe_distance2dsquared( site, a, b )
++{
++    if ( !waw_vec_ok( a, "distance2dsquared", 1, site ) || !waw_vec_ok( b, "distance2dsquared", 2, site ) )
++        return 999999 * 999999.0;
++    return distance2dsquared( a, b );
++}
++
++waw_safe_length( site, v )
++{
++    if ( !waw_vec_ok( v, "length", 1, site ) )
++        return 0;
++    return length( v );
++}
++
++waw_safe_lengthsquared( site, v )
++{
++    if ( !waw_vec_ok( v, "lengthsquared", 1, site ) )
++        return 0;
++    return lengthsquared( v );
++}
++
++waw_safe_vectordot( site, a, b )
++{
++    if ( !waw_vec_ok( a, "vectordot", 1, site ) || !waw_vec_ok( b, "vectordot", 2, site ) )
++        return 0;
++    return vectordot( a, b );
++}
++
++waw_safe_vectorcross( site, a, b )
++{
++    if ( !waw_vec_ok( a, "vectorcross", 1, site ) || !waw_vec_ok( b, "vectorcross", 2, site ) )
++        return ( 0, 0, 0 );
++    return vectorcross( a, b );
++}
++
++waw_safe_playfx( site, fx, origin, forward, up )
++{
++    if ( !isdefined( fx ) || !waw_vec_ok( origin, "playfx", 2, site ) )
++        return;
++    if ( isdefined( up ) && waw_vec_ok( forward, "playfx", 3, site ) && waw_vec_ok( up, "playfx", 4, site ) )
++        playfx( fx, origin, forward, up );
++    else if ( isdefined( forward ) && waw_vec_ok( forward, "playfx", 3, site ) )
++        playfx( fx, origin, forward );
++    else
++        playfx( fx, origin );
++}
++
++waw_safe_playsoundatposition( site, alias, origin )
++{
++    if ( !waw_vec_ok( origin, "playsoundatposition", 2, site ) )
++        return;
++    playsoundatposition( alias, origin );
++}
++
++// spawned at the world origin rather than not at all: callers use the entity
++waw_safe_spawn( site, classname, origin, a3, a4, a5, a6, a7 )
++{
++    if ( !waw_vec_ok( origin, "spawn", 2, site ) )
++        origin = ( 0, 0, 0 );
++    if ( isdefined( a7 ) )
++        return spawn( classname, origin, a3, a4, a5, a6, a7 );
++    if ( isdefined( a6 ) )
++        return spawn( classname, origin, a3, a4, a5, a6 );
++    if ( isdefined( a5 ) )
++        return spawn( classname, origin, a3, a4, a5 );
++    if ( isdefined( a4 ) )
++        return spawn( classname, origin, a3, a4 );
++    if ( isdefined( a3 ) )
++        return spawn( classname, origin, a3 );
++    return spawn( classname, origin );
++}
++
++// a bad trace hits nothing
++waw_safe_bullettrace( site, start, end, hitchars, ignore, a5, a6 )
++{
++    if ( !waw_vec_ok( start, "bullettrace", 1, site ) || !waw_vec_ok( end, "bullettrace", 2, site ) )
++    {
++        trace = [];
++        trace["fraction"] = 1;
++        trace["position"] = ( 0, 0, 0 );
++        if ( isvec( end ) )
++            trace["position"] = end;
++        trace["normal"] = ( 0, 0, 0 );
++        trace["surfacetype"] = "none";
++        return trace;
++    }
++    if ( isdefined( a6 ) )
++        return bullettrace( start, end, hitchars, ignore, a5, a6 );
++    if ( isdefined( a5 ) )
++        return bullettrace( start, end, hitchars, ignore, a5 );
++    return bullettrace( start, end, hitchars, ignore );
++}
++
++waw_safe_bullettracepassed( site, start, end, hitchars, ignore, a5, a6 )
++{
++    if ( !waw_vec_ok( start, "bullettracepassed", 1, site ) || !waw_vec_ok( end, "bullettracepassed", 2, site ) )
++        return 0;
++    if ( isdefined( a6 ) )
++        return bullettracepassed( start, end, hitchars, ignore, a5, a6 );
++    if ( isdefined( a5 ) )
++        return bullettracepassed( start, end, hitchars, ignore, a5 );
++    return bullettracepassed( start, end, hitchars, ignore );
++}
++
++waw_safe_sighttracepassed( site, start, end, hitchars, ignore )
++{
++    if ( !waw_vec_ok( start, "sighttracepassed", 1, site ) || !waw_vec_ok( end, "sighttracepassed", 2, site ) )
++        return 0;
++    return sighttracepassed( start, end, hitchars, ignore );
++}
++
++waw_safe_physicstrace( site, start, end, a3, a4, a5, a6 )
++{
++    if ( !waw_vec_ok( start, "physicstrace", 1, site ) || !waw_vec_ok( end, "physicstrace", 2, site ) )
++    {
++        if ( isvec( start ) )
++            return start;
++        return ( 0, 0, 0 );
++    }
++    if ( isdefined( a6 ) )
++        return physicstrace( start, end, a3, a4, a5, a6 );
++    if ( isdefined( a5 ) )
++        return physicstrace( start, end, a3, a4, a5 );
++    if ( isdefined( a4 ) )
++        return physicstrace( start, end, a3, a4 );
++    if ( isdefined( a3 ) )
++        return physicstrace( start, end, a3 );
++    return physicstrace( start, end );
++}
++
++waw_safe_radiusdamage( site, origin, range, maxdamage, mindamage, a5, a6, a7 )
++{
++    if ( !waw_vec_ok( origin, "radiusdamage", 1, site ) )
++        return;
++    if ( isdefined( a7 ) )
++        radiusdamage( origin, range, maxdamage, mindamage, a5, a6, a7 );
++    else if ( isdefined( a6 ) )
++        radiusdamage( origin, range, maxdamage, mindamage, a5, a6 );
++    else if ( isdefined( a5 ) )
++        radiusdamage( origin, range, maxdamage, mindamage, a5 );
++    else
++        radiusdamage( origin, range, maxdamage, mindamage );
++}
++
++waw_safe_earthquake( site, scale, duration, origin, radius, a5 )
++{
++    if ( !waw_vec_ok( origin, "earthquake", 3, site ) )
++        return;
++    if ( isdefined( a5 ) )
++        earthquake( scale, duration, origin, radius, a5 );
++    else
++        earthquake( scale, duration, origin, radius );
++}
++
++waw_safe_magicbullet( site, weapon, start, end, a4, a5, a6 )
++{
++    if ( !waw_vec_ok( start, "magicbullet", 2, site ) || !waw_vec_ok( end, "magicbullet", 3, site ) )
++        return undefined;
++    if ( isdefined( a6 ) )
++        return magicbullet( weapon, start, end, a4, a5, a6 );
++    if ( isdefined( a5 ) )
++        return magicbullet( weapon, start, end, a4, a5 );
++    if ( isdefined( a4 ) )
++        return magicbullet( weapon, start, end, a4 );
++    return magicbullet( weapon, start, end );
++}
++
++// methods (called on the entity: self is the receiver); a bad target leaves it where it is
++waw_safe_m_moveto( site, point, time, accel, decel )
++{
++    if ( !waw_vec_ok( point, "moveto", 1, site ) )
++        return;
++    if ( isdefined( decel ) )
++        self moveto( point, time, accel, decel );
++    else if ( isdefined( accel ) )
++        self moveto( point, time, accel );
++    else
++        self moveto( point, time );
++}
++
++waw_safe_m_rotateto( site, angles, time, accel, decel )
++{
++    if ( !waw_vec_ok( angles, "rotateto", 1, site ) )
++        return;
++    if ( isdefined( decel ) )
++        self rotateto( angles, time, accel, decel );
++    else if ( isdefined( accel ) )
++        self rotateto( angles, time, accel );
++    else
++        self rotateto( angles, time );
++}
++
++waw_safe_m_setorigin( site, v )
++{
++    if ( waw_vec_ok( v, "setorigin", 1, site ) )
++        self setorigin( v );
++}
++
++waw_safe_m_setplayerangles( site, v )
++{
++    if ( waw_vec_ok( v, "setplayerangles", 1, site ) )
++        self setplayerangles( v );
++}
++
++waw_safe_m_setvelocity( site, v )
++{
++    if ( waw_vec_ok( v, "setvelocity", 1, site ) )
++        self setvelocity( v );
++}
++
++waw_safe_m_setgoalpos( site, v, angles )
++{
++    if ( !waw_vec_ok( v, "setgoalpos", 1, site ) )
++        return;
++    if ( isdefined( angles ) && waw_vec_ok( angles, "setgoalpos", 2, site ) )
++        self setgoalpos( v, angles );
++    else
++        self setgoalpos( v );
++}
++
++waw_safe_m_forceteleport( site, origin, angles )
++{
++    if ( !waw_vec_ok( origin, "forceteleport", 1, site ) )
++        return;
++    if ( isdefined( angles ) && waw_vec_ok( angles, "forceteleport", 2, site ) )
++        self forceteleport( origin, angles );
++    else
++        self forceteleport( origin );
++}
++
++waw_safe_m_teleport( site, origin, angles )
++{
++    if ( !waw_vec_ok( origin, "teleport", 1, site ) )
++        return;
++    if ( isdefined( angles ) && waw_vec_ok( angles, "teleport", 2, site ) )
++        self teleport( origin, angles );
++    else
++        self teleport( origin );
++}
++
++// bad offsets link without them
++waw_safe_m_linkto( site, ent, tag, origin_offset, angles_offset )
++{
++    if ( isdefined( angles_offset ) && waw_vec_ok( origin_offset, "linkto", 3, site ) && waw_vec_ok( angles_offset, "linkto", 4, site ) )
++        self linkto( ent, tag, origin_offset, angles_offset );
++    else if ( isdefined( origin_offset ) && !isdefined( angles_offset ) && waw_vec_ok( origin_offset, "linkto", 3, site ) )
++        self linkto( ent, tag, origin_offset );
++    else if ( isdefined( tag ) )
++        self linkto( ent, tag );
++    else
++        self linkto( ent );
++}
++
++waw_safe_m_physicslaunch( site, point, force )
++{
++    if ( isdefined( force ) && waw_vec_ok( point, "physicslaunch", 1, site ) && waw_vec_ok( force, "physicslaunch", 2, site ) )
++        self physicslaunch( point, force );
++    else if ( isdefined( point ) && !isdefined( force ) && waw_vec_ok( point, "physicslaunch", 1, site ) )
++        self physicslaunch( point );
++    else
++        self physicslaunch();
++}
++
++waw_safe_m_launchragdoll( site, force, tag )
++{
++    if ( !waw_vec_ok( force, "launchragdoll", 1, site ) )
++        return;
++    if ( isdefined( tag ) )
++        self launchragdoll( force, tag );
++    else
++        self launchragdoll( force );
++}
++
++waw_safe_m_movegravity( site, velocity, time )
++{
++    if ( waw_vec_ok( velocity, "movegravity", 1, site ) )
++        self movegravity( velocity, time );
++}
++
++waw_safe_m_magicgrenadetype( site, weapon, origin, velocity, time )
++{
++    if ( !waw_vec_ok( origin, "magicgrenadetype", 2, site ) || !waw_vec_ok( velocity, "magicgrenadetype", 3, site ) )
++        return undefined;
++    if ( isdefined( time ) )
++        return self magicgrenadetype( weapon, origin, velocity, time );
++    return self magicgrenadetype( weapon, origin, velocity );
++}
++
++// Loop watchdog (gscport.guard_spinning_loops puts a call at the top of every
++// while/for/foreach loop of the ported and generated scripts). T6 kills a thread
++// that loops or works too long without waiting and prints only "potential infinite loop in
++// script", naming nothing. A loop that passes 500 times in one frame logs
++// "WAW2BO2 SPIN <script>:<line>" once and waits a frame, so the thread lives.
++waw_loop_guard( id )
++{
++    now = gettime();
++    if ( !isdefined( level.waw2bo2_loop_time ) )
++    {
++        level.waw2bo2_loop_time = [];
++        level.waw2bo2_loop_count = [];
++        level.waw2bo2_loop_reported = [];
++    }
++    if ( !isdefined( level.waw2bo2_loop_time[id] ) || level.waw2bo2_loop_time[id] != now )
++    {
++        level.waw2bo2_loop_time[id] = now;
++        level.waw2bo2_loop_count[id] = 0;
++        return;
++    }
++    level.waw2bo2_loop_count[id]++;
++    if ( level.waw2bo2_loop_count[id] < 500 )
++        return;
++    level.waw2bo2_loop_count[id] = 0;
++    if ( !isdefined( level.waw2bo2_loop_reported[id] ) )
++    {
++        level.waw2bo2_loop_reported[id] = 1;
++        println( "WAW2BO2 SPIN " + id + " (500 passes in one frame; waiting a frame so the thread survives)" );
++    }
++    wait 0.05;
++}
++
++// WaW/BO1 battle chatter runs on the dynamic dialog system (maps\_dds), which
++// a zombies level never initialises (level.dds is undefined): its stock
++// battlechatter_off loops over level.dds and spins (Kino's main calls it).
++// BO2 zombies has no battle chatter to turn on or off.
++waw_battlechatter_off( team )
++{
++}
++
++waw_battlechatter_on( team )
++{
++}
++
++// "value, or a default" for fields a WaW script may read before anything set
++// them (gscport.fallback_field_reads: maxhealth -> 100). An undefined field is
++// fine as an argument, but any comparison or arithmetic on it is a script error.
++waw_or( value, fallback )
++{
++    if ( isdefined( value ) )
++        return value;
++    return fallback;
++}
+diff --git a/src/waw2bo2/compat/_waw2bo2_environment.csc b/src/waw2bo2/compat/_waw2bo2_environment.csc
+index de74fe6..6872322 100644
+--- a/src/waw2bo2/compat/_waw2bo2_environment.csc
++++ b/src/waw2bo2/compat/_waw2bo2_environment.csc
+@@ -66,3 +66,31 @@ sun_state( localclientnum, state )
+     setsaveddvar( "r_lightTweakSunColor", color );
+     setsaveddvar( "r_lightTweakSunLight", strength );
+ }
++
++// Client loop watchdog: see the compat GSC's waw_loop_guard.
++waw_loop_guard( id )
++{
++    now = gettime();
++    if ( !isdefined( level.waw2bo2_loop_time ) )
++    {
++        level.waw2bo2_loop_time = [];
++        level.waw2bo2_loop_count = [];
++        level.waw2bo2_loop_reported = [];
++    }
++    if ( !isdefined( level.waw2bo2_loop_time[id] ) || level.waw2bo2_loop_time[id] != now )
++    {
++        level.waw2bo2_loop_time[id] = now;
++        level.waw2bo2_loop_count[id] = 0;
++        return;
++    }
++    level.waw2bo2_loop_count[id]++;
++    if ( level.waw2bo2_loop_count[id] < 500 )
++        return;
++    level.waw2bo2_loop_count[id] = 0;
++    if ( !isdefined( level.waw2bo2_loop_reported[id] ) )
++    {
++        level.waw2bo2_loop_reported[id] = 1;
++        println( "WAW2BO2 SPIN client " + id + " (500 passes in one frame; waiting a frame so the thread survives)" );
++    }
++    wait 0.01;
++}
+diff --git a/src/waw2bo2/compat/gsc_api.json b/src/waw2bo2/compat/gsc_api.json
+index 8b97c05..e8d40ad 100644
+--- a/src/waw2bo2/compat/gsc_api.json
++++ b/src/waw2bo2/compat/gsc_api.json
+@@ -178,6 +178,8 @@
+   },
+   "compat_wrappers": [
+     "clientnotify",
++    "battlechatter_off",
++    "battlechatter_on",
+     "gettagorigin",
+     "newhudelem",
+     "newclienthudelem",
+diff --git a/src/waw2bo2/constraints.py b/src/waw2bo2/constraints.py
+index 92f9982..3a4aa99 100644
+--- a/src/waw2bo2/constraints.py
++++ b/src/waw2bo2/constraints.py
+@@ -14,7 +14,10 @@ def stage(source: Path, project: Path) -> dict:
+     data = json.loads(source.read_text())
+     if data.get('version') != 1:
+         raise ValueError('unsupported map physics constraint schema')
+-    entries = data['constraints']
++    # BO1 maps attach some joints to physics dynents (hanging lamps, chains); those need native dynent
++    # staging, which does not exist yet, so they are left out and reported
++    skipped_dynent = [e for e in data['constraints'] if 1 in (e['attach_point_type1'], e['attach_point_type2'])]
++    entries = data['constraints'] = [e for e in data['constraints'] if e not in skipped_dynent]
+     if len(entries) > 511:
+         raise ValueError('map physics constraint count exceeds T6 limit 511')
+     materials = set()
+@@ -48,7 +51,8 @@ def stage(source: Path, project: Path) -> dict:
+         raise ValueError('map rope count exceeds T6 limit 300')
+     target.parent.mkdir(parents=True, exist_ok=True)
+     target.write_text(json.dumps(data, indent=2) + '\n')
+-    return {'count': len(entries), 'ropes': ropes, 'materials': sorted(materials), 'exported': True}
++    return {'count': len(entries), 'ropes': ropes, 'materials': sorted(materials), 'exported': True,
++            'skipped_dynent_attachments': len(skipped_dynent)}
+ 
+ 
+ def stage_entities(project: Path) -> dict:
+diff --git a/src/waw2bo2/gscport.py b/src/waw2bo2/gscport.py
+index 15fc2b0..385ed1a 100644
+--- a/src/waw2bo2/gscport.py
++++ b/src/waw2bo2/gscport.py
+@@ -417,6 +417,20 @@ def rename_level_fields(tokens: list[gsc.Token]) -> int:
+     return renamed
+ 
+ 
++def lower_bo1_mutators(tokens: list[gsc.Token]) -> int:
++    """BO1 game mutators (level.mutators["mutator_noPerks"], ...): its _zombiemode fills them from the
++    lobby; the port has no lobby mutators, so every check is false, as in a default BO1 game."""
++    lowered = 0
++    for i in range(len(tokens) - 5):
++        if (tokens[i].low == "level" and tokens[i + 1].text == "." and tokens[i + 2].low == "mutators"
++                and tokens[i + 3].text == "[" and tokens[i + 4].kind == gsc.STRING and tokens[i + 5].text == "]"):
++            tokens[i].text, tokens[i].kind = "false", gsc.IDENT
++            for t in tokens[i + 1:i + 6]:
++                t.text, t.pre, t.kind = "", "", gsc.PUNCT
++            lowered += 1
++    return lowered
++
++
+ def level_fields_read(tokens: list[gsc.Token], start: int = 2, end: int | None = None) -> set[str]:
+     """``level.<field>`` names (lower-case) used in tokens[start:end]."""
+     end = len(tokens) if end is None else end
+@@ -878,6 +892,149 @@ def lower_hud_fields(tokens: list[gsc.Token]) -> int:
+     return changed
+ 
+ 
++# T6 builtins, methods and entity fields taking vectors that a ported map
++# script may feed a bad value (undefined, a string, a struct): routed through
++# compat waw_safe_<name> / waw_safe_m_<name> / waw_safe_field, which log
++# "WAW2BO2 BAD VECTOR ... at <script>:<line>" and fall back to a neutral result
++# instead of aborting the calling thread or passing garbage on to the engine.
++VECTOR_GUARDS = frozenset((
++    "anglestoforward", "anglestoright", "anglestoup", "vectortoangles", "vectornormalize",
++    "distance", "distancesquared", "distance2d", "distance2dsquared", "length", "lengthsquared",
++    "vectordot", "vectorcross", "playfx", "playsoundatposition", "spawn", "bullettrace",
++    "bullettracepassed", "sighttracepassed", "physicstrace", "radiusdamage", "earthquake", "magicbullet"))
++VECTOR_METHOD_GUARDS = frozenset((
++    "moveto", "rotateto", "setorigin", "setplayerangles", "setvelocity", "setgoalpos", "forceteleport",
++    "teleport", "linkto", "physicslaunch", "launchragdoll", "movegravity", "magicgrenadetype"))
++VECTOR_FIELDS = frozenset(("origin", "angles"))
++# keywords that may directly precede a function-form call
++CALL_PREFIX_KEYWORDS = frozenset(("return", "thread", "childthread", "else", "wait", "in", "case"))
++
++
++def guard_vector_calls(tokens: list[gsc.Token], label: str, local_functions: set[str] = frozenset()) -> int:
++    """Vector builtins, methods and ``<name>.origin/.angles =`` assignments ->
++    compat checked versions that name their call site (``label:<line>``).
++    Runs after reference resolution: a map function sharing a builtin's name is
++    renamed waw_<name> by then, so a remaining bare function name is the
++    builtin; a method name the script defines itself (``local_functions``) is
++    the map's own. Pointers, qualified names and longer receivers
++    (``a.b.origin``) are left alone."""
++    changed = 0
++    for i in range(1, len(tokens) - 1):
++        t = tokens[i]
++        if t.kind != gsc.IDENT or tokens[i + 1].text != "(":
++            continue
++        prev = tokens[i - 1]
++        method = prev.text in (")", "]") or (prev.kind == gsc.IDENT and prev.low not in CALL_PREFIX_KEYWORDS
++                                             and prev.low not in gsc.KEYWORDS - {"self", "level", "game", "anim"})
++        if prev.text in (".", "::"):
++            continue
++        if method and t.low in VECTOR_METHOD_GUARDS and t.low not in local_functions:
++            name = f"{COMPAT}::waw_safe_m_{t.low}"
++        elif not method and t.low in VECTOR_GUARDS:
++            name = f"{COMPAT}::waw_safe_{t.low}"
++        else:
++            continue
++        t.text = name
++        # a complete target call (see lower_zombie_weapon_keys)
++        t.kind = gsc.PUNCT
++        site = f'"{label}:{t.line}"'
++        tokens[i + 1].text += f" {site}" + ("" if tokens[i + 2].text == ")" else ",")
++        changed += 1
++    for i in range(3, len(tokens) - 2):
++        field, receiver = tokens[i], tokens[i - 2]
++        if field.low not in VECTOR_FIELDS or tokens[i - 1].text != "." or receiver.kind != gsc.IDENT:
++            continue
++        if tokens[i - 3].text in (".", "]", ")", "::") or tokens[i + 1].text != "=" or tokens[i + 2].text == "=":
++            continue
++        depth, j = 0, i + 2
++        while j < len(tokens) and not (depth == 0 and tokens[j].text == ";"):
++            depth += (tokens[j].text in "([{") - (tokens[j].text in ")]}")
++            j += 1
++        if j >= len(tokens) or j == i + 2:
++            continue
++        if not any(x.kind in (gsc.IDENT, gsc.STRING, gsc.PATH) for x in tokens[i + 2:j]):
++            continue  # a literal vector cannot be wrong
++        tokens[i + 2].pre +=f'{COMPAT}::waw_safe_field( "{label}:{field.line}", '
++        tokens[j - 1].text += f', {receiver.text}.{field.text}, "{field.low}" )'
++        changed += 1
++    return changed
++
++
++LOOP_GUARD_SERVER = COMPAT + "::waw_loop_guard"
++LOOP_GUARD_CLIENT = "clientscripts\\mp\\waw\\_waw2bo2_environment::waw_loop_guard"
++
++
++def guard_loop_tokens(tokens: list[gsc.Token], label: str, guard: str) -> int:
++    """Put ``guard( "<label>:<line>" );`` at the top of every braced while, for
++    and foreach loop: T6 also kills a thread doing too much work in one frame,
++    e.g. a nested counted loop over a large array. Idempotent."""
++    changed = 0
++    for i, t in enumerate(tokens[:-1]):
++        if t.kind != gsc.IDENT or t.low not in ("while", "for", "foreach") or tokens[i + 1].text != "(":
++            continue
++        depth, j = 0, i + 1
++        while j < len(tokens):
++            depth += (tokens[j].text == "(") - (tokens[j].text == ")")
++            if depth == 0:
++                break
++            j += 1
++        if j + 1 >= len(tokens) or tokens[j + 1].text != "{":
++            continue
++        brace = tokens[j + 1]
++        # re-tokenized, the guard call is split (path, ::, name)
++        if guard in brace.text or "".join(x.text for x in tokens[j + 2:j + 6]).lower().startswith(guard.lower()):
++            continue
++        brace.text += f' {guard}( "{label}:{t.line}" );'
++        changed += 1
++    return changed
++
++
++def guard_spinning_loops(project_root: Path, project: str) -> int:
++    """Loop watchdog calls (compat waw_loop_guard) in the map's ported and
++    generated server and client scripts; the watchdog files themselves excepted."""
++    targets = [(p, LOOP_GUARD_SERVER) for p in (project_root / "maps/mp/waw").rglob("*.gsc")
++               if p.name != "_waw2bo2_compat.gsc"]
++    targets += [(p, LOOP_GUARD_CLIENT) for p in (project_root / "clientscripts/mp/waw").rglob("*.csc")
++                if p.name != "_waw2bo2_environment.csc"]
++    targets += [(project_root / "maps/mp" / f"{project}.gsc", LOOP_GUARD_SERVER),
++                (project_root / "clientscripts/mp" / f"{project}.csc", LOOP_GUARD_CLIENT)]
++    total = 0
++    for path, guard in targets:
++        if not path.is_file():
++            continue
++        tokens = gsc.tokenize(path.read_text(encoding="utf-8"))
++        changed = guard_loop_tokens(tokens, path.relative_to(project_root).with_suffix("").as_posix(), guard)
++        if changed:
++            path.write_text("".join(t.pre + t.text for t in tokens), encoding="utf-8")
++            total += changed
++    return total
++
++
++# fields a WaW script may read before anything set them, with the value WaW/BO2 assume
++FIELD_FALLBACKS = {"maxhealth": "100"}
++
++
++def fallback_field_reads(tokens: list[gsc.Token]) -> int:
++    """``<name>.maxhealth`` reads -> compat ``waw_or( <name>.maxhealth, 100 )``.
++    Assignments (``x.maxhealth = ...``) and longer receivers (``a.b.maxhealth``,
++    ``a[i].maxhealth``) are left alone."""
++    changed = 0
++    for i in range(2, len(tokens) - 1):
++        field = tokens[i].low
++        if field not in FIELD_FALLBACKS or tokens[i - 1].text != "." or tokens[i - 2].kind != gsc.IDENT:
++            continue
++        if tokens[i - 3].text in (".", "]", ")", "::") or tokens[i - 3].low == "waw_or":
++            continue
++        after = tokens[i + 1].text
++        if after == "=" and tokens[i + 2].text != "=" or after in ("+=", "-=", "*=", "/=", "++", "--")                 or after in ("+", "-") and tokens[i + 2].text == after:
++            continue
++        receiver = tokens[i - 2]
++        receiver.text = f"{COMPAT}::waw_or( {receiver.text}"
++        tokens[i].text = f"{tokens[i].text}, {FIELD_FALLBACKS[field]} )"
++        changed += 1
++    return changed
++
++
+ def lower_zombie_weapon_keys(tokens: list[gsc.Token]) -> int:
+     """`GetArrayKeys( level.zombie_weapons )` -> the WaW-registered keys only
+     (compat waw_zombie_weapon_keys): the WaW box chooser offers every key, and
+@@ -1194,6 +1351,7 @@ class Translator:
+             self._split_main(script)
+         self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
+         self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
++        self.report.rewrites["BO1 mutator checks lowered to false"] += lower_bo1_mutators(tokens)
+         self.report.rewrites["WaW deathanim assignments kept BO2's (ASD state)"] += keep_bo2_deathanims(tokens)
+         defs = {fn.start for fn in script.functions.values()}
+         for name, fn in script.functions.items():
+@@ -1202,6 +1360,9 @@ class Translator:
+                 self.report.rewrites["map functions named like T6 builtins renamed (waw_*)"] += 1
+         self.resolve_refs(tokens, script, where_file, included_bo2, defs,
+                           neutralized_ranges=neutralized_ranges)
++        self.report.rewrites["vector builtins/methods/fields checked (compat waw_safe_*)"] += guard_vector_calls(
++            tokens, norm(path).replace("\\", "/"), {name.lower() for name in script.functions})
++        self.report.rewrites["field reads with fallbacks (compat waw_or)"] += fallback_field_reads(tokens)
+         self.report.rewrites["WaW contact-kill monitors own AI attacks"] += bridge_contact_kill_attacks(tokens, script)
+         self.report.rewrites["WaW being_revived reads bridged to T6 revive state"] += bridge_revive_reads(tokens)
+         self.report.rewrites["WaW session stat reads bridged to T6 counters"] += bridge_player_stat_reads(tokens)
+@@ -1456,6 +1617,7 @@ class Translator:
+         where = self.sources.origin.get(core + ".gsc", core)
+         self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
+         self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
++        self.report.rewrites["BO1 mutator checks lowered to false"] += lower_bo1_mutators(tokens)
+         self.report.rewrites["WaW deathanim assignments kept BO2's (ASD state)"] += keep_bo2_deathanims(tokens)
+         self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=core)
+         self.report.extracted.append(f"{core}::{init} (level state)")
+@@ -1586,6 +1748,7 @@ class Translator:
+         tokens[0].pre = f"\n// {core}::{function}: the map's leading rules, as a BO2 damage callback\n"
+         self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
+         self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
++        self.report.rewrites["BO1 mutator checks lowered to false"] += lower_bo1_mutators(tokens)
+         self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=core)
+         self.report.extracted.append(f"{core}::{function} (map prelude -> damage callback)")
+         self.level_state_parts.append(gsc.emit(tokens) + f"\n{name}_register()\n{{\n"
+@@ -1641,6 +1804,7 @@ class Translator:
+         tokens[0].pre = f"\n// {core}::{function}: the source round count formula, as BO2's max_zombie_func\n"
+         self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
+         self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
++        self.report.rewrites["BO1 mutator checks lowered to false"] += lower_bo1_mutators(tokens)
+         self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=core)
+         self.report.extracted.append(f"{core}::{function} (round count formula -> max_zombie_func)")
+         self.level_state_parts.append(gsc.emit(tokens) + f"\n{name}_register()\n{{\n"
+@@ -1803,6 +1967,7 @@ class Translator:
+         self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
+         self.source_lowerings(tokens)
+         self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
++        self.report.rewrites["BO1 mutator checks lowered to false"] += lower_bo1_mutators(tokens)
+         self.report.rewrites["WaW deathanim assignments kept BO2's (ASD state)"] += keep_bo2_deathanims(tokens)
+         self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=core)
+         self.report.rewrites["WaW HUD network font scales decoded"] += bridge_font_scales(tokens)
+@@ -1892,6 +2057,7 @@ class Translator:
+                       *copy.deepcopy(body), gsc.Token(gsc.PUNCT, "}", "\n"), gsc.Token(gsc.EOF, "")]
+             self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
+             self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
++            self.report.rewrites["BO1 mutator checks lowered to false"] += lower_bo1_mutators(tokens)
+             self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=ZOMBIEMODE)
+             tokens[-2].text = tail + tokens[-2].text
+             self.level_state_parts.append(gsc.emit(tokens))
+@@ -2916,6 +3082,10 @@ def waw_pack_a_punch_source(source: str, path: str) -> tuple[str, set[str]] | No
+     kept = []
+     for start, end in top_level_statements(toks, init.body_open, init.body_close):
+         text = "".join(t.low for t in toks[start:end])
++        if text.startswith("if(level.mutators[") and "else" not in text:
++            # a BO1 lobby-mutator branch never runs in the port (lower_bo1_mutators) and may use
++            # perk-machine locals this reduction removes (BO1 mutator_noPerks: vending_triggers)
++            continue
+         relays = [script.functions[n] for n in callees(start, end) if n != "init"]
+         if any(m in text for m in PACK_A_PUNCH_MARKERS) or \
+                 (relays and all(_power_relay(script, fn) for fn in relays) and "thread" in text):
+@@ -3250,6 +3420,38 @@ def ensure_owned_client_bootstrap(out_root: Path, bo2_root: Path) -> Path:
+     return destination
+ 
+ 
++# BO2 _zm_traps overlays per trap type: the server registers them from zombie_trap triggers, the
++# client (clientscripts _zm_traps::init) only from zm_traps structs, which source maps do not have
++CLIENT_TRAP_OVERLAYS = {
++    "electric": 'clientscripts\\mp\\_visionset_mgr::vsmgr_register_overlay_info_style_electrified( "zm_trap_electric", 16000, 15, 1.25 );',
++    "fire": 'clientscripts\\mp\\_visionset_mgr::vsmgr_register_overlay_info_style_burn( "zm_trap_burn", 16000, 15, 1.25 );',
++}
++TRAP_INIT_CALL = "clientscripts\\mp\\zombies\\_zm_traps::init();"
++
++
++def register_client_trap_overlays(out_root: Path) -> list[str]:
++    """Register on the client the trap overlays the server registers for the map's zombie_trap triggers,
++    right after the client trap init (idempotent). Without them the overlay clientfields exist on the
++    server only and the game disconnects with EXE_CLIENT_FIELD_MISMATCH. Returns the trap types."""
++    entities_json = out_root / "BSP" / "entities.json"
++    bootstrap = out_root / "clientscripts/mp/waw/_waw2bo2_zm.csc"
++    if not entities_json.is_file() or not bootstrap.is_file():
++        return []
++    entities = json.loads(entities_json.read_text(encoding="utf-8"))["entities"]
++    types = sorted({e["script_noteworthy"] for e in entities if e.get("targetname") == "zombie_trap"
++                    and e.get("script_noteworthy") in CLIENT_TRAP_OVERLAYS})
++    source = bootstrap.read_text(encoding="utf-8")
++    marker = "// waw2bo2: map trap overlays"
++    if not types or marker in source:
++        return types
++    match = re.search(r"^([ \t]*)" + re.escape(TRAP_INIT_CALL) + r"[ \t]*\n", source, re.M)
++    if match is None:
++        raise ValueError(f"{bootstrap}: no {TRAP_INIT_CALL} to register the map's trap overlays after")
++    lines = [f"{match[1]}{marker}"] + [f"{match[1]}{CLIENT_TRAP_OVERLAYS[t]}" for t in types]
++    bootstrap.write_text(source[:match.end()] + "\n".join(lines) + "\n" + source[match.end():], encoding="utf-8")
++    return types
++
++
+ PERK_OVERRIDE_HEADER = "// waw2bo2: WaW owns perk gameplay; BO2 runtime support only.\n"
+ # Keep the native runtime on Original: its Easy branch changes the shared
+ # round speed state. Source WaW set_run_speed owns each zombie's speed choice,
+diff --git a/src/waw2bo2/launcher.py b/src/waw2bo2/launcher.py
+index 6457309..055bcc9 100644
+--- a/src/waw2bo2/launcher.py
++++ b/src/waw2bo2/launcher.py
+@@ -51,6 +51,8 @@ class Settings:
+     menu_blit: str = ''
+     menu_large: str = ''
+     menu_blur: str = ''
++    menu_icon: str = ''
++    menu_preview: str = ''
+     menu_longitude: str = '0'
+     menu_latitude: str = '0'
+     loading_song: str = ''
+diff --git a/src/waw2bo2/lighting.py b/src/waw2bo2/lighting.py
+index 66df08a..3865d9f 100644
+--- a/src/waw2bo2/lighting.py
++++ b/src/waw2bo2/lighting.py
+@@ -113,7 +113,37 @@ def read_grid(path: Path) -> LightGrid:
+     return grid
+ 
+ 
+-def stage_grid(source: Path, destination: Path) -> dict:
++# BO1 (T5) grid samples are not WaW's gamma RGB bytes. Bit statistics over
++# Kino's 1.8M samples show a 24-bit word per sample: bits 12-23 a smooth
++# brightness, bits 6-11 and 0-5 two small fields centred near 15.5 whose sum
++# stays close to 31. Read as chromaticity (red = a/k, blue = b/k, green the
++# rest), the commonest sample decodes to Kino's own ambient colour
++# (0.31 0.33 0.34) at k = 46.5. Taken as RGB bytes the same words come out
++# green, which is how the converted map's models looked.
++T5_GRID_CHROMA_SCALE = 46.5
++# linear light per brightness unit; keeps the grid's overall level where the
++# WaW reading left it (models matched the world brightness, only the hue was wrong)
++T5_GRID_BRIGHTNESS = 1.0 / 512.0
++
++
++def t5_grid_sample_to_t6(word: int) -> tuple[int, int, int]:
++    """One BO1 grid sample -> T6 palette bytes (T6 sub_755810 decodes 32*(c/255)^2)."""
++    luma = (word >> 12) * T5_GRID_BRIGHTNESS
++    red = ((word >> 6) & 63) / T5_GRID_CHROMA_SCALE
++    blue = (word & 63) / T5_GRID_CHROMA_SCALE
++    green = max(0.0, 1.0 - red - blue)
++    # chromaticity shares sum to 1; neutral grey is 1/3 each, so 3 * share keeps luma
++    return tuple(min(255, round(255 * math.sqrt(max(0.0, 3 * share * luma) / 32))) for share in (red, green, blue))
++
++
++def t5_palette_to_t6(colors: bytes) -> bytes:
++    out = bytearray()
++    for i in range(0, len(colors), 3):
++        out.extend(t5_grid_sample_to_t6(int.from_bytes(colors[i:i + 3], "little")))
++    return bytes(out)
++
++
++def stage_grid(source: Path, destination: Path, t5: bool = False) -> dict:
+     """Stage T6's packed grid, preserving positions and directional samples.
+ 
+     Native T6 sub_755810 decodes bytes as 32*(c/255)^2. WaW's model
+@@ -130,13 +160,17 @@ def stage_grid(source: Path, destination: Path) -> dict:
+     for color, primary, needs_trace in struct.iter_unpack("<HBB", grid.entries):
+         entries.extend(struct.pack("<HBB", color, primary, 255 if primary else 0))
+         trace_points += bool(needs_trace)
+-    palette = bytes(round(c / math.sqrt(8)) for c in grid.colors)
++    if t5:
++        palette = t5_palette_to_t6(grid.colors)
++    else:
++        palette = bytes(round(c / math.sqrt(8)) for c in grid.colors)
+     header = HEADER.pack(b"W2BT6LG1", 1, 0, grid.sun_index, *grid.mins, *grid.maxs,
+                          grid.row_axis, grid.col_axis, len(grid.row_starts), len(grid.packed_rows),
+                          len(entries) // 4, len(palette) // 168)
+     destination.write_bytes(header + struct.pack(f"<{len(grid.row_starts)}H", *grid.row_starts)
+                             + grid.packed_rows + entries + palette)
+-    return {**grid.report(), "status": "runtime_T6_grid", "palette_encoding": "WaW_gamma2_to_T6_linear32",
++    return {**grid.report(), "status": "runtime_T6_grid",
++            "palette_encoding": "T5_luma12_chroma6x2_to_T6_linear32" if t5 else "WaW_gamma2_to_T6_linear32",
+             "source_trace_mask_points": trace_points,
+             "corner_obstruction_checks": "T4_runtime_traces_not_representable_in_T6_visibility"}
+ 
+diff --git a/src/waw2bo2/linuxruntime.py b/src/waw2bo2/linuxruntime.py
+index 3cdc546..ee2f170 100644
+--- a/src/waw2bo2/linuxruntime.py
++++ b/src/waw2bo2/linuxruntime.py
+@@ -71,7 +71,7 @@ def build_command(settings, paths, *, redump: bool) -> list[str]:
+     configure_localappdata()
+     payload = asdict(settings)
+     for field in ('waw', 'bo2', 'waw_tools', 't4', 't6', 'decoder', 'work', 'fastfile',
+-                  'menu_blit', 'menu_large', 'menu_blur', 'loading_song'):
++                  'menu_blit', 'menu_large', 'menu_blur', 'menu_icon', 'menu_preview', 'loading_song'):
+         if payload.get(field):
+             payload[field] = windows_path(payload[field])
+     command = [wine(), str(worker), '-m', 'waw2bo2.cli', 'build-map',
+diff --git a/src/waw2bo2/localization.py b/src/waw2bo2/localization.py
+index 41aab2d..bb57cbe 100644
+--- a/src/waw2bo2/localization.py
++++ b/src/waw2bo2/localization.py
+@@ -166,6 +166,18 @@ def stage(project: Path, roots: list[Path], iwd_dirs: list[Path], stock=None,
+             prepared[str(Path(data['inputs']['file']).resolve())] = root
+     if unlinker is not None:
+         zones = {ff for directory in iwd_dirs if directory.is_dir() for ff in directory.glob('*.ff')}
++        # A BO1 map's folder is the game's zone/Common, holding every map's zones: keep the ones
++        # already prepared for this map (keys from other stock zones are found through ``stock`` below)
++        zones = {ff for ff in zones if ff.parent.name.lower() != 'common' or str(ff.resolve()) in prepared}
++        # BO1 keeps its text in zone/<Language>/<xx>_<zone>.ff beside zone/Common (Kino's barrier
++        # prompts are in en_common_zombie, not in any map zone or IWD)
++        for directory in iwd_dirs:
++            lang_dir = directory.parent / language.title()
++            if directory.name.lower() != 'common' or not lang_dir.is_dir():
++                continue
++            stems = {'common_zombie', *(ff.stem.lower() for ff in zones if ff.parent == directory)}
++            zones |= {lang_dir / f'{language[:2]}_{stem}.ff' for stem in stems
++                      if (lang_dir / f'{language[:2]}_{stem}.ff').is_file()}
+         # Patched definitions win; common localization is the map's baseline.
+         for ff in sorted(zones, key=lambda p: ('patch' not in p.stem.lower(),
+                                               'common' in p.stem.lower(), p.name)):
+diff --git a/src/waw2bo2/menuart.py b/src/waw2bo2/menuart.py
+index a065f50..1ff7512 100644
+--- a/src/waw2bo2/menuart.py
++++ b/src/waw2bo2/menuart.py
+@@ -12,15 +12,24 @@ SIZES = {'blit': (512, 256), 'large': (2048, 2048), 'blur': (2048, 2048)}
+ # Block compression per role, as in the Nuketown menu art that loads: DXT1 for
+ # the opaque backdrops, DXT5 where alpha matters. Uncompressed RGBA made each
+ # 2048 backdrop 16 MB, an image the game refused to allocate at startup.
+-DXT = {'blit': 'DXT5', 'icon': 'DXT5', 'large': 'DXT1', 'blur': 'DXT1'}
++DXT = {'blit': 'DXT5', 'icon': 'DXT5', 'large': 'DXT1', 'blur': 'DXT1', 'preview': 'DXT1'}
++
++
++# Optional roles, derived from Large when not given: the globe icon and the
++# map card in the custom games lobby (menu_<map>_zclassic_default).
++OPTIONAL_SIZES = {'icon': (256, 256), 'preview': (1024, 1024)}
++ICON_SIZE = OPTIONAL_SIZES['icon']
++DEFAULT_ICON = Path(__file__).parent / 'compat' / 'default_menu_icon.png'
+ 
+ 
+ def read_art(path: str, role: str) -> Image.Image:
++    # Any size is accepted: the menus draw each canvas stretched to their own
++    # frame, so the image is scaled to the canvas the same way.
++    size = OPTIONAL_SIZES.get(role) or SIZES[role]
+     with Image.open(path) as source:
+-        if source.size != SIZES[role]:
+-            w, h = SIZES[role]
+-            raise ValueError(f'{role.title()} requires {w} × {h} pixels; selected image is {source.width} × {source.height}.')
+         image = source.convert('RGBA')
++    if image.size != size:
++        image = image.resize(size, Image.Resampling.LANCZOS)
+     if role == 'blit' and image.getextrema()[3][0] == 255:
+         raise ValueError('Blit needs a transparent background. Choose a PNG or TGA with alpha transparency.')
+     return image
+@@ -101,9 +110,14 @@ def stage_art(settings, root: Path) -> None:
+     if settings.menu_blit:
+         images = {role: read_art(getattr(settings, 'menu_' + role), role) for role in SIZES}
+         # The three-upload workflow derives lobby and loading artwork from Large.
+-        images['icon'] = images['large'].resize((256, 256), Image.Resampling.LANCZOS)
++        # every converted map shares the default globe icon unless it has its own
++        icon = getattr(settings, 'menu_icon', '') or (str(DEFAULT_ICON) if DEFAULT_ICON.is_file() else '')
++        images['icon'] = read_art(icon, 'icon') if icon else images['large'].resize(ICON_SIZE, Image.Resampling.LANCZOS)
++        preview = getattr(settings, 'menu_preview', '')
++        if preview:
++            images['preview'] = read_art(preview, 'preview')
+         bindings = {'map': 'large', 'map_blur': 'blur', 'blit': 'blit', 'icon': 'icon',
+-                    'zclassic_default': 'large'}
++                    'zclassic_default': 'preview' if preview else 'large'}
+         bindings.update({'loadscreen:' + suffix: 'large' for suffix in ('zclassic_default', 'zclassic_')})
+         for folder in ('materials', 'images'):
+             (root / folder).mkdir(parents=True, exist_ok=True)
+diff --git a/src/waw2bo2/parallel.py b/src/waw2bo2/parallel.py
+index b5b8890..77f3999 100644
+--- a/src/waw2bo2/parallel.py
++++ b/src/waw2bo2/parallel.py
+@@ -54,3 +54,25 @@ def ordered_map(function, values, *, label: str, processes: bool = False):
+         for future in pending:
+             future.cancel()
+         pool.shutdown(wait=True, cancel_futures=True)
++
++
++def write_shared(path, data: bytes) -> None:
++    """Write a file other workers may write with the same content at the same time
++    (content-named shaders, images shared by materials): a private temporary file is
++    moved into place, retrying while another worker holds the target open."""
++    import time
++    from pathlib import Path
++    path = Path(path)
++    if path.is_file() and path.stat().st_size == len(data) and path.read_bytes() == data:
++        return
++    path.parent.mkdir(parents=True, exist_ok=True)
++    temp = path.with_name(f'{path.name}.{os.getpid()}.tmp')
++    temp.write_bytes(data)
++    for attempt in range(50):
++        try:
++            os.replace(temp, path)
++            return
++        except PermissionError:
++            if attempt == 49:
++                raise
++            time.sleep(0.05)
+diff --git a/src/waw2bo2/remaster.py b/src/waw2bo2/remaster.py
+index 59f82ed..85f2b2c 100644
+--- a/src/waw2bo2/remaster.py
++++ b/src/waw2bo2/remaster.py
+@@ -29,6 +29,7 @@ import os
+ import re
+ import shutil
+ import subprocess
++import zlib
+ from dataclasses import dataclass
+ from pathlib import Path
+ 
+@@ -121,17 +122,45 @@ def asset_index(bo2_root: Path, tool: Path, cache: Path) -> dict[str, dict[str,
+     return assets
+ 
+ 
+-def find_matches(names, materials: dict[str, tuple[str, str]]) -> list[Match]:
++def material_zones(bo2_root: Path, cache: Path) -> dict[str, list[str]]:
++    """material name (lower) -> every zone/all fastfile defining it, in _zones order, read from the
++    per-zone listings asset_index leaves in ``cache``."""
++    from .all2raw import listing
++    where: dict[str, list[str]] = {}
++    for zone in _zones(bo2_root):
++        log = cache / f"{zone.stem}.assets.log"
++        if log.is_file():
++            for name in listing(log.read_text(encoding="utf-8", errors="replace")).get("material", []):
++                where.setdefault(name.lower(), []).append(str(zone))
++    return where
++
++
++def find_matches(names, materials: dict[str, tuple[str, str]],
++                 where: dict[str, list[str]] | None = None) -> list[Match]:
+     """WaW model materials with a same-class BO2 material of the same name
+-    (after the remaster prefix)."""
+-    matches = []
++    (after the remaster prefix). With ``where`` (material_zones), each material is taken from
++    as few zones as possible: every zone dump extracts a whole level's materials and images."""
++    hits = []
+     for waw in sorted(names):
+         if split_name(waw)[0] != MODEL_CLASS:
+             continue
+-        hit = next((materials[c] for c in bo2_candidates(waw) if c in materials), None)
+-        if hit is not None:
+-            matches.append(Match(waw, hit[0], Path(hit[1])))
+-    return matches
++        key = next((c for c in bo2_candidates(waw) if c in materials), None)
++        if key is not None:
++            hits.append((waw, key))
++    zone_of = {key: materials[key][1] for _, key in hits}
++    if where:
++        # greedy set cover over the defining zones, Zombies zones first on ties
++        uncovered = {key for _, key in hits if where.get(key)}
++        while uncovered:
++            counts: dict[str, int] = {}
++            for key in uncovered:
++                for zone in where[key]:
++                    counts[zone] = counts.get(zone, 0) + 1
++            best = min(counts, key=lambda z: (-counts[z], not Path(z).stem.startswith(("zm_", "common_zm")), z))
++            for key in [k for k in uncovered if best in where[k]]:
++                zone_of[key] = best
++                uncovered.discard(key)
++    return [Match(waw, materials[key][0], Path(zone_of[key])) for waw, key in hits]
+ 
+ 
+ class _Extractor:
+@@ -167,8 +196,9 @@ class _Extractor:
+     def dump(self, zone: Path, assets: str) -> Path:
+         key = (str(zone), assets)
+         if key not in self.dumps:
+-            # short names: shader file names are long and Windows paths end at 260
+-            out = self.work / f"{zone.stem}.{len(self.dumps)}"
++            # short names: shader file names are long and Windows paths end at 260; named per
++            # (zone, assets) so zones can be dumped from several threads at once
++            out = self.work / f"{zone.stem}.{zlib.crc32(assets.encode()) % 1000}"
+             shutil.rmtree(out, ignore_errors=True)
+             self.log(f"[staging] Remaster: reading {assets.replace(',', ', ')} from {zone.name}")
+             self.logs[out] = self._unlink(zone, assets, out)
+@@ -294,6 +324,11 @@ def extract(matches: list[Match], bo2_root: Path, tool: Path, cache: Path, views
+         kept = []
+         reasons: dict[str, str] = {}
+         needed: dict[Path, set[str]] = {}
++        # every zone dump is an independent native extraction: run them concurrently
++        from concurrent.futures import ThreadPoolExecutor
++        zones = sorted({zone for _, zone in wanted})
++        with ThreadPoolExecutor(max_workers=max(1, min(len(zones), os.cpu_count() or 1))) as pool:
++            list(pool.map(lambda zone: ex.dump(Path(zone), "material,techniqueset,image"), zones))
+         for material, zone in wanted:
+             home = ex.dump(Path(zone), "material,techniqueset,image")
+             rel = techsets.oat_material_path(material)
+diff --git a/src/waw2bo2/shaderruntime.py b/src/waw2bo2/shaderruntime.py
+index 2902bc4..62a04f7 100644
+--- a/src/waw2bo2/shaderruntime.py
++++ b/src/waw2bo2/shaderruntime.py
+@@ -14,6 +14,7 @@ from functools import lru_cache
+ from pathlib import Path
+ 
+ from . import lightmaps, shaders, techsets
++from .parallel import write_shared
+ 
+ 
+ def _find(roots, relative):
+@@ -995,7 +996,10 @@ def source_slot(present, source_name, slot):
+     if present(index):
+         return index
+     parsed = techsets.parse(source_name)
+-    self_lit = source_name.startswith('mc_sky') or (not parsed.lit and parsed.unlit_kind in SELF_LIT_KINDS)
++    # BO1 adds unlit variants (wc_unlitdecalblend_add: Kino's wallbuy chalk,
++    # additive, drawn opaque black over the wall without its WaW state)
++    self_lit = source_name.startswith('mc_sky') or (not parsed.lit and (parsed.unlit_kind in SELF_LIT_KINDS
++                                                                       or (parsed.unlit_kind or '').startswith('unlit')))
+     if slot in (2, 3) and self_lit:
+         # T6 draws emissive surfaces through UNLIT/EMISSIVE even when WaW
+         # draws them through UNLIT or only through lit aliases (objective).
+@@ -1161,11 +1165,11 @@ def _write_program(project_root, stage, code, source, contract, info):
+     name = 'waw/runtime_' + hashlib.sha256(code).hexdigest()[:20]
+     path = project_root / 'shader_bin' / f'{stage}_{name}.cso'
+     path.parent.mkdir(parents=True, exist_ok=True)
+-    path.write_bytes(code)
++    write_shared(path, code)
+     proof = project_root / 'content_source/shaders/runtime' / f'{name.rsplit("/", 1)[1]}.json'
+     proof.parent.mkdir(parents=True, exist_ok=True)
+-    proof.write_text(json.dumps({'source': str(source), 'bindings': contract, 'shader': name,
+-                                 'sha256': hashlib.sha256(code).hexdigest(), **info}, indent=2))
++    write_shared(proof, json.dumps({'source': str(source), 'bindings': contract, 'shader': name,
++                                    'sha256': hashlib.sha256(code).hexdigest(), **info}, indent=2).encode())
+     return name
+ 
+ 
+@@ -1396,7 +1400,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
+         native['name'] = ts_name
+         path = project_root / 'techniquesets' / f'{ts_name}.json'
+         path.parent.mkdir(parents=True, exist_ok=True)
+-        path.write_text(json.dumps(native, indent=2))
++        write_shared(path, json.dumps(native, indent=2).encode())
+         output_material['techniqueSet'] = ts_name
+     return result
+ 
+diff --git a/src/waw2bo2/t6bridge.py b/src/waw2bo2/t6bridge.py
+index 8a7736e..70dd8ea 100644
+--- a/src/waw2bo2/t6bridge.py
++++ b/src/waw2bo2/t6bridge.py
+@@ -29,10 +29,11 @@ import re
+ import shutil
+ import struct
+ from collections import Counter
+-from functools import lru_cache
++from functools import lru_cache, partial
+ from dataclasses import dataclass, field
+ from pathlib import Path
+ from .resources import resource_root
++from .parallel import write_shared
+ from . import clientport, progress, viewmodels, zombiebehavior
+ 
+ from . import assetresolve, audio, entities, wawtext, fx, fxmap, fxmaterials, gscport, hulls, iwi, lighting, lightmaps, localization, materialisolation, oneway, paths, projectilecollision, scorebehavior, shaderruntime, shaders, sounds, t6api, techsets, visions, wawassets, wawsource, wavelet, weapons, zones
+@@ -116,7 +117,7 @@ def stage_remaster(report: StageReport, names: set[str], bo2_root: Path | None,
+     cache = (techset_dump.parent.parent / "dependencies" / "remaster" if techset_dump is not None
+              else stage / "remaster_cache")
+     index = progress.timed('Remaster: index BO2 materials', remaster.asset_index, bo2_root, t6_unlinker, cache)
+-    matches = remaster.find_matches(names, index["material"])
++    matches = remaster.find_matches(names, index["material"], remaster.material_zones(bo2_root, cache))
+     found, problems = remaster.extract(matches, bo2_root, t6_unlinker, cache,
+                                        [techset_dump] if techset_dump is not None else [],
+                                        log=lambda line: print(line, flush=True))
+@@ -209,6 +210,146 @@ def dangling_substitute(name: str, roots: list[Path]) -> tuple[str, str] | None:
+     return None
+ 
+ 
++def _stage_one_material(ctx: dict, name: str) -> tuple[StageReport, set[str]]:
++    """One material of stage_materials, in a worker process: its own report part and technique sets."""
++    report = StageReport(project='')
++    used_techsets: set[str] = set()
++    roots, stock_materials, project_root = ctx['roots'], ctx['stock_materials'], ctx['project_root']
++    techset_root, rename, image_prefix = ctx['techset_root'], ctx['rename'], ctx['image_prefix']
++    native_fallbacks, falloff_placement = ctx['native_fallbacks'], ctx['falloff_placement']
++    light_shadows, remaster, donors, candidates = (ctx['light_shadows'], ctx['remaster'], ctx['donors'],
++                                                   ctx['candidates'])
++    rel = techsets.oat_material_path(name)
++    src = _find(roots, rel)
++    out_rel = techsets.oat_material_path(rename.get(name, name))
++    entry = {"name": rename.get(name, name), "file": out_rel.as_posix()}
++    if name in rename:
++        entry["source"] = name
++    notes: list[str] = []
++    remastered = name in (remaster or {})
++    if remastered or (src is None and name in (native_fallbacks or {})):
++        native_path = remaster[name] if remastered else native_fallbacks[name]
++        out = _load_json(native_path)
++        if out.pop('thermalMaterial', None):
++            # a second BO2 material (thermal-sight view) the WaW material it
++            # replaces never had; the linker would need it and its images
++            # too, and refuses the whole material (and its model) without it
++            notes.append('BO2 thermalMaterial dropped (the WaW material has none)')
++        native_root = stock_materials.parent
++        for texture in out.get('textures', []):
++            image = texture.get('image', '').removeprefix(',')
++            if not image or image.startswith('$'):
++                texture['image'] = techsets.as_reference(image)
++                continue
++            output = (image_prefix or 'waw_image/') + ('bo2_remaster/' if remastered else 'bo2_fallback/') + image
++            # A definition can be present only in BO2 raw while its packed
++            # image is available in the stock-zone dump.
++            material_folder = next(p for p in native_path.parents if p.name == 'materials')
++            image_roots = ([material_folder.parent, native_root] if remastered
++                           else [native_root, material_folder.parent])
++            image_path = _find(image_roots, techsets.oat_image_path(image))
++            if image_path is None and _find(image_roots, techsets.oat_image_path(image, '.dds')) is None:
++                from .all2raw import required_bo2_image
++                image_path = required_bo2_image(native_root, image)
++            dst = project_root / techsets.oat_image_path(output)
++            dst.parent.mkdir(parents=True, exist_ok=True)
++            if image_path is not None:
++                if image_path.read_bytes()[:4] != b'IWi\x1b':
++                    raise StageError(f'BO2 equivalent image {image}: not an IWI27 source')
++                write_shared(dst, image_path.read_bytes())
++            else:
++                image_path = _find(image_roots, techsets.oat_image_path(image, '.dds'))
++                if image_path is None:
++                    raise StageError(f'BO2 equivalent material {name}: image {image} missing from {native_root}')
++                write_shared(dst, iwi.dds_to_iwi(image_path.read_bytes()))
++            texture['image'] = output
++            report.images.append({'name': output, 'source': str(image_path), 'source_kind': 't6_equivalent'})
++        dst = project_root / out_rel
++        dst.parent.mkdir(parents=True, exist_ok=True)
++        dst.write_text(json.dumps(out, indent=2) + '\n', encoding='utf-8')
++        why = ('remaster: native BO2 material replaces the WaW one' if remastered
++               else 'original material absent from WaW lookup')
++        entry.update(t4_techset=None, t6_techset=out['techniqueSet'],
++                     native_equivalent=str(native_path), notes=[why, *notes])
++        if remastered:
++            entry['remastered'] = True
++        report.materials.append(entry)
++        report.warnings.append(f'{"REMASTER" if remastered else "BO2_FALLBACK"} material {name} -> '
++                               f'{native_path}: {why}')
++        used_techsets.add(out['techniqueSet'])
++        return report, used_techsets
++    if src is None:
++        sub = dangling_substitute(name, roots)
++        if sub is None:
++            report.errors.append(f"material {name}: no WaW source {rel.as_posix()} in any zone dump")
++            return report, used_techsets
++        entry["substituted_from"] = sub[0]
++        notes.append(sub[1])
++        report.warnings.append(sub[1])
++        src = _find(roots, techsets.oat_material_path(sub[0]))
++    t4 = _load_json(src)
++    t4_ts = t4.get("techniqueSet", "")
++    entry["t4_techset"] = t4_ts
++    # The best-named technique set can still be unusable when its donor has
++    # extra slots the source cannot fill; fall back to the next best.
++    remaining = list(candidates)
++    rejected: list[str] = []
++    source_ts = techsets.material_techset(t4)
++    approximations = techsets.last_resort(source_ts)
++    approximated, first_error = None, None
++    while True:
++        try:
++            m = techsets.match(source_ts, remaining)
++        except techsets.TechsetError as exc:
++            first_error = first_error or exc
++            if approximations:
++                # no rule for this WaW technique: keep the material's own
++                # textures on the nearest generic pass instead of failing
++                source_ts, remaining = approximations.pop(0), list(candidates)
++                approximated = source_ts
++                continue
++            report.errors.append(f"material {name} ({t4_ts}): {first_error}" + (f"; rejected: {'; '.join(rejected)}" if rejected else ""))
++            m = None
++            break
++        attempt = notes + m.notes + ([f"APPROXIMATED: no T6 rule for '{t4_ts}', drawn as '{approximated}'"]
++                                     if approximated else [])
++        try:
++            out = techsets.build_material(t4, _load_json(donors[m.target]), attempt)
++        except techsets.TechsetError as exc:
++            rejected.append(f"{m.target}: {exc}")
++            remaining.remove(m.target)
++            continue
++        notes = attempt + [f"{r}, not used" for r in rejected]
++        break
++    if m is None:
++        return report, used_techsets
++    if approximated:
++        report.warnings.append(f"APPROXIMATED_MATERIAL {name}: no T6 rule for WaW technique '{t4_ts}'; "
++                               f"drawn with its own textures as '{approximated}' ({m.target})")
++    runtime = shaderruntime.bind_material(t4, out, roots, project_root, techset_root, falloff_placement,
++                                           light_shadows) if techset_root else {'active': [], 'unsupported': ['native technique dump absent']}
++    if t4_ts == 'wc_unlit_distfalloff' and all(
++            any(p.get('slot') == slot and p.get('paired') for p in runtime.get('active', []))
++            for slot in (2, 3)):
++        notes = [n for n in notes if n != 'distance falloff dropped']
++    entry['shader_runtime'] = runtime
++    state_slots = shaderruntime.apply_source_pass_states(t4, out, runtime)
++    if state_slots:
++        notes.append(f"WaW blend/alpha-test state on T6 slots {state_slots}")
++    for texture in out.get('textures', []):
++        image_name = texture.get('image', '')
++        if image_prefix and image_name and not image_name.startswith((',', '$', image_prefix)):
++            texture['image'] = image_prefix + image_name
++    entry.update(t6_techset=out['techniqueSet'], donor=donors[m.target].relative_to(stock_materials).as_posix(),
++                 cost=m.cost, notes=notes)
++    dst = project_root / out_rel
++    dst.parent.mkdir(parents=True, exist_ok=True)
++    dst.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
++    used_techsets.add(out['techniqueSet'])
++    report.materials.append(entry)
++    return report, used_techsets
++
++
+ @progress.phase('Convert materials')
+ def stage_materials(report: StageReport, names: set[str], roots: list[Path], stock_materials: Path,
+                     project_root: Path, techset_root: Path | None = None,
+@@ -230,135 +371,19 @@ def stage_materials(report: StageReport, names: set[str], roots: list[Path], sto
+         raise StageError(f"no stock T6 material donors found under {stock_materials}")
+     candidates = sorted(donors)
+     used_techsets: set[str] = set()
+-    for name in progress.items('Materials', sorted(names)):
+-        rel = techsets.oat_material_path(name)
+-        src = _find(roots, rel)
+-        out_rel = techsets.oat_material_path(rename.get(name, name))
+-        entry = {"name": rename.get(name, name), "file": out_rel.as_posix()}
+-        if name in rename:
+-            entry["source"] = name
+-        notes: list[str] = []
+-        remastered = name in (remaster or {})
+-        if remastered or (src is None and name in (native_fallbacks or {})):
+-            native_path = remaster[name] if remastered else native_fallbacks[name]
+-            out = _load_json(native_path)
+-            if out.pop('thermalMaterial', None):
+-                # a second BO2 material (thermal-sight view) the WaW material it
+-                # replaces never had; the linker would need it and its images
+-                # too, and refuses the whole material (and its model) without it
+-                notes.append('BO2 thermalMaterial dropped (the WaW material has none)')
+-            native_root = stock_materials.parent
+-            for texture in out.get('textures', []):
+-                image = texture.get('image', '').removeprefix(',')
+-                if not image or image.startswith('$'):
+-                    texture['image'] = techsets.as_reference(image)
+-                    continue
+-                output = (image_prefix or 'waw_image/') + ('bo2_remaster/' if remastered else 'bo2_fallback/') + image
+-                # A definition can be present only in BO2 raw while its packed
+-                # image is available in the stock-zone dump.
+-                material_folder = next(p for p in native_path.parents if p.name == 'materials')
+-                image_roots = ([material_folder.parent, native_root] if remastered
+-                               else [native_root, material_folder.parent])
+-                image_path = _find(image_roots, techsets.oat_image_path(image))
+-                if image_path is None and _find(image_roots, techsets.oat_image_path(image, '.dds')) is None:
+-                    from .all2raw import required_bo2_image
+-                    image_path = required_bo2_image(native_root, image)
+-                dst = project_root / techsets.oat_image_path(output)
+-                dst.parent.mkdir(parents=True, exist_ok=True)
+-                if image_path is not None:
+-                    if image_path.read_bytes()[:4] != b'IWi\x1b':
+-                        raise StageError(f'BO2 equivalent image {image}: not an IWI27 source')
+-                    shutil.copy2(image_path, dst)
+-                else:
+-                    image_path = _find(image_roots, techsets.oat_image_path(image, '.dds'))
+-                    if image_path is None:
+-                        raise StageError(f'BO2 equivalent material {name}: image {image} missing from {native_root}')
+-                    iwi.convert_file(image_path, dst)
+-                texture['image'] = output
+-                report.images.append({'name': output, 'source': str(image_path), 'source_kind': 't6_equivalent'})
+-            dst = project_root / out_rel
+-            dst.parent.mkdir(parents=True, exist_ok=True)
+-            dst.write_text(json.dumps(out, indent=2) + '\n', encoding='utf-8')
+-            why = ('remaster: native BO2 material replaces the WaW one' if remastered
+-                   else 'original material absent from WaW lookup')
+-            entry.update(t4_techset=None, t6_techset=out['techniqueSet'],
+-                         native_equivalent=str(native_path), notes=[why, *notes])
+-            if remastered:
+-                entry['remastered'] = True
+-            report.materials.append(entry)
+-            report.warnings.append(f'{"REMASTER" if remastered else "BO2_FALLBACK"} material {name} -> '
+-                                   f'{native_path}: {why}')
+-            used_techsets.add(out['techniqueSet'])
+-            continue
+-        if src is None:
+-            sub = dangling_substitute(name, roots)
+-            if sub is None:
+-                report.errors.append(f"material {name}: no WaW source {rel.as_posix()} in any zone dump")
+-                continue
+-            entry["substituted_from"] = sub[0]
+-            notes.append(sub[1])
+-            report.warnings.append(sub[1])
+-            src = _find(roots, techsets.oat_material_path(sub[0]))
+-        t4 = _load_json(src)
+-        t4_ts = t4.get("techniqueSet", "")
+-        entry["t4_techset"] = t4_ts
+-        # The best-named technique set can still be unusable when its donor has
+-        # extra slots the source cannot fill; fall back to the next best.
+-        remaining = list(candidates)
+-        rejected: list[str] = []
+-        source_ts = techsets.material_techset(t4)
+-        approximations = techsets.last_resort(source_ts)
+-        approximated, first_error = None, None
+-        while True:
+-            try:
+-                m = techsets.match(source_ts, remaining)
+-            except techsets.TechsetError as exc:
+-                first_error = first_error or exc
+-                if approximations:
+-                    # no rule for this WaW technique: keep the material's own
+-                    # textures on the nearest generic pass instead of failing
+-                    source_ts, remaining = approximations.pop(0), list(candidates)
+-                    approximated = source_ts
+-                    continue
+-                report.errors.append(f"material {name} ({t4_ts}): {first_error}" + (f"; rejected: {'; '.join(rejected)}" if rejected else ""))
+-                m = None
+-                break
+-            attempt = notes + m.notes + ([f"APPROXIMATED: no T6 rule for '{t4_ts}', drawn as '{approximated}'"]
+-                                         if approximated else [])
+-            try:
+-                out = techsets.build_material(t4, _load_json(donors[m.target]), attempt)
+-            except techsets.TechsetError as exc:
+-                rejected.append(f"{m.target}: {exc}")
+-                remaining.remove(m.target)
+-                continue
+-            notes = attempt + [f"{r}, not used" for r in rejected]
+-            break
+-        if m is None:
+-            continue
+-        if approximated:
+-            report.warnings.append(f"APPROXIMATED_MATERIAL {name}: no T6 rule for WaW technique '{t4_ts}'; "
+-                                   f"drawn with its own textures as '{approximated}' ({m.target})")
+-        runtime = shaderruntime.bind_material(t4, out, roots, project_root, techset_root, falloff_placement,
+-                                               light_shadows) if techset_root else {'active': [], 'unsupported': ['native technique dump absent']}
+-        if t4_ts == 'wc_unlit_distfalloff' and all(
+-                any(p.get('slot') == slot and p.get('paired') for p in runtime.get('active', []))
+-                for slot in (2, 3)):
+-            notes = [n for n in notes if n != 'distance falloff dropped']
+-        entry['shader_runtime'] = runtime
+-        state_slots = shaderruntime.apply_source_pass_states(t4, out, runtime)
+-        if state_slots:
+-            notes.append(f"WaW blend/alpha-test state on T6 slots {state_slots}")
+-        for texture in out.get('textures', []):
+-            image_name = texture.get('image', '')
+-            if image_prefix and image_name and not image_name.startswith((',', '$', image_prefix)):
+-                texture['image'] = image_prefix + image_name
+-        entry.update(t6_techset=out['techniqueSet'], donor=donors[m.target].relative_to(stock_materials).as_posix(),
+-                     cost=m.cost, notes=notes)
+-        dst = project_root / out_rel
+-        dst.parent.mkdir(parents=True, exist_ok=True)
+-        dst.write_text(json.dumps(out, indent=2) + "\n", encoding="utf-8")
+-        used_techsets.add(out['techniqueSet'])
+-        report.materials.append(entry)
++    from .parallel import ordered_map
++    ctx = dict(roots=roots, stock_materials=stock_materials, project_root=project_root, techset_root=techset_root,
++               rename=rename, image_prefix=image_prefix, native_fallbacks=native_fallbacks,
++               falloff_placement=falloff_placement, light_shadows=light_shadows, remaster=remaster,
++               donors=donors, candidates=candidates)
++    # materials are independent (own output files); merge their report parts in name order
++    for part, techs in ordered_map(partial(_stage_one_material, ctx), sorted(names), label='Materials',
++                                   processes=True):
++        report.materials += part.materials
++        report.images += part.images
++        report.warnings += part.warnings
++        report.errors += part.errors
++        used_techsets |= techs
+     return used_techsets
+ 
+ 
+@@ -1270,6 +1295,10 @@ def _layer_gap_stride(world, surface) -> int | None:
+     return gap // surface.vertex_count if surface.vertex_count and gap % surface.vertex_count == 0 else None
+ 
+ 
++# T6/WaW primary light 1 is the sun (OAT BSPGameConstants::SUN_LIGHT_INDEX)
++SUN_PRIMARY_LIGHT = 1
++
++
+ def write_shadow_geometry(report: StageReport, world, mesh_of_surface: dict[int, int], path: Path) -> None:
+     """BSP/shadowgeom.json: per WaW primary light, the static geometry its
+     shadow map draws (GfxShadowGeometry: world meshes by FBX mesh index, static
+@@ -1281,10 +1310,17 @@ def write_shadow_geometry(report: StageReport, world, mesh_of_surface: dict[int,
+         return
+     lights = []
+     dropped = 0
+-    for light in world.shadow_lights:
++    for index, light in enumerate(world.shadow_lights):
+         meshes = sorted({mesh_of_surface[i] for i in light.surfaces if i in mesh_of_surface})
+         dropped += sum(1 for i in light.surfaces if i not in mesh_of_surface)
+-        lights.append({"meshes": meshes, "smodels": sorted(set(light.smodels)),
++        smodels = sorted(set(light.smodels))
++        if index != SUN_PRIMARY_LIGHT:
++            # T6 fills each light's GfxShadowGeometry lists itself at runtime,
++            # so the bridge linker ships them empty (shipped lists overflowed:
++            # Kino crashes at t6zm 0x73C705/0x762F63). Only the sun's static
++            # model list is used, at link time, to pick the sun-shadow casters.
++            meshes, smodels = [], []
++        lights.append({"meshes": meshes, "smodels": smodels,
+                        "hulls": [{"kdopMidPoint": list(h.kdop_mid_point), "kdopHalfSize": list(h.kdop_half_size),
+                                   "axes": [{"dir": list(d), "midPoint": m, "halfSize": s} for d, m, s in h.axes]}
+                                  for h in light.hulls]})
+@@ -1664,10 +1700,18 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
+     _SKY_IMAGE_ROOTS[:] = [r / "images" for r in roots]
+     source_sky_model = next((e.get("skyboxmodel") for e in entities.parse_entities(ents_file.read_text())
+                              if e.get("classname") == "worldspawn"), None) if ents_file.exists() else None
++    sky_techset = None
+     if source_sky_model and bo2_root and techset_dump:
+-        sky_techset = stage_source_skybox(report, project, project_root, roots, source_sky_model, techset_dump, bo2_root)
+-        sky_image = None
+-    else:
++        staged_materials = len(report.materials)
++        try:
++            sky_techset = stage_source_skybox(report, project, project_root, roots, source_sky_model, techset_dump, bo2_root)
++            sky_image = None
++        except StageError as exc:
++            # BO1 sky programs read a 4-wide TEXCOORD0 and sunFogDir, which have no translated vertex
++            # adapter yet; fall back to the BO2 dome with the map's sky cube (or black)
++            report.warnings.append(f"skybox: {exc}; using the BO2 sky dome")
++            del report.materials[staged_materials:]
++    if not sky_techset:
+         sky_techset, sky_image = stage_skybox(report, project, project_root, bo2_root, sky_image)
+     if sky_techset:
+         used.add(sky_techset)
+@@ -1731,6 +1775,10 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
+     if bo2_root is not None:
+         try:
+             gscport.ensure_owned_client_bootstrap(project_root, bo2_root)
++            trap_types = gscport.register_client_trap_overlays(project_root)
++            if trap_types:
++                report.warnings.append(f"client trap overlays registered for {', '.join(trap_types)} "
++                                       "(the map has zombie_trap triggers but no zm_traps client structs)")
+         except ValueError as exc:
+             report.errors.append(f"scripts: {exc}")
+     stage_rawfiles(report, project_root, bo2_root)
+@@ -1891,8 +1939,10 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
+     lighting_base = str(gfx_bin).removesuffix(".gfx.bin")
+     grid_file = Path(lighting_base + ".lightgrid.bin")
+     if grid_file.exists():
+-        report.content["lighting"] = lighting.stage_grid(grid_file, project_root / "BSP/lightgrid.bin")
+         sun_file = Path(lighting_base + ".lighting.json")
++        source_game = json.loads(sun_file.read_text(encoding="utf-8")).get("_game") if sun_file.exists() else None
++        report.content["lighting"] = lighting.stage_grid(grid_file, project_root / "BSP/lightgrid.bin",
++                                                         t5=source_game == "T5")
+         if sun_file.exists():
+             shutil.copy2(sun_file, project_root / "BSP/lighting.json")
+             # WaW loads the sun into r_lightTweak* dvars (sub_6FCDE0) and rebuilds
+@@ -2802,6 +2852,8 @@ def compile_scripts(stage: Path, project: str, bo2_root: Path, oat_unlinker: Pat
+     project_root = stage / "zone_raw" / project
+     gscport.ensure_owned_client_bootstrap(project_root, bo2_root)
+     validate_owned_init_calls(project_root, project)
++    guarded = gscport.guard_spinning_loops(project_root, project)
++    print(f"{guarded} script loops given the spin watchdog (WAW2BO2 SPIN in console_zm.log)", flush=True)
+     scripts = map_scripts(project_root, project)
+     work = stage / "script_build"
+     if work.exists():
+diff --git a/src/waw2bo2/techsets.py b/src/waw2bo2/techsets.py
+index a32c77e..9deb3e5 100644
+--- a/src/waw2bo2/techsets.py
++++ b/src/waw2bo2/techsets.py
+@@ -25,8 +25,8 @@ import re
+ from dataclasses import dataclass, field
+ from pathlib import Path
+ 
+-LAYER_RE = re.compile(r"^([rbtam])(\d)((?:[a-z]\d)*)$")
+-FEATURE_RE = re.compile(r"([a-z])\d")
++LAYER_RE = re.compile(r"^([rbtam])(\d)((?:[a-z]{1,2}\d)*)$")  # BO1 adds two-letter features (sc0)
++FEATURE_RE = re.compile(r"([a-z]{1,2})\d")
+ HASH_RE = re.compile(r"^[0-9a-z]{8}$")
+ 
+ # Maps whose absence in the source can be filled with a neutral code image.
+@@ -44,6 +44,8 @@ UNLIT_MAP = {
+     # (e.g. wc/caulk_shadow); T6 has a dedicated technique for that.
+     "tools": ("shadowcaster", ["tools technique mapped to shadowcaster"]),
+     "shadowcaster": ("shadowcaster", []),
++    # BO1 custom (sw4) world shaders: keep the colour map on a plain unlit pass
++    "sw4_3d_projector_ring": ("unlit_blend", ["BO1 projector ring shader drawn as unlit blend"]),
+ }
+ 
+ 
+@@ -108,7 +110,7 @@ def _layer_cost(src, dst, notes: list[str]) -> int | None:
+     if sblend != dblend:
+         # alpha-test/add have no layered T6 equivalent in zm_nuked; blend is
+         # the closest (keeps the alpha channel meaningful).
+-        if {sblend, dblend} <= {"t", "b", "a"}:
++        if {sblend, dblend} <= {"t", "b", "a", "m"}:  # BO1 multiply layers (m) drawn blended
+             cost += 6
+             notes.append(f"layer {sidx}: blend '{sblend}' -> '{dblend}'")
+         else:
+@@ -162,6 +164,14 @@ MODEL_FALLBACK = {
+     "cooktorrance_sm": ("l_sm_r0c0n0s0", "cook-torrance approximated by lit_sm"),
+     "projected_decal_unlit": ("l_sm_t0c0", "projected decal drawn as alpha-tested model"),
+     "ambient_t0c0_sco": ("l_sm_t0c0", "ambient-only technique lit by the light grid"),
++    # BO1 custom (sw4/cod7) model shaders: nearest stock lit or unlit model pass
++    "sw4_3d_char_cloth": ("l_sm_r0c0n0s0", "BO1 character cloth shader approximated by lit_sm"),
++    "sw4_3d_char_skin": ("l_sm_r0c0n0s0", "BO1 character skin shader approximated by lit_sm"),
++    "cod7modelcloak_ck": ("l_sm_r0c0n0s0", "BO1 cloak shader approximated by lit_sm"),
++    "sw4_3d_rotate": ("l_sm_r0c0", "BO1 rotating-UV shader drawn static"),
++    "sw4_3d_unlit_scroll": ("unlit", "BO1 scrolling unlit shader drawn static"),
++    "sw4_3d_animated_unlit": ("unlit", "BO1 animated unlit shader drawn static"),
++    "sw4_3d_animated_unlit_normals": ("unlit", "BO1 animated unlit shader drawn static"),
+ }
+ 
+ 
+@@ -339,12 +349,24 @@ def as_reference(image: str) -> str:
+     return image
+ 
+ 
++BO1_SAMPLER_ALIASES = {
++    "Diffuse_MapSampler": "colorMap", "Diffuse_Map": "colorMap", "Color_Map": "colorMap",
++    "diffuseMap": "colorMap",  # cod7modelcloak_ck (BO1 character skins); its cloakMap is the cloak effect
++    "Normal_MapSampler": "normalMap", "Normal_Map": "normalMap",
++    "Specular_MapSampler": "specularMap", "Specular_Map": "specularMap",
++}
++
++
+ def build_material(t4: dict, donor: dict, notes: list[str]) -> dict:
+     out = copy.deepcopy(donor)
+     # The donor's thermal-vision variant belongs to its own (BO2) model; WaW
+     # has none, and most stock T6 materials omit the field.
+     out.pop("thermalMaterial", None)
+     src_tex ={t["name"]: t for t in t4.get("textures", []) if t.get("name") and t.get("image")}
++    # BO1 custom (sw4) shaders name their samplers after the shader graph; use them as the stock slots
++    for alias, slot_name in BO1_SAMPLER_ALIASES.items():
++        if alias in src_tex and slot_name not in src_tex:
++            src_tex[slot_name] = src_tex[alias]
+     used = set()
+     textures = []
+     for slot in donor.get("textures", []):
+diff --git a/src/waw2bo2/wawassets.py b/src/waw2bo2/wawassets.py
+index d11956f..169e262 100644
+--- a/src/waw2bo2/wawassets.py
++++ b/src/waw2bo2/wawassets.py
+@@ -20,8 +20,10 @@ DUMP_MARKER = ".waw2bo2_dump_v5_collsurfs"  # v5: xmodel collSurfs/contents in t
+ 
+ 
+ def _zone_rank(zone: str) -> tuple:
+-    # zombie zones first (closest to a zombies map), then localized last
+-    return (0 if zone.startswith("nazi_zombie") else 2 if zone.startswith("localized") else 1, zone)
++    # zombie zones first (closest to a zombies map; BO1 patch zones before the zones they update),
++    # then localized last
++    return (0 if zone.startswith("nazi_zombie") or zone.startswith("common_zombie") else
++            2 if zone.startswith("localized") else 1, not zone.endswith("_patch"), zone)
+ 
+ 
+ @dataclass
+@@ -42,7 +44,8 @@ class StockWawAssets:
+         if shared.is_file():
+             data = json.loads(shared.read_text(encoding='utf-8'))
+             for filename, entry in data['zones'].items():
+-                if Path(filename).parent.name.lower() == 'english':
++                # WaW stock zones live in zone/english, BO1's in zone/Common
++                if Path(filename).parent.name.lower() in ('english', 'common'):
+                     zone = Path(filename).stem
+                     self.index[zone] = entry['index']
+                     self.prepared[zone] = Path(entry['folder'])
+diff --git a/src/waw2bo2/weapons.py b/src/waw2bo2/weapons.py
+index b1537b0..d40e33a 100644
+--- a/src/waw2bo2/weapons.py
++++ b/src/waw2bo2/weapons.py
+@@ -8,6 +8,7 @@ The official BO2 linker consumes these infostrings and WaW's raw v17 xanims.
+ from __future__ import annotations
+ 
+ import json
++import os
+ import re
+ import shutil
+ from dataclasses import dataclass, field
+@@ -804,6 +805,22 @@ def separate_alt_ammo(fields: dict[str, str], fields_by_weapon: dict[str, dict[s
+         return False
+     primary = fields_by_weapon.get(fields.get("altWeapon", ""))
+     return primary is not None and primary.get("ammoName") != fields.get("ammoName")
++BO2_WEAPON_TABLE = Path(__file__).parent / "compat" / "bo1_bo2_weapons.json"
++
++
++def bo2_weapon_substitute(name: str, reserved: set[str]) -> str | None:
++    """With WAW2BO2_BO2_WEAPONS set, the BO2 weapon a source weapon is replaced by instead of being
++    ported: its own name when BO2 has a weapon of that name, else compat/bo1_bo2_weapons.json.
++    ``reserved`` holds lowercased BO2 weapon names, possibly with an mp/ or sp/ folder."""
++    if not os.environ.get("WAW2BO2_BO2_WEAPONS"):
++        return None
++    available = {n.split("/")[-1] for n in reserved}
++    table = {k.lower(): v for k, v in json.loads(BO2_WEAPON_TABLE.read_text(encoding="utf-8")).items()
++             if not k.startswith("_")}
++    target = table.get(name.lower(), name)
++    return target if target.lower() in available else None
++
++
+ WAW_WEAPON_PREFIX = "waw_"
+ PREFIXES = {"xmodel": "waw_xmodel/", "material": "waw_material/", "xanim": "waw_xanim/",
+             "accuracy": "waw_accuracy/"}
+@@ -846,6 +863,11 @@ def stage_runtime(project: Path, ipak: str, equivalents=None, loaded: dict[str,
+             # both engines' null weapon; BO2 always provides its own
+             table[name] = name
+             continue
++        substitute = bo2_weapon_substitute(name, reserved)
++        if substitute:
++            table[name] = replacements[name] = substitute
++            notes.append(f"BO2_WEAPON {name} -> {substitute}: BO2's own weapon is used (WAW2BO2_BO2_WEAPONS)")
++            continue
+         table[name] = name if name.lower() not in reserved else WAW_WEAPON_PREFIX + name
+         if table[name] != name:
+             notes.append(f"WEAPON_RENAMED {name} -> {table[name]}: BO2 has a weapon of that name; scripts reach "
+@@ -979,7 +1001,11 @@ def stage_runtime(project: Path, ipak: str, equivalents=None, loaded: dict[str,
+     # converted effects live in the map zone; mod.ff only references them
+     lines += [f"fx,,{n}" for n in sorted(effects)]
+     lines += [f"weapon,{table[n]}" for n in runtime]
+-    lines += [f"weapon,{n}" for n in sorted(set(replacements.values()))]
++    # a replacement the template zone already carries (as mp/<name> or sp/<name>) or an always-loaded
++    # zone defines needs no line of its own: a bare-name line would look for raw/weapons/<name>
++    present = {n.lower() for n in reserved_weapons if "/" in n} | {n.lower() for n in (loaded or {}).get("weapon", ())}
++    lines += [f"weapon,{n}" for n in sorted(set(replacements.values()))
++              if not {n.lower(), f"mp/{n.lower()}", f"sp/{n.lower()}"} & present]
+     # every WaW weapon: its BO2 name, or "" when mod.ff does not carry it
+     table = {w: (b if w in runtime or w in replacements or w.lower() in ENGINE_WEAPONS else "")
+              for w, b in table.items()}
+diff --git a/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp b/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp
+index 3809886..b0bf6a4 100644
+--- a/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp
++++ b/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp
+@@ -776,33 +776,23 @@ namespace BSP
+                        gfxWorld.primaryLightCount);
+             return;
+         }
+-        // static world surfaces only (brush model surfaces move)
+-        std::map<int, std::vector<uint16_t>> surfacesOfMesh;
+-        for (size_t i = 0; i < m_surface_order.size() && i < gfxWorld.dpvs.staticSurfaceCount; ++i)
+-            surfacesOfMesh[bsp.gfxWorld.surfaces[m_surface_order[i]].meshIndex].push_back(static_cast<uint16_t>(i));
++        // GfxShadowGeometry stays empty (null lists, LoadGfxLights): T6 fills a
++        // light's lists itself at runtime, appending to sortedSurfIndex /
++        // smodelIndex whenever they are non-null, so exact-size lists from the
++        // zone overflow into neighbouring memory (Kino crashed at t6zm 0x73C705
++        // and 0x762F63). The sun's static model list still selects which static
++        // models cast sun shadows (below).
++        std::vector<char> sunCaster(gfxWorld.dpvs.smodelCount, 0);
++        size_t sunCasters = 0;
++        for (const auto& smodel : lights[gfxWorld.sunPrimaryLightIndex].at("smodels"))
++            if (smodel.get<unsigned>() < gfxWorld.dpvs.smodelCount && !sunCaster[smodel.get<unsigned>()])
++            {
++                sunCaster[smodel.get<unsigned>()] = 1;
++                ++sunCasters;
++            }
+         for (unsigned light = 0; light < gfxWorld.primaryLightCount; ++light)
+         {
+             const auto& entry = lights[light];
+-            std::vector<uint16_t> surfaces;
+-            for (const auto& mesh : entry.at("meshes"))
+-            {
+-                const auto found = surfacesOfMesh.find(mesh.get<int>());
+-                if (found != surfacesOfMesh.end())
+-                    surfaces.insert(surfaces.end(), found->second.begin(), found->second.end());
+-            }
+-            std::ranges::sort(surfaces);
+-            surfaces.erase(std::ranges::unique(surfaces).begin(), surfaces.end());
+-            std::vector<uint16_t> smodels;
+-            for (const auto& smodel : entry.at("smodels"))
+-                if (smodel.get<unsigned>() < gfxWorld.dpvs.smodelCount)
+-                    smodels.push_back(smodel.get<uint16_t>());
+-            auto& geom = gfxWorld.shadowGeom[light];
+-            geom.surfaceCount = static_cast<uint16_t>(surfaces.size());
+-            geom.smodelCount = static_cast<uint16_t>(smodels.size());
+-            geom.sortedSurfIndex = surfaces.empty() ? nullptr : m_memory.Alloc<uint16_t>(surfaces.size());
+-            geom.smodelIndex = smodels.empty() ? nullptr : m_memory.Alloc<uint16_t>(smodels.size());
+-            std::ranges::copy(surfaces, geom.sortedSurfIndex);
+-            std::ranges::copy(smodels, geom.smodelIndex);
+ 
+             const auto& hulls = entry.at("hulls");
+             auto& region = gfxWorld.lightRegion[light];
+@@ -830,18 +820,14 @@ namespace BSP
+         }
+         // WaW draws the static models listed in the sun's shadow geometry into
+         // the sun shadow map; the others cast no sun shadow.
+-        const auto& sun = gfxWorld.shadowGeom[gfxWorld.sunPrimaryLightIndex];
+-        std::vector<char> sunCaster(gfxWorld.dpvs.smodelCount, 0);
+-        for (unsigned i = 0; i < sun.smodelCount; ++i)
+-            sunCaster[sun.smodelIndex[i]] = 1;
+         for (unsigned i = 0; i < gfxWorld.dpvs.smodelCount; ++i)
+         {
+             auto& flags = gfxWorld.dpvs.smodelDrawInsts[i].flags;
+             flags = sunCaster[i] ? (flags & ~STATIC_MODEL_FLAG_NO_SHADOW) : (flags | STATIC_MODEL_FLAG_NO_SHADOW);
+             gfxWorld.dpvs.smodelCastsShadow[i] = sunCaster[i];
+         }
+-        con::info("Loaded shadow geometry for {} primary lights ({} sun-shadowing static models)", lights.size(),
+-                  sun.smodelCount);
++        con::info("Loaded light regions for {} primary lights ({} sun-shadowing static models; runtime-filled shadow lists left empty)",
++                  lights.size(), sunCasters);
+     }
+ 
+     bool GfxWorldLinker::LoadLightGrid(GfxWorld& gfxWorld) const
+@@ -1024,7 +1010,10 @@ namespace BSP
+         {
+             try
+             {
+-                for (const auto& modelJs : json::parse(*subFile.m_stream).at("submodels"))
++                // keep the parsed document alive: a range-for over parse(...).at(...)
++                // iterates a destroyed temporary (C++20) and silently found no models
++                const auto subJs = json::parse(*subFile.m_stream);
++                for (const auto& modelJs : subJs.at("submodels"))
+                 {
+                     const auto& mins = modelJs.at("mins");
+                     const auto& maxs = modelJs.at("maxs");
+@@ -1038,6 +1027,12 @@ namespace BSP
+                 subBounds.clear();
+             }
+         }
++        else
++        {
++            // entities name brush models *1..*N: without them the renderer
++            // reads past gfxWorld.models when it draws a door (crash 0x72671B)
++            con::error("ERROR! {} not found: the map gets no brush models", GetFileNameForBSPAsset("submodels.json"));
++        }
+ 
+         gfxWorld.modelCount = 1 + static_cast<int>(subBounds.size());
+         gfxWorld.models = m_memory.Alloc<GfxBrushModel>(gfxWorld.modelCount);
+@@ -1062,6 +1057,8 @@ namespace BSP
+         gfxWorld.models[0].bounds[1].y = gfxWorld.maxs.y;
+         gfxWorld.models[0].bounds[1].z = gfxWorld.maxs.z;
+         memset(&gfxWorld.models[0].writable, 0, sizeof(GfxBrushModelWritable));
++        con::info("Loaded {} brush models ({} with render surfaces)", gfxWorld.modelCount,
++                  std::count_if(gfxWorld.models, gfxWorld.models + gfxWorld.modelCount, [](const GfxBrushModel& m) { return m.surfaceCount > 0; }));
+ 
+         // Other models aren't implemented yet
+         // Code kept for future use
+@@ -1165,6 +1162,12 @@ namespace BSP
+                 fog.sunFogColor.v[i] *= fogScale;
+             }
+             sun.exposure = data.value("exposure", unitScaleExposure);
++            // BO1 (T5) worlds are lit far brighter than WaW's 1:1 display units
++            // and carry their own exposure; T6 at unit scale blew Kino out. In
++            // game r_exposureValue 3 matched BO1's look; T5 exposure 1.234 + 2
++            // stops (the unit-scale offset above) gives 3.23.
++            if (!data.contains("exposure") && data.contains("t5") && data.at("t5").contains("exposure"))
++                sun.exposure = data.at("t5").at("exposure").get<float>() + 2.0f;
+             const auto name = source.value("name", std::string());
+             std::strncpy(gfxWorld.sunParse.name, name.c_str(), sizeof(gfxWorld.sunParse.name) - 1);
+             con::info("Loaded source sun angles and colors (WaW direct strength {}, exposure {})", strength, sun.exposure);
+diff --git a/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/MapEntsLinker.cpp b/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/MapEntsLinker.cpp
+index 7141906..614c6d9 100644
+--- a/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/MapEntsLinker.cpp
++++ b/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/MapEntsLinker.cpp
+@@ -84,7 +84,9 @@ namespace BSP
+         std::vector<TriggerModel> models;
+         std::vector<TriggerHull> hulls;
+         std::vector<TriggerSlab> slabs;
+-        for (const auto& modelJs : json::parse(*subFile.m_stream).at("submodels"))
++        // keep the parsed document alive (see GfxWorldLinker::LoadModels)
++        const auto subJs = json::parse(*subFile.m_stream);
++        for (const auto& modelJs : subJs.at("submodels"))
+         {
+             TriggerModel model{};
+             model.firstHull = static_cast<uint16_t>(hulls.size());
+diff --git a/vendor/OpenAssetToolsT6/src/ObjWriting/Game/T6/Maps/MapEntsDumperT6.cpp b/vendor/OpenAssetToolsT6/src/ObjWriting/Game/T6/Maps/MapEntsDumperT6.cpp
+index 830c78e..5b5624e 100644
+--- a/vendor/OpenAssetToolsT6/src/ObjWriting/Game/T6/Maps/MapEntsDumperT6.cpp
++++ b/vendor/OpenAssetToolsT6/src/ObjWriting/Game/T6/Maps/MapEntsDumperT6.cpp
+@@ -391,6 +391,135 @@ namespace
+         }
+     }
+     // Diagnostic: world draw buffers and a sample of surfaces per technique set
++    // waw2bo2 hardening audit (tools/check_world.py): the fill state of every GfxWorld array (count, null) and
++    // per-light/per-cell entries, and every stored index against what it indexes. Diffed against stock BO2
++    // maps, a field stock always leaves empty but a port fills is likely engine-owned at runtime (the
++    // GfxShadowGeometry crash); an index past its limit is read out of bounds by the engine.
++    void DumpGfxWorldAudit(std::ostream& out, const GfxWorld& world)
++    {
++        using nlohmann::json;
++        json fill, ranges;
++        const auto field = [&fill](const char* name, const long long count, const void* pointer)
++        { fill[name] = {{"count", count}, {"null", pointer == nullptr}}; };
++        // char indices are unsigned in the engine; "none" sentinels are left to the comparison with stock
++        const auto range = [&ranges](const char* name, const long long limit, const std::vector<long long>& values)
++        {
++            long long max = -1, bad = 0;
++            for (const auto v : values)
++            {
++                max = std::max(max, v);
++                bad += v >= limit;
++            }
++            ranges[name] = {{"max", max}, {"limit", limit}, {"bad", bad}, {"n", static_cast<long long>(values.size())}};
++        };
++        const auto u8 = [](const char c) { return static_cast<long long>(static_cast<unsigned char>(c)); };
++        const auto& draw = world.draw;
++        const auto& dpvs = world.dpvs;
++        const auto lights = static_cast<long long>(world.primaryLightCount);
++        const auto cells = static_cast<long long>(world.dpvsPlanes.cellCount);
++        field("coronas", world.coronaCount, world.coronas);
++        field("shadowMapVolumes", world.shadowMapVolumeCount, world.shadowMapVolumes);
++        field("exposureVolumes", world.exposureVolumeCount, world.exposureVolumes);
++        field("worldFogVolumes", world.worldFogVolumeCount, world.worldFogVolumes);
++        field("worldFogModifierVolumes", world.worldFogModifierVolumeCount, world.worldFogModifierVolumes);
++        field("lutVolumes", world.lutVolumeCount, world.lutVolumes);
++        field("cells", cells, world.cells);
++        field("models", world.modelCount, world.models);
++        field("materialMemory", world.materialMemoryCount, world.materialMemory);
++        field("outdoorImage", 1, world.outdoorImage);
++        field("siegeSkinInsts", world.numSiegeSkinInsts, world.siegeSkinInsts);
++        field("shadowGeom", lights, world.shadowGeom);
++        field("lightRegion", lights, world.lightRegion);
++        field("occluders", world.numOccluders, world.occluders);
++        field("outdoorBounds", world.numOutdoorBounds, world.outdoorBounds);
++        field("heroLights", world.heroLightCount, world.heroLights);
++        field("heroLightTree", world.heroLightTreeCount, world.heroLightTree);
++        field("reflectionProbes", draw.reflectionProbeCount, draw.reflectionProbes);
++        field("lightmaps", draw.lightmapCount, draw.lightmaps);
++        field("lightGrid.entries", world.lightGrid.entryCount, world.lightGrid.entries);
++        field("lightGrid.colors", world.lightGrid.colorCount, world.lightGrid.colors);
++        field("lightGrid.coeffs", world.lightGrid.coeffCount, world.lightGrid.coeffs);
++        field("lightGrid.skyGridVolumes", world.lightGrid.skyGridVolumeCount, world.lightGrid.skyGridVolumes);
++        field("dpvs.smodelDrawInsts", dpvs.smodelCount, dpvs.smodelDrawInsts);
++        field("dpvs.surfaces", world.surfaceCount, dpvs.surfaces);
++        field("dpvs.sortedSurfIndex", dpvs.staticSurfaceCount, dpvs.sortedSurfIndex);
++
++        long long shadowLists = 0, regions = 0;
++        std::vector<long long> shadowSurf, shadowModel;
++        for (unsigned i = 0; world.shadowGeom && i < world.primaryLightCount; ++i)
++        {
++            const auto& g = world.shadowGeom[i];
++            shadowLists += g.sortedSurfIndex != nullptr || g.smodelIndex != nullptr || g.surfaceCount || g.smodelCount;
++            for (unsigned k = 0; g.sortedSurfIndex && k < g.surfaceCount; ++k)
++                shadowSurf.push_back(g.sortedSurfIndex[k]);
++            for (unsigned k = 0; g.smodelIndex && k < g.smodelCount; ++k)
++                shadowModel.push_back(g.smodelIndex[k]);
++        }
++        for (unsigned i = 0; world.lightRegion && i < world.primaryLightCount; ++i)
++            regions += world.lightRegion[i].hullCount != 0;
++        fill["shadowGeom.nonEmpty"] = shadowLists;
++        fill["lightRegion.nonEmpty"] = regions;
++
++        std::vector<long long> surfLight, surfProbe, surfLmap, sorted, smodelLight, smodelProbe, smodelNullModel, gridLight, aabbModel,
++            aabbSurf, cellProbe, brushSurf;
++        long long portals = 0, aabbTrees = 0, cellsWithProbes = 0;
++        for (int i = 0; dpvs.surfaces && i < world.surfaceCount; ++i)
++        {
++            surfLight.push_back(u8(dpvs.surfaces[i].primaryLightIndex));
++            surfProbe.push_back(u8(dpvs.surfaces[i].reflectionProbeIndex));
++            surfLmap.push_back(u8(dpvs.surfaces[i].lightmapIndex));
++        }
++        for (unsigned i = 0; dpvs.sortedSurfIndex && i < dpvs.staticSurfaceCount; ++i)
++            sorted.push_back(dpvs.sortedSurfIndex[i]);
++        for (unsigned i = 0; dpvs.smodelDrawInsts && i < dpvs.smodelCount; ++i)
++        {
++            smodelLight.push_back(u8(dpvs.smodelDrawInsts[i].primaryLightIndex));
++            smodelProbe.push_back(u8(dpvs.smodelDrawInsts[i].reflectionProbeIndex));
++            smodelNullModel.push_back(dpvs.smodelDrawInsts[i].model == nullptr);
++        }
++        for (unsigned i = 0; world.lightGrid.entries && i < world.lightGrid.entryCount; ++i)
++            gridLight.push_back(u8(world.lightGrid.entries[i].primaryLightIndex));
++        for (int c = 0; world.cells && c < world.dpvsPlanes.cellCount; ++c)
++        {
++            const auto& cell = world.cells[c];
++            portals += cell.portalCount;
++            aabbTrees += cell.aabbTreeCount;
++            cellsWithProbes += cell.reflectionProbeCount != 0;
++            for (int t = 0; cell.aabbTree && t < cell.aabbTreeCount; ++t)
++            {
++                const auto& tree = cell.aabbTree[t];
++                aabbSurf.push_back(static_cast<long long>(tree.startSurfIndex) + tree.surfaceCount);
++                for (unsigned k = 0; tree.smodelIndexes && k < tree.smodelIndexCount; ++k)
++                    aabbModel.push_back(tree.smodelIndexes[k]);
++            }
++            for (int k = 0; cell.reflectionProbes && k < static_cast<unsigned char>(cell.reflectionProbeCount); ++k)
++                cellProbe.push_back(u8(cell.reflectionProbes[k]));
++        }
++        for (int i = 0; world.models && i < world.modelCount; ++i)
++            brushSurf.push_back(static_cast<long long>(world.models[i].startSurfIndex) + world.models[i].surfaceCount);
++        fill["cells.portals"] = portals;
++        fill["cells.aabbTrees"] = aabbTrees;
++        fill["cells.withReflectionProbes"] = cellsWithProbes;
++
++        range("surface.primaryLightIndex", lights, surfLight);
++        range("surface.reflectionProbeIndex", draw.reflectionProbeCount, surfProbe);
++        range("surface.lightmapIndex", draw.lightmapCount, surfLmap);
++        range("sortedSurfIndex", world.surfaceCount, sorted);
++        range("smodel.primaryLightIndex", lights, smodelLight);
++        range("smodel.reflectionProbeIndex", draw.reflectionProbeCount, smodelProbe);
++        range("smodel.nullModel", 1, smodelNullModel);
++        range("lightGrid.primaryLightIndex", lights, gridLight);
++        range("lightGrid.sunPrimaryLightIndex", lights, {static_cast<long long>(world.lightGrid.sunPrimaryLightIndex)});
++        range("sunPrimaryLightIndex", lights, {static_cast<long long>(world.sunPrimaryLightIndex)});
++        range("aabbTree.surfaceEnd", static_cast<long long>(dpvs.staticSurfaceCount) + 1, aabbSurf);
++        range("aabbTree.smodelIndex", dpvs.smodelCount, aabbModel);
++        range("cell.reflectionProbe", draw.reflectionProbeCount, cellProbe);
++        range("brushModel.surfaceEnd", static_cast<long long>(world.surfaceCount) + 1, brushSurf);
++        range("shadowGeom.sortedSurfIndex", dpvs.staticSurfaceCount, shadowSurf);
++        range("shadowGeom.smodelIndex", dpvs.smodelCount, shadowModel);
++        out << json({{"name", world.name ? world.name : ""}, {"fill", fill}, {"ranges", ranges}}).dump(1) << "\n";
++    }
++
+     void DumpGfxWorldLayout(std::ostream& out, const GfxWorld& world)
+     {
+         const auto& grid = world.lightGrid;
+@@ -600,6 +729,9 @@ namespace map_ents
+                 const auto layoutFile = context.OpenAssetFile(std::format("{}.gfxworld.txt", mapEnts->name));
+                 if (layoutFile)
+                     DumpGfxWorldLayout(*layoutFile, *gfxWorld->Asset());
++                const auto auditFile = context.OpenAssetFile(std::format("{}.gfxworld_audit.json", mapEnts->name));
++                if (auditFile)
++                    DumpGfxWorldAudit(*auditFile, *gfxWorld->Asset());
+                 const auto gridFile = context.OpenAssetFile(std::format("{}.t6lightgrid.bin", mapEnts->name));
+                 if (gridFile)
+                     DumpLightGrid(*gridFile, gfxWorld->Asset()->lightGrid);

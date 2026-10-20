@@ -18,7 +18,7 @@ COPIES = {
               CONV / 'research' / 't6_sound_playsound.md',
               CONV / 'research' / 't6_materials_runtime.md']
              + sorted(f for f in (CONV / 'research' / 't6_renderer').glob('t6*') if f.is_file()),
-    'tools/t6match': sorted((CONV / 'research' / 't6_renderer' / 't6match').glob('*.py')),
+    'tools/t6match': sorted(f for f in (CONV / 'research' / 't6_renderer' / 't6match').iterdir() if f.suffix in ('.py', '.java')),
     'converter': [CONV / 'run_bo1.py', CONV / 'README.md'],
     'converter/tools': sorted((CONV / 'tools').glob('*.py')),
     # ZM Workshop's code stays private: the user doesn't want the tool uploaded

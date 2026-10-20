@@ -21,8 +21,15 @@ os.environ.setdefault("WAW2BO2_BO2_WEAPONS", "1")
 # translated shaders shared by every map's build (b2w_bo1/src/waw2bo2/shaders.py)
 os.environ.setdefault("WAW2BO2_SHADER_CACHE", str(ROOT / "b2w_work" / "shader_cache"))
 
-BO1 = r"D:\SteamLibrary\steamapps\common\Call of Duty Black Ops"
-BO2 = r"D:\SteamLibrary\steamapps\common\Call of Duty Black Ops II"
+# Auto-detect the game installs from the user's Steam libraries (any drive), so
+# this works on any machine. --bo1/--bo2 override; a clear error asks for them
+# when a game isn't found instead of silently using someone else's path.
+from waw2bo2.launcher import find_steam_app
+def _detect(folder):
+    found = find_steam_app(folder)
+    return str(found) if found else None
+BO1 = _detect("Call of Duty Black Ops")
+BO2 = _detect("Call of Duty Black Ops II")
 T5_UNLINKER = ROOT / "oat_ext" / "build" / "bin" / "Release_x86" / "Unlinker.exe"
 
 # Every BO1 zombies map: BO2 project name, menu text, pack. A map is installed when zone/Common/<map>.ff
@@ -154,12 +161,20 @@ def main() -> int:
     ap.add_argument("--from", dest="from_step", choices=["stage", "build-mod", "compile-scripts", "bridge-link", "audit"],
                     help="resume at this step, reusing the earlier steps' output from the last build")
     a = ap.parse_args()
+    if not a.bo1:
+        print("error: Black Ops 1 was not found in your Steam libraries; pass --bo1 <install folder>",
+              file=sys.stderr)
+        return 2
     if a.list_maps:
         print(json.dumps([dict(map=name, project=m["project"], title=m["menu_title"], pack=m["pack"],
                                installed=installed(name, a.bo1)) for name, m in MAPS.items()], indent=1))
         return 0
     if not installed(a.bo1_map, a.bo1):
         print(f"error: {a.bo1_map}.ff is not in {a.bo1}\\zone\\Common (its DLC is not installed)", file=sys.stderr)
+        return 2
+    if not a.bo2:
+        print("error: Black Ops II was not found in your Steam libraries; pass --bo2 <install folder>",
+              file=sys.stderr)
         return 2
     project = a.project or MAPS.get(a.bo1_map, {}).get("project") or "zm_" + a.bo1_map.removeprefix("zombie_")
     if a.from_step:

@@ -107,10 +107,59 @@ index d0a25f8..0befc86 100644
          raise weapons.WeaponError('weapon sound notifications require a raw v17 animation')
      frames = struct.unpack_from('<H', raw, 2)[0]
 diff --git a/src/waw2bo2/builddriver.py b/src/waw2bo2/builddriver.py
-index 9f3963e..7960ac5 100644
+index 9f3963e..5d38c10 100644
 --- a/src/waw2bo2/builddriver.py
 +++ b/src/waw2bo2/builddriver.py
-@@ -61,7 +61,7 @@ def build(settings: Settings, *, redump: bool = False, root: Path | None = None,
+@@ -8,11 +8,47 @@ import shutil
+ import struct
+ import subprocess
+ 
+-from . import all2raw, modelhitboxes, progress
++from . import all2raw, modelhitboxes, progress, stagecache
+ from .launcher import BuildPaths, Settings, cli_command
+ from .resources import resource_root
+ 
+ 
++def _dump_token(folder: Path):
++    """A content identity for an extracted/dumped source folder.
++
++    Prefers the extraction receipt's ``inputs`` (source stamp + tool digest +
++    dependencies + asset selection -- a complete description of the dump's
++    content); falls back to the content-addressed folder name when no receipt
++    is present (e.g. a merged stock view)."""
++    folder = Path(folder)
++    try:
++        data = json.loads((folder / 'extraction.json').read_text(encoding='utf-8'))
++        if data.get('inputs') is not None:
++            return {'inputs': data['inputs']}
++    except (OSError, ValueError):
++        pass
++    return {'name': folder.name, 'exists': folder.exists()}
++
++
++def staging_inputs(settings: Settings, sources: dict, wawraw: Path, stock: Path,
++                   args: list[str]) -> dict:
++    """Everything the ``stage-bridge`` step's output depends on.
++
++    Conservative on purpose: extra inputs only cause harmless cache misses,
++    whereas a missing input would restore a stale build. ``args`` already
++    carries the map world, option flags and every source path the step reads."""
++    return {
++        'sources': {role: _dump_token(Path(p)) for role, p in sorted(sources.items())},
++        'wawraw': _dump_token(wawraw),
++        'stock': _dump_token(stock),
++        'flags': {'bo2_stock_perks': settings.bo2_stock_perks, 'remaster': settings.remaster,
++                  'source_fx': settings.source_fx, 'project': settings.project},
++        'tools': {'t4': all2raw.digest(Path(settings.t4) / 'Unlinker.exe'),
++                  't6': all2raw.digest(Path(settings.t6) / 'Unlinker.exe')},
++        'args': list(args),
++    }
++
++
+ def run(command: list[str], log: Path | None = None) -> None:
+     if log is None:
+         result = subprocess.run(command, check=False)
+@@ -61,7 +97,7 @@ def build(settings: Settings, *, redump: bool = False, root: Path | None = None,
      # Prepare only missing/stale caches before acquiring the read locks.
      # prepare() owns the extraction lock itself and resumes cached zones.
      for game, tool, cache, engine in (
@@ -119,7 +168,7 @@ index 9f3963e..7960ac5 100644
              (Path(settings.bo2), Path(settings.t6) / 'Unlinker.exe', caches.bo2, 'T6')):
          try:
              all2raw.ready(game, tool, cache, engine=engine)
-@@ -91,7 +91,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+@@ -91,7 +127,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
      t6 = Path(settings.t6) / 'Unlinker.exe'
      # Builds never extract or list a stock FF. Extract All owns every static
      # asset, index, sound driver and API cache.
@@ -128,7 +177,16 @@ index 9f3963e..7960ac5 100644
      stock = all2raw.ready(bo2, t6, caches.bo2, engine='T6')
      stage, mod = paths.stage, paths.mod
      # Stage in the worker as well: standalone CLI and Wine builds do not
-@@ -136,16 +136,33 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+@@ -102,7 +138,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+         folder.mkdir(parents=True, exist_ok=True)
+     shutil.copy2(stock / 't6api_cache.json', stage / 't6api_cache.json')
+     print('== 0. reusing shared game assets and preparing cached map sources', flush=True)
+-    sources = all2raw.source_dumps(settings, caches, refresh=redump)
++    sources = progress.timed('step 0 extract map sources', all2raw.source_dumps, settings, caches, refresh=redump)
+     source = Path(settings.fastfile).resolve()
+     project = settings.project
+     mapraw = sources['map']
+@@ -136,16 +172,50 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
      if settings.source_fx:
          args += ['--waw-mod-tools', settings.waw_tools, '--waw-source-fx',
                   '--waw-source-dumps', str(caches.waw / 'source')]
@@ -137,7 +195,21 @@ index 9f3963e..7960ac5 100644
 +    steps = ['stage', 'build-mod', 'compile-scripts', 'bridge-link', 'audit']
 +    first = steps.index(os.environ.get('WAW2BO2_FROM_STEP') or 'stage')
 +    if first <= 0:
-+        run(cli_command(*args))
++        # Opt-in per-map cache (WAW2BO2_STAGE_CACHE): an identical rebuild of the
++        # same map restores staging's output instead of recomputing it. Off by
++        # default; see stagecache.py for the correctness contract.
++        cache = stagecache.StageCache(caches.waw.parent / 'stage_cache') if stagecache.enabled() else None
++        token = cache.token(staging_inputs(settings, sources, wawraw, stock, args)) if cache else None
++        if cache is not None and cache.lookup(token) is not None:
++            print('== 2. restoring staged content from cache (identical inputs)', flush=True)
++            cache.restore(token, stage)
++        else:
++            before = stagecache.snapshot(stage) if cache is not None else None
++            run(cli_command(*args))
++            if cache is not None:
++                files = stagecache.changed(before, stagecache.snapshot(stage))
++                if cache.store(token, stage, files, meta={'project': project}):
++                    print(f'== cached staged content ({len(files)} files) for identical rebuilds', flush=True)
 +    else:
 +        print(f'== resuming at {steps[first]} (earlier steps reused)', flush=True)
      ensure_laa(linker)
@@ -145,18 +217,21 @@ index 9f3963e..7960ac5 100644
 -    run(cli_command('build-mod', str(stage), project, '--bo2', str(bo2), '--work', str(mod),
 -                    '--unlinker', str(t6), '--linker', str(linker), '--techset-dump', str(stock)))
 +    if first <= 1:
-+        run(cli_command('build-mod', str(stage), project, '--bo2', str(bo2), '--work', str(mod),
-+                        '--unlinker', str(t6), '--linker', str(linker), '--techset-dump', str(stock)))
++        progress.timed('step 3a build mod.ff (BO2 linker)', run,
++                       cli_command('build-mod', str(stage), project, '--bo2', str(bo2), '--work', str(mod),
++                                   '--unlinker', str(t6), '--linker', str(linker), '--techset-dump', str(stock)))
      print('== 3b. compiling map scripts with the BO2 mod tools linker', flush=True)
 -    run(cli_command('compile-scripts', str(stage), project, '--bo2', str(bo2), '--unlinker', str(t6)))
 +    if first <= 2:
-+        run(cli_command('compile-scripts', str(stage), project, '--bo2', str(bo2), '--unlinker', str(t6)))
++        progress.timed('step 3b compile scripts (BO2 linker)', run,
++                       cli_command('compile-scripts', str(stage), project, '--bo2', str(bo2), '--unlinker', str(t6)))
      print(f'== 4. linking {project} with the T6 bridge', flush=True)
 -    run(cli_command('bridge-link', str(stage), project, '--linker', str(linker),
 -                    '--techset-dump', str(stock), '--log', str(stage / (project + '_bridge.log'))))
 +    if first <= 3:
-+        run(cli_command('bridge-link', str(stage), project, '--linker', str(linker),
-+                        '--techset-dump', str(stock), '--log', str(stage / (project + '_bridge.log'))))
++        progress.timed('step 4 bridge-link (T6 linker)', run,
++                       cli_command('bridge-link', str(stage), project, '--linker', str(linker),
++                                   '--techset-dump', str(stock), '--log', str(stage / (project + '_bridge.log'))))
 +    print('== 5. auditing server/client clientfields', flush=True)
 +    from . import clientfields
 +    report = clientfields.audit(stage / 'zone_raw' / project, project, bo2)
@@ -169,7 +244,7 @@ index 9f3963e..7960ac5 100644
      for ff in (stage / 'zone_out' / project / (project + '.ff'), mod / 'out/mod.ff'):
          if not ff.is_file():
 diff --git a/src/waw2bo2/cli.py b/src/waw2bo2/cli.py
-index c256284..27de672 100644
+index c256284..1c1eb34 100644
 --- a/src/waw2bo2/cli.py
 +++ b/src/waw2bo2/cli.py
 @@ -292,6 +292,10 @@ def _stage_bridge(args: argparse.Namespace) -> int:
@@ -183,6 +258,107 @@ index c256284..27de672 100644
      return 1 if report.errors else 0
  
  
+@@ -417,6 +421,23 @@ def parser() -> argparse.ArgumentParser:
+     desktop_p.add_argument('--waw-cache-root', type=Path)
+     desktop_p.add_argument('--bo2-cache-root', type=Path)
+     desktop_p.set_defaults(func=_build_map)
++    import_p = sub.add_parser('import-map', help='one-shot: discover installs, build a WaW map and install it to Plutonium')
++    source = import_p.add_mutually_exclusive_group(required=True)
++    source.add_argument('--folder', help='folder holding the WaW map fastfile (its single map .ff is found automatically)')
++    source.add_argument('--fastfile', help='the WaW map fastfile (.ff) directly, when a folder has several')
++    import_p.add_argument('--project', help='BO2 map name (zm_..._waw); default derived from the fastfile name')
++    import_p.add_argument('--work', help='build workspace folder; default: %%LOCALAPPDATA%%\\WawConverter\\builds')
++    import_p.add_argument('--source-fx', action='store_true', help='compile effects missing from every WaW zone from the Mod Tools sources')
++    import_p.add_argument('--bo2-stock-perks', action='store_true', help='use stock BO2 perk machines/gameplay')
++    import_p.add_argument('--remaster', action='store_true', help='draw ported BO2 materials with their original BO2 material')
++    import_p.add_argument('--redump', action='store_true', help='force a fresh stock re-dump')
++    import_p.add_argument('--verbose', action='store_true', help='name each asset as it is staged')
++    import_p.set_defaults(func=_import_map)
++    check_p = sub.add_parser('check', help='fast pre-check: report which installs/tools a WaW import needs are missing')
++    check_p.add_argument('--folder', help='also check that this folder holds a single resolvable map .ff')
++    check_p.add_argument('--fastfile', help='also check this specific map .ff')
++    check_p.add_argument('--json', action='store_true', help='emit a machine-readable JSON report')
++    check_p.set_defaults(func=_check)
+     extract_p = sub.add_parser('all2raw', help='Extract All installed WaW/BO2 zones once into shared caches')
+     extract_p.add_argument('--settings-json', required=True)
+     extract_p.add_argument('--waw-cache-root', type=Path)
+@@ -596,6 +617,76 @@ def _translate_shader(args: argparse.Namespace) -> int:
+     return 0
+ 
+ 
++def _import_map(args: argparse.Namespace) -> int:
++    """End-to-end WaW map import for the ZM Workshop tool: discover installs,
++    build, and install to the Plutonium mods folder, streaming the build driver's
++    `== N.` step markers and `[staging]` phase lines for a progress bar.
++
++    Custom maps routinely edit stock scripts in ways with no faithful BO2
++    equivalent (e.g. a _zombiemode damage override that applies damage itself).
++    Like the BO1 import path, we build the map anyway and list each gap in the
++    stage report rather than failing the whole import for one unportable rule;
++    the env var propagates to the stage-bridge subprocess, which honours it."""
++    import os
++    os.environ.setdefault("WAW2BO2_ALLOW_STAGE_ERRORS", "1")
++    from .launcher import ProcessRunner, perform_import, resolve_import_settings
++    settings = resolve_import_settings(folder=args.folder, fastfile=args.fastfile,
++                                       project=args.project, work=args.work,
++                                       source_fx=args.source_fx, bo2_stock_perks=args.bo2_stock_perks,
++                                       remaster=args.remaster, redump=args.redump, verbose=args.verbose)
++    print(f"== importing {Path(settings.fastfile).name} as {settings.project}", flush=True)
++    runner = ProcessRunner(lambda kind, line: print(line, flush=True) if kind == 'line' else None,
++                           verbose=args.verbose)
++    return perform_import(settings, runner)
++
++
++def _check(args: argparse.Namespace) -> int:
++    """Fast install pre-check for the ZM Workshop tool: discover installs the same
++    way an import would, then report which REQUIRED games/tools are missing, so the
++    tool can warn BEFORE starting a (long) import instead of failing deep in preflight.
++
++    Exit 0 = everything a WaW import needs is present; 2 = something required is missing.
++    The first missing item is World at War when that is the problem, so the tool can
++    show the one message that matters ("World at War is not installed")."""
++    from .launcher import Settings, discover, preflight, map_fastfiles
++    settings = discover(Settings.load())
++    checks = preflight(settings, include_map=False)
++    missing = [c for c in checks if c.required and not c.ready]
++
++    # Optional: confirm a specific source folder/.ff resolves to exactly one map.
++    source_problem = None
++    if args.fastfile or args.folder:
++        try:
++            if args.fastfile:
++                src = Path(args.fastfile)
++                if not (src.is_file() and src.suffix.lower() == '.ff'):
++                    source_problem = f'Not a fastfile (.ff): {src}'
++            else:
++                found = map_fastfiles(Path(args.folder))
++                if not found:
++                    source_problem = (f'No map fastfile (.ff) found in {args.folder}. Choose the folder '
++                                      f'that holds the map’s .ff (not mod.ff/common.ff).')
++                elif len(found) > 1:
++                    source_problem = 'Several map fastfiles found; pick one: ' + ', '.join(p.name for p in found)
++        except OSError as error:
++            source_problem = str(error)
++
++    ok = not missing and source_problem is None
++    if args.json:
++        print(json.dumps({'ok': ok, 'waw': settings.waw, 'bo2': settings.bo2,
++                          'missing': [{'name': c.name, 'detail': c.detail} for c in missing],
++                          'source_problem': source_problem}, indent=2), flush=True)
++    else:
++        if missing:
++            for c in missing:
++                print(f'MISSING  {c.name}: {c.detail}', flush=True)
++        if source_problem:
++            print(f'MISSING  Source map: {source_problem}', flush=True)
++        if ok:
++            print('OK  all required installs and tools are present', flush=True)
++    return 0 if ok else 2
++
++
+ def _build_map(args: argparse.Namespace) -> int:
+     from .builddriver import build
+     from .launcher import Settings, preflight
 diff --git a/src/waw2bo2/compat/_waw2bo2_compat.gsc b/src/waw2bo2/compat/_waw2bo2_compat.gsc
 index 0d808a9..1e4f2dd 100644
 --- a/src/waw2bo2/compat/_waw2bo2_compat.gsc
@@ -1071,7 +1247,7 @@ index 15fc2b0..263f823 100644
  # Keep the native runtime on Original: its Easy branch changes the shared
  # round speed state. Source WaW set_run_speed owns each zombie's speed choice,
 diff --git a/src/waw2bo2/launcher.py b/src/waw2bo2/launcher.py
-index 6457309..055bcc9 100644
+index 6457309..83e2d78 100644
 --- a/src/waw2bo2/launcher.py
 +++ b/src/waw2bo2/launcher.py
 @@ -51,6 +51,8 @@ class Settings:
@@ -1083,6 +1259,131 @@ index 6457309..055bcc9 100644
      menu_longitude: str = '0'
      menu_latitude: str = '0'
      loading_song: str = ''
+@@ -87,9 +89,10 @@ class Settings:
+         temp.replace(path)
+ 
+ 
+-def discover(settings: Settings) -> Settings:
+-    """Fill only unset paths, using Steam libraries and bundled native tools."""
+-    root = resource_root()
++def steam_libraries() -> list[Path]:
++    """Every Steam library root on this machine (registry + libraryfolders.vdf),
++    so game installs are found wherever the user keeps them (never a hard-coded
++    drive/path)."""
+     steam_paths = [Path(os.environ.get('ProgramFiles(x86)', 'C:/Program Files (x86)')) / 'Steam']
+     if os.name != 'nt':
+         steam_paths = [Path.home() / '.steam/steam', Path.home() / '.local/share/Steam',
+@@ -109,10 +112,21 @@ def discover(settings: Settings) -> Settings:
+                              re.findall(r'"path"\s+"([^"]+)"', text))
+         except OSError:
+             pass
++    return libraries
++
++
++def find_steam_app(folder: str) -> Path | None:
++    """A Steam game's install directory by its steamapps/common folder name."""
++    return next((p / 'steamapps/common' / folder for p in steam_libraries()
++                 if (p / 'steamapps/common' / folder).is_dir()), None)
++
++
++def discover(settings: Settings) -> Settings:
++    """Fill only unset paths, using Steam libraries and bundled native tools."""
++    root = resource_root()
+     for field_name, folder in [('waw', 'Call of Duty World at War'), ('bo2', 'Call of Duty Black Ops II')]:
+         if not getattr(settings, field_name):
+-            found = next((p / 'steamapps/common' / folder for p in libraries
+-                          if (p / 'steamapps/common' / folder).is_dir()), None)
++            found = find_steam_app(folder)
+             if found:
+                 setattr(settings, field_name, str(found))
+     for field_name, relative in [('t4', 'vendor/OpenAssetTools/build/bin/Release_x86'),
+@@ -129,9 +143,16 @@ def discover(settings: Settings) -> Settings:
+ 
+ 
+ def map_fastfiles(folder: Path) -> list[Path]:
++    # Companions a custom WaW map ships beside its map .ff: the gameplay mod,
++    # the map patch, the loadscreen (*_load) and the localized string banks
++    # (localized_*, incl. localized_mapname). None is the map zone itself.
+     excluded = {'mod', 'mod_load', 'common', 'code_post_gfx'}
+-    return sorted((p for p in folder.glob('*.ff') if p.stem.lower() not in excluded
+-                   and not p.stem.lower().endswith('_patch')), key=lambda p: p.name.lower())
++    def companion(stem: str) -> bool:
++        stem = stem.lower()
++        return (stem in excluded or stem.endswith('_patch') or stem.endswith('_load')
++                or stem.startswith('localized_'))
++    return sorted((p for p in folder.glob('*.ff') if not companion(p.stem)),
++                  key=lambda p: p.name.lower())
+ 
+ 
+ def project_name(source: str) -> str:
+@@ -358,6 +379,67 @@ class ProcessRunner:
+         self._terminate()
+ 
+ 
++def resolve_import_settings(*, folder: str | None = None, fastfile: str | None = None,
++                            project: str | None = None, work: str | None = None,
++                            source_fx: bool = False, bo2_stock_perks: bool = False,
++                            remaster: bool = False, redump: bool = False, verbose: bool = False,
++                            base: Settings | None = None) -> Settings:
++    """Discovered Settings for a one-shot WaW map import driven from the tool.
++
++    The tool only knows where the map lives; everything else (WaW/BO2 installs,
++    bundled native tools) is filled by discover(), exactly as the desktop GUI does,
++    so all path logic stays here where it is tested rather than in the C++ front end."""
++    settings = discover(base if base is not None else Settings.load())
++    if fastfile:
++        source = Path(fastfile)
++    elif folder:
++        candidates = map_fastfiles(Path(folder))
++        if not candidates:
++            raise ValueError(f'No map fastfile (.ff) found in {folder}. Choose the folder that '
++                             f'holds the map’s .ff (not mod.ff/common.ff).')
++        if len(candidates) > 1:
++            raise ValueError('Several map fastfiles found; pass one with --fastfile: '
++                             + ', '.join(p.name for p in candidates))
++        source = candidates[0]
++    else:
++        raise ValueError('import needs --folder or --fastfile')
++    source = source.resolve()
++    if not source.is_file() or source.suffix.lower() != '.ff':
++        raise ValueError(f'Not a fastfile (.ff): {source}')
++    settings.fastfile = str(source)
++    settings.project = project or project_name(str(source))
++    validate_project(settings.project)
++    if work:
++        settings.work = str(Path(work))
++    settings.source_fx = source_fx
++    settings.bo2_stock_perks = bo2_stock_perks
++    settings.remaster = remaster
++    settings.redump = redump
++    settings.verbose = verbose
++    return settings
++
++
++def perform_import(settings: Settings, runner: ProcessRunner) -> int:
++    """Build the map and install it straight into the Plutonium mods folder.
++
++    One shot for the tool: perform_build() does the full extract/stage/link and
++    packages into the private build folder; this then runs the same install step
++    the GUI's Install button uses (package with no --dest -> the Plutonium mods dir)."""
++    code = perform_build(settings, runner)
++    if code or runner.cancelled.is_set():
++        return code or -1
++    paths = BuildPaths.for_settings(settings)
++    runner.emit('line', '== 8. installing to the Plutonium mods folder')
++    code = runner.run(cli_command('package', str(paths.stage), settings.project, '--bo2', settings.bo2,
++                                 '--work', str(paths.mod)), paths.root / 'install.log')
++    if code or runner.cancelled.is_set():
++        return code or -1
++    from .package import plutonium_mods_dir
++    (paths.root / 'installed.json').write_text(json.dumps({'output': str(paths.output)}), encoding='utf-8')
++    runner.emit('line', f'installed {plutonium_mods_dir() / settings.project}')
++    return 0
++
++
+ def perform_build(settings: Settings, runner: ProcessRunner) -> int:
+     failures = [c for c in preflight(settings) if c.required and not c.ready]
+     if failures:
 diff --git a/src/waw2bo2/lighting.py b/src/waw2bo2/lighting.py
 index 66df08a..3865d9f 100644
 --- a/src/waw2bo2/lighting.py
@@ -1147,7 +1448,7 @@ index 66df08a..3865d9f 100644
              "corner_obstruction_checks": "T4_runtime_traces_not_representable_in_T6_visibility"}
  
 diff --git a/src/waw2bo2/lightmaps.py b/src/waw2bo2/lightmaps.py
-index 6195422..1351450 100644
+index 6195422..4b1e6be 100644
 --- a/src/waw2bo2/lightmaps.py
 +++ b/src/waw2bo2/lightmaps.py
 @@ -19,6 +19,17 @@ Two encodings of each page are produced:
@@ -1168,7 +1469,21 @@ index 6195422..1351450 100644
    * T6-encoded, for surfaces still drawn by T6 donor programs: ambient =
      WaW's own lighting at a flat normal, squared into T6's linear units
      (hdrControl0.x assumed 1), directional colour 0, sun visibility from the
-@@ -60,15 +71,20 @@ def _rgba(path: Path) -> tuple[int, int, bytes]:
+@@ -40,6 +51,13 @@ WAW_PAGE_UV = {
+     'lightmapSamplerSecondary': (2.0 / 3.0, 0.0),
+     'lightmapSamplerPrimary': (1.0 / 3.0, 2.0 / 3.0),
+ }
++# BO1 secondaryB (G16R16 brightness) in the WaW-layout page of build_page_t5:
++# high bytes in the alpha of thirds A / B, low bytes in .z / .w of the third.
++# Filtering is linear, so hi * 256 + lo of filtered bytes is the filtered word.
++T5_BRIGHTNESS_TAPS = ((1.0 / 3.0, 0.0), (1.0 / 3.0, 1.0 / 3.0), (1.0 / 3.0, 2.0 / 3.0))
++T5_BRIGHTNESS_TEXEL = ('float4((T0.w * 65280.0 + T2.z * 255.0) / 65535.0, '
++                       '(T1.w * 65280.0 + T2.w * 255.0) / 65535.0, 1.0, 1.0)')
++PAGE_SAMPLERS = {*WAW_PAGE_UV, 'lightmapSamplerSecondaryB'}
+ # WaW lm_* direction decode, per alpha pair (measured literal c1 of the programs)
+ _DIR_SCALE = (4.07999992, 4.06451607)
+ _DIR_BIAS = (-2.07999992, -2.06451607)
+@@ -60,15 +78,20 @@ def _rgba(path: Path) -> tuple[int, int, bytes]:
              out[c::4] = level
          out[3::4] = level
          return img.width, img.height, bytes(out)
@@ -1192,7 +1507,7 @@ index 6195422..1351450 100644
      out = bytearray(out_w * out_h)
      n = fx * fy
      for y in range(out_h):
-@@ -142,9 +158,79 @@ def build_page(secondary: Path, primary: Path | None) -> tuple[int, int, bytes,
+@@ -142,9 +165,79 @@ def build_page(secondary: Path, primary: Path | None) -> tuple[int, int, bytes,
      return sw, height, waw, t6
  
  
@@ -1274,7 +1589,7 @@ index 6195422..1351450 100644
      names = {'waw': f'lightmap{index}_waw_secondary', 't6': f'lightmap{index}_t6_secondary'}
      for key, data in (('waw', waw), ('t6', t6)):
          if os.environ.get('WAW2BO2_DIAG_PAGEID'):
-@@ -175,10 +261,16 @@ def stage(world, image_roots: list[Path], project_root: Path, waw_materials: set
+@@ -175,10 +268,16 @@ def stage(world, image_roots: list[Path], project_root: Path, waw_materials: set
      report = {'pages': [], 'warnings': [], 'errors': []}
      pages = []
  
@@ -1293,7 +1608,7 @@ index 6195422..1351450 100644
      # WaW lightmap pages are *lightmap0.. up to the world's lightmap count; a
      # surface index past them (31 on the measured map) means "no lightmap".
      count = 0
-@@ -194,7 +286,11 @@ def stage(world, image_roots: list[Path], project_root: Path, waw_materials: set
+@@ -194,7 +293,11 @@ def stage(world, image_roots: list[Path], project_root: Path, waw_materials: set
          secondary, primary = find(index, 'secondary'), find(index, 'primary')
          if primary is None:
              report['warnings'].append(f'lightmap page {index}: primary (sun visibility) absent; fully visible')
@@ -1306,7 +1621,7 @@ index 6195422..1351450 100644
      from .parallel import ordered_map
      for result in ordered_map(_stage_page, tasks, label='Lightmaps', processes=True):
          pages.append({key: result[key] for key in ('waw', 't6')})
-@@ -205,6 +301,9 @@ def stage(world, image_roots: list[Path], project_root: Path, waw_materials: set
+@@ -205,6 +308,9 @@ def stage(world, image_roots: list[Path], project_root: Path, waw_materials: set
                                          encoding='utf-8')
      if pages:
          report['warnings'].append('lightmap sun visibility (WaW primary) box-filtered to the secondary page resolution')
@@ -1526,7 +1841,7 @@ index 59f82ed..85f2b2c 100644
              home = ex.dump(Path(zone), "material,techniqueset,image")
              rel = techsets.oat_material_path(material)
 diff --git a/src/waw2bo2/shaderruntime.py b/src/waw2bo2/shaderruntime.py
-index 2902bc4..62a04f7 100644
+index 2902bc4..30e4cdf 100644
 --- a/src/waw2bo2/shaderruntime.py
 +++ b/src/waw2bo2/shaderruntime.py
 @@ -14,6 +14,7 @@ from functools import lru_cache
@@ -1537,7 +1852,177 @@ index 2902bc4..62a04f7 100644
  
  
  def _find(roots, relative):
-@@ -995,7 +996,10 @@ def source_slot(present, source_name, slot):
+@@ -34,6 +35,32 @@ def registers(assembly):
+     return result
+ 
+ 
++def declared_width(assembly, name):
++    """Components of a D3DX constant-table parameter row (float3 -> 3), 4 if unknown.
++
++    D3DX only reads the declared components, so a T6 field of that size suffices:
++    both games declare sunFogDir as float3 and sunFog as float2 (T6 packs them
++    12 and 8 bytes wide in PerScene)."""
++    match = re.search(r'^//\s+float(\d)?(?:x\d)?\s+' + re.escape(name) + r'(?:\[\d+\])?;', assembly, re.M)
++    return int(match[1] or 1) if match else 4
++
++
++def fits(assembly, name, row, size):
++    """True when a native field of ``size`` bytes holds source row ``row`` of ``name``."""
++    return size >= row * 16 + declared_width(assembly, name) * 4
++
++
++def unaligned_expr(assembly, name, slot, offset, size):
++    """A scalar/vector field T6 packs mid-row (extraCamParam: cb0+2260): the
++    source reads it from .x upward, so rotate the row's components to match."""
++    shift, width = offset % 16 // 4, declared_width(assembly, name)
++    if slot != 0 or not shift or shift + width > 4 or size < width * 4:
++        return None
++    row = offset // 16
++    swizzle = ('xyzw'[shift:] + 'xyzw'[:shift])
++    return {'expr': f't6_cb0[{row}].{swizzle}', 'uses': [[0, row]]}
++
++
+ def embed_literals(assembly, source_pass, stage):
+     kind = 7 if stage == 'ps' else 1
+     definitions = [f'def c{a["dest"]}, ' + ', '.join(repr(float(v)) for v in a['literal'])
+@@ -141,7 +168,7 @@ def pixel_contract(source_assembly, source_pass, native_pass, native_root, sourc
+             slot, offset, size = native_fields[name]
+             # PerScene is globally maintained by T6. Other buffers need the
+             # donor pass's explicit argument routing and cannot be assumed live.
+-            if slot != 0 or offset % 16 or size < 16 * (row+1):
++            if slot != 0 or offset % 16 or not fits(source_assembly, name, row, size):
+                 raise shaders.ShaderError(f'code uniform requires an adapter: {name}')
+             contract['constants'][reg] = {'buffer': slot, 'index': offset//16 + row}
+         elif arg['type'] == 6:
+@@ -185,7 +212,10 @@ CODE_UNIFORM_ALIASES = {'baseLightingCoords': 'gridLightingCoordsAndVis', 'sunSp
+ NEUTRAL_CODE_UNIFORMS = {'destructibleParms': 'float4(0, 0, 0, 0)',
+                          # per-entity burn amount of WaW "charred" programs; static
+                          # models carry none (unburnt) and no T6 pass routes one
+-                         '__characterCharredAmount': 'float4(0, 0, 0, 0)'}
++                         '__characterCharredAmount': 'float4(0, 0, 0, 0)',
++                         # script-set vectors (setshaderconstant) default to 0 in both games;
++                         # T6 keeps them in cb1, which a donor pass may not route
++                         **{f'scriptVector{i}': 'float4(0, 0, 0, 0)' for i in range(8)}}
+ # Vertex inputs WaW reads as biased UBYTE4 unit vectors (NORMAL, tangent in
+ # TEXCOORD2); T6 feeds decoded floats. Checked against the decode literals.
+ PACKED_VECTOR_INPUTS = ('NORMAL0', 'TEXCOORD2')
+@@ -250,7 +280,8 @@ WORLD_SURFACE_TEXTURE_SLOTS = {'lightmapSamplerSecondary': (13, '2d'), 'reflecti
+ # lightmapSamplerSecondary); without the bit the slot keeps a stale texture.
+ CUSTOM_SAMPLER_BITS = {'reflectionProbeSampler': 1, 'lightmapSamplerSecondary': 2}
+ # Samplers both engines bind per surface, outside the pass arguments.
+-PER_SURFACE_SAMPLERS = {'lightmapSamplerPrimary', 'lightmapSamplerSecondary', 'reflectionProbeSampler'}
++PER_SURFACE_SAMPLERS = {'lightmapSamplerPrimary', 'lightmapSamplerSecondary', 'lightmapSamplerSecondaryB',
++                        'reflectionProbeSampler'}
+ 
+ 
+ # WaW primary-light code uniforms (WaW sub_742400, sub_7425D0) rebuilt from the
+@@ -512,11 +543,26 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+             contract.setdefault('unit_conversions', []).append(LIGHT_ADAPTERS[name])
+             continue
+         name = CODE_UNIFORM_ALIASES.get(name, name) if name not in native_fields else name
++        if name not in native_fields and name in NEUTRAL_CODE_UNIFORMS:
++            contract['constants'][reg] = {'expr': NEUTRAL_CODE_UNIFORMS[name], 'uses': []}
++            contract.setdefault('neutral', []).append(name)
++            continue
+         if name not in native_fields:
+             raise shaders.ShaderError(f'no native code uniform for {reg}: {names.get(reg)}')
+         row = arg.get('firstRow', 0) + int(reg[1:]) - arg['dest']
+         slot, offset, size = native_fields[name]
+-        if slot != 0 or offset % 16 or size < 16 * (row+1):
++        if not row and (unaligned := unaligned_expr(source_assembly, names[reg][0], slot, offset, size)):
++            contract['constants'][reg] = unaligned
++            continue
++        # Outside PerScene a buffer is only live when the donor pass routes it.
++        routed = slot == 0 or any(
++            a['type'] == 5 and a['buffer'] == slot and a['location'] <= offset + 16 * row < a['location'] + a['size']
++            for a in native_pass['args'])
++        if not routed and name in NEUTRAL_CODE_UNIFORMS:
++            contract['constants'][reg] = {'expr': NEUTRAL_CODE_UNIFORMS[name], 'uses': []}
++            contract.setdefault('neutral', []).append(name)
++            continue
++        if not routed or offset % 16 or not fits(source_assembly, names[reg][0], row, size):
+             raise shaders.ShaderError(f'code uniform requires an adapter: {name}')
+         index = offset // 16 + row
+         if name in ('fogColor', 'sunDiffuse') and sqrt_hdr:  # includes aliased sunSpecular
+@@ -557,7 +603,7 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+                 contract['samplers'][reg] = {'texture': 0, 'sampler': 0, 'constant': list(SCORCH_NEUTRAL)}
+                 contract.setdefault('unit_conversions', []).append(f'{source_name}: unscorched (weight 0)')
+                 continue
+-            lookup = 'lightmapSamplerSecondary' if source_name in lightmaps.WAW_PAGE_UV else source_name
++            lookup = 'lightmapSamplerSecondary' if source_name in lightmaps.PAGE_SAMPLERS else source_name
+             slots = [t for t, (n, _) in native_textures.items() if n == lookup]
+             if not slots and lookup in CODE_TEXTURE_ARGS:
+                 # the engine fills this code texture for every draw (T6 sub_782FA0
+@@ -633,6 +679,12 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+                 # from the WaW light def with its sampler state: WaW reads the
+                 # same texel (T6 programs square it; WaW uses it directly).
+                 pass
++            elif source_name == 'lightmapSamplerSecondaryB':
++                # BO1 brightness page, rebuilt from three thirds of the
++                # WaW-layout page (lightmaps.build_page_t5)
++                entry.update(v_taps=[list(t) for t in lightmaps.T5_BRIGHTNESS_TAPS],
++                             taps_expr=lightmaps.T5_BRIGHTNESS_TEXEL)
++                contract['lightmap'] = 'waw'
+             elif source_name in lightmaps.WAW_PAGE_UV:
+                 # WaW and T6 lightmap pages are encoded differently (WaW: two
+                 # halves, colour + tangent-space direction in alpha, plus a
+@@ -655,7 +707,7 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+                 raise shaders.ShaderError(f'code texture {source_name} needs a unit adapter')
+         contract['samplers'][reg] = entry
+         if arg is None or arg['type'] == 4:
+-            bit = CUSTOM_SAMPLER_BITS.get('lightmapSamplerSecondary' if source_name in lightmaps.WAW_PAGE_UV else source_name)
++            bit = CUSTOM_SAMPLER_BITS.get('lightmapSamplerSecondary' if source_name in lightmaps.PAGE_SAMPLERS else source_name)
+             if bit:
+                 native_pass['customSamplerFlags'] = native_pass.get('customSamplerFlags', 0) | bit
+     return contract
+@@ -849,7 +901,10 @@ def vertex_contract(source_assembly, source_pass, native_pass, native_root, pair
+         row = arg.get('firstRow', 0) + int(reg[1:]) - arg['dest']
+         slot, offset, size = fields[name]
+         at = offset + row * 16
+-        if at % 16 or size < (row+1)*16:
++        if not row and (unaligned := unaligned_expr(source_assembly, source_name, slot, offset, size)):
++            contract['constants'][reg] = unaligned
++            continue
++        if at % 16 or not fits(source_assembly, source_name, row, size):
+             raise shaders.ShaderError(f'incompatible vertex uniform {name}')
+         if slot != 0 and not any(a['type'] == 3 and a['buffer'] == slot and a['location'] <= at and at+16 <= a['location']+a['size'] for a in native_pass['args']):
+             raise shaders.ShaderError(f'native pass does not maintain vertex uniform {name}')
+@@ -979,27 +1034,42 @@ def native_fog_adapter(hlsl, source_assembly, contract, native_pass, native_root
+     return hlsl.replace('Output output;', code + '\nOutput output;')
+ 
+ 
+-# Matching engine technique meanings. Extended T6 dynamic-light combinations
+-# cannot be routed to a differently shaped WaW pass by their ordinal alone.
+-SLOTS = {0: 0, 1: 1, 2: 4, 3: 5, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16, 13: 18, 14: 20}
++# Matching engine technique meanings: T6 slot -> source technique index.
++# Extended T6 dynamic-light combinations cannot be routed to a differently
++# shaped WaW pass by their ordinal alone. WaW (T4, 59 techniques) and BO1
++# (T5, 130) number their techniques differently; T6 slot 1 is build shadowmap
++# depth (T6 names: CoDMPServer_PC.exe 0xD1BE90; T4/T5: OAT MaterialTechniqueType).
++WAW_SLOTS = {0: 0, 1: 2, 2: 4, 3: 5, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16, 13: 18, 14: 20}
++BO1_SLOTS = {0: 0, 1: 2, 2: 4, 3: 5, 4: 10, 5: 11, 6: 12, 7: 13, 8: 14, 13: 15, 14: 16}
++SLOTS = WAW_SLOTS  # the T6 slots; both tables share them
++WAW_TECHNIQUE_COUNT = 59
++
++
++def slot_table(count):
++    """The source table for a techset or stateBitsEntry array of ``count`` entries."""
++    return BO1_SLOTS if count > WAW_TECHNIQUE_COUNT else WAW_SLOTS
+ 
+ 
+ # Self-illuminated WaW techniques T6 draws through UNLIT/EMISSIVE.
+ SELF_LIT_KINDS = ('unlit', 'unlit_blend', 'unlit_add', 'unlit_distfalloff', 'unlit_falloff_add', 'objective')
+ 
+ 
+-def source_slot(present, source_name, slot):
+-    """WaW technique index feeding T6 ``slot``; ``present(i)`` tells whether
+-    WaW technique ``i`` exists."""
+-    index = SLOTS[slot]
++def source_slot(present, source_name, slot, count=WAW_TECHNIQUE_COUNT):
++    """Source technique index feeding T6 ``slot``; ``present(i)`` tells whether
++    source technique ``i`` exists and ``count`` is the source table length."""
++    table = slot_table(count)
++    index = table[slot]
      if present(index):
          return index
      parsed = techsets.parse(source_name)
@@ -1549,7 +2034,56 @@ index 2902bc4..62a04f7 100644
      if slot in (2, 3) and self_lit:
          # T6 draws emissive surfaces through UNLIT/EMISSIVE even when WaW
          # draws them through UNLIT or only through lit aliases (objective).
-@@ -1161,11 +1165,11 @@ def _write_program(project_root, stage, code, source, contract, info):
+-        for alias in (4, 8):
++        for alias in (table[2], table[4]):
+             if present(alias):
+                 return alias
+     return None
+@@ -1014,7 +1084,7 @@ def _output_scale(source_material, source_name, slot):
+     entries = source_material.get('stateBitsEntry', [])
+     states = source_material.get('stateBits', [])
+     present = lambda i: i < len(entries) and 0 <= entries[i] < len(states)
+-    index = source_slot(present, source_name, slot)
++    index = source_slot(present, source_name, slot, len(entries))
+     state = states[entries[index]] if index is not None else None
+     return {'output_rgb_scale': WAW_OUTPUT_SCALE} if scales_output(state) else {}
+ 
+@@ -1055,7 +1125,7 @@ def _source_state(source_material, source_name, slot):
+     entries = source_material.get('stateBitsEntry', [])
+     states = source_material.get('stateBits', [])
+     present = lambda i: i < len(entries) and 0 <= entries[i] < len(states)
+-    index = source_slot(present, source_name, slot)
++    index = source_slot(present, source_name, slot, len(entries))
+     return states[entries[index]] if index is not None else None
+ 
+ 
+@@ -1079,14 +1149,14 @@ def _blended_state(source_material, source_name, slot):
+     entries = source_material.get('stateBitsEntry', [])
+     states = source_material.get('stateBits', [])
+     present = lambda i: i < len(entries) and 0 <= entries[i] < len(states)
+-    index = source_slot(present, source_name, slot)
++    index = source_slot(present, source_name, slot, len(entries))
+     state = states[entries[index]] if index is not None else None
+     return bool(state) and state.get('blendOpRgb', 'disabled') != 'disabled' and state.get('dstBlendRgb') == 'invsrcalpha'
+ 
+ 
+ def source_technique(original, source_name, slot):
+     techniques = original['techniques']
+-    index = source_slot(lambda i: i < len(techniques) and bool(techniques[i]), source_name, slot)
++    index = source_slot(lambda i: i < len(techniques) and bool(techniques[i]), source_name, slot, len(techniques))
+     return techniques[index] if index is not None else None
+ 
+ 
+@@ -1119,7 +1189,7 @@ def apply_source_pass_states(source_material, output_material, runtime):
+     for slot in SLOTS:
+         if slot >= len(entries) or not 0 <= entries[slot] < len(states):
+             continue
+-        index = source_slot(present, name, slot)
++        index = source_slot(present, name, slot, len(src_entries))
+         if index is None:
+             continue
+         wanted, native = src_states[src_entries[index]], states[entries[slot]]
+@@ -1161,11 +1231,11 @@ def _write_program(project_root, stage, code, source, contract, info):
      name = 'waw/runtime_' + hashlib.sha256(code).hexdigest()[:20]
      path = project_root / 'shader_bin' / f'{stage}_{name}.cso'
      path.parent.mkdir(parents=True, exist_ok=True)
@@ -1564,7 +2098,16 @@ index 2902bc4..62a04f7 100644
      return name
  
  
-@@ -1396,7 +1400,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
+@@ -1199,7 +1269,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
+     original = json.loads(source_file.read_text())
+     pristine = json.loads(native_file.read_text())
+     native = copy.deepcopy(pristine)
+-    for slot, source_slot in SLOTS.items():
++    for slot in SLOTS:
+         target = native['techniques'][slot]
+         source = source_technique(original, source_name, slot)
+         if not target or not source:
+@@ -1396,7 +1466,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
          native['name'] = ts_name
          path = project_root / 'techniquesets' / f'{ts_name}.json'
          path.parent.mkdir(parents=True, exist_ok=True)
@@ -1574,7 +2117,7 @@ index 2902bc4..62a04f7 100644
      return result
  
 diff --git a/src/waw2bo2/shaders.py b/src/waw2bo2/shaders.py
-index 67d0aa8..be2502e 100644
+index 67d0aa8..e088f15 100644
 --- a/src/waw2bo2/shaders.py
 +++ b/src/waw2bo2/shaders.py
 @@ -10,7 +10,10 @@ import ctypes as ct
@@ -1588,7 +2131,40 @@ index 67d0aa8..be2502e 100644
  from functools import lru_cache
  from pathlib import Path
  
-@@ -494,16 +497,75 @@ def translate_file(source: Path, output: Path, bindings: dict | None = None, *,
+@@ -219,6 +222,10 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+ 
+     for reg, code in sample_texel.items():
+         resources.append(f'float4 waw_texel_{reg}(float4 T) {{ return {code}; }}')
++    for reg, entry in bindings.get('samplers', {}).items():
++        if entry.get('v_taps') is not None:
++            params = ', '.join(f'float4 T{i}' for i in range(len(entry['v_taps'])))
++            resources.append(f'float4 waw_taps_{reg}({params}) {{ return {entry["taps_expr"]}; }}')
+ 
+     def interface(kind, declarations):
+         result = {}
+@@ -344,7 +351,20 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+             if op == 'texldp':
+                 uv = f'({uv} / ({coord}).w)'
+             constant = bindings.get('samplers', {}).get(sampler, {}).get('constant')
+-            if op == 'texldl':
++            taps = bindings.get('samplers', {}).get(sampler, {}).get('v_taps')
++            if taps is not None:
++                # one source texel spread over sub-pages of the target page:
++                # sample each and rebuild the source texel from T0..Tn
++                if samplers[sampler] != '2d' or op not in ('texld', 'texldl') or v_remap or point_load or constant:
++                    raise ShaderError(f'v taps need a plain 2D texld/texldl: {original}')
++                lod = f', ({coord}).w' if op == 'texldl' else ''
++                method = 'SampleLevel' if op == 'texldl' else 'Sample'
++                if method == 'Sample' and stage != 'ps':
++                    raise ShaderError('vertex texture reads must use explicit LOD')
++                texels = [f'tex_{sampler}.{method}(samp_{sampler}, float2(({uv}).x, ({uv}).y * {float(a)!r} + {float(b)!r}){lod})'
++                          for a, b in taps]
++                expr = f'(waw_taps_{sampler}({", ".join(texels)}))'
++            elif op == 'texldl':
+                 expr = f'tex_{sampler}.SampleLevel(samp_{sampler}, {uv}, ({coord}).w)'
+             elif op == 'texldb':
+                 expr = f'tex_{sampler}.SampleBias(samp_{sampler}, {uv}, ({coord}).w)'
+@@ -494,16 +514,75 @@ def translate_file(source: Path, output: Path, bindings: dict | None = None, *,
      return report
  
  
@@ -1604,11 +2180,11 @@ index 67d0aa8..be2502e 100644
 +
 +def _cached_row(entry, digest, output):
 +    if not entry or entry.get('translator') != _TRANSLATOR or entry.get('source_sha256') != digest:
-+        return None
+         return None
 +    row = entry['row']
 +    if row['status'] == 'translated_unbound' and not all(
 +            output.with_suffix(suffix).is_file() for suffix in ('.hlsl', '.cso', '.json')):
-         return None
++        return None
 +    return row
 +
 +
@@ -1672,7 +2248,7 @@ index 67d0aa8..be2502e 100644
  
  
  def stage(roots: list[Path], destination: Path) -> dict:
-@@ -518,12 +580,24 @@ def stage(roots: list[Path], destination: Path) -> dict:
+@@ -518,12 +597,29 @@ def stage(roots: list[Path], destination: Path) -> dict:
          for folder in (root / 'shader_bin', root / 'content_source/shader_bin'):
              for path in sorted(folder.rglob('*.cso')):
                  sources.setdefault(path.relative_to(folder).as_posix(), path)
@@ -1685,8 +2261,13 @@ index 67d0aa8..be2502e 100644
 +    except (OSError, ValueError):
 +        cache = {}
 +    rows, entries, reused = [], {}, 0
++    # DXBC->SM5 translation is CPU-bound pure Python; run it in worker
++    # processes (not GIL-bound threads) so it uses every core. Each worker
++    # writes uniquely-named outputs and an atomic per-PID shared-cache entry,
++    # so concurrent processes do not collide.
 +    results = ordered_map(_stage_shader, [(name, source, destination, cache.get(name))
-+                                          for name, source in sources.items()], label='Shaders')
++                                          for name, source in sources.items()],
++                          label='Shaders', processes=True)
 +    for name, (row, entry, hit) in zip(sources, results):
 +        if row is not None:
 +            rows.append(row)
@@ -1701,7 +2282,7 @@ index 67d0aa8..be2502e 100644
 +    cache_path.write_text(json.dumps(entries) + '\n', encoding='utf-8')
      return report
 diff --git a/src/waw2bo2/t6bridge.py b/src/waw2bo2/t6bridge.py
-index 8a7736e..f7f7e03 100644
+index 8a7736e..abfad3d 100644
 --- a/src/waw2bo2/t6bridge.py
 +++ b/src/waw2bo2/t6bridge.py
 @@ -29,10 +29,11 @@ import re
@@ -1726,7 +2307,7 @@ index 8a7736e..f7f7e03 100644
      found, problems = remaster.extract(matches, bo2_root, t6_unlinker, cache,
                                         [techset_dump] if techset_dump is not None else [],
                                         log=lambda line: print(line, flush=True))
-@@ -209,6 +210,146 @@ def dangling_substitute(name: str, roots: list[Path]) -> tuple[str, str] | None:
+@@ -209,6 +210,148 @@ def dangling_substitute(name: str, roots: list[Path]) -> tuple[str, str] | None:
      return None
  
  
@@ -1739,6 +2320,8 @@ index 8a7736e..f7f7e03 100644
 +    native_fallbacks, falloff_placement = ctx['native_fallbacks'], ctx['falloff_placement']
 +    light_shadows, remaster, donors, candidates = (ctx['light_shadows'], ctx['remaster'], ctx['donors'],
 +                                                   ctx['candidates'])
++    # spawned workers re-import techsets: carry the world's layer-data switch over
++    techsets.LAYERED_VERTEX_DATA = ctx['layered_vertex_data']
 +    rel = techsets.oat_material_path(name)
 +    src = _find(roots, rel)
 +    out_rel = techsets.oat_material_path(rename.get(name, name))
@@ -1873,7 +2456,7 @@ index 8a7736e..f7f7e03 100644
  @progress.phase('Convert materials')
  def stage_materials(report: StageReport, names: set[str], roots: list[Path], stock_materials: Path,
                      project_root: Path, techset_root: Path | None = None,
-@@ -230,135 +371,19 @@ def stage_materials(report: StageReport, names: set[str], roots: list[Path], sto
+@@ -230,135 +373,19 @@ def stage_materials(report: StageReport, names: set[str], roots: list[Path], sto
          raise StageError(f"no stock T6 material donors found under {stock_materials}")
      candidates = sorted(donors)
      used_techsets: set[str] = set()
@@ -2010,7 +2593,7 @@ index 8a7736e..f7f7e03 100644
 +    ctx = dict(roots=roots, stock_materials=stock_materials, project_root=project_root, techset_root=techset_root,
 +               rename=rename, image_prefix=image_prefix, native_fallbacks=native_fallbacks,
 +               falloff_placement=falloff_placement, light_shadows=light_shadows, remaster=remaster,
-+               donors=donors, candidates=candidates)
++               donors=donors, candidates=candidates, layered_vertex_data=techsets.LAYERED_VERTEX_DATA)
 +    # materials are independent (own output files); merge their report parts in name order
 +    for part, techs in ordered_map(partial(_stage_one_material, ctx), sorted(names), label='Materials',
 +                                   processes=True):
@@ -2022,7 +2605,182 @@ index 8a7736e..f7f7e03 100644
      return used_techsets
  
  
-@@ -1270,6 +1295,10 @@ def _layer_gap_stride(world, surface) -> int | None:
+@@ -817,6 +844,81 @@ def _gltf_game_bounds(path: Path):
+     return tuple(mins), tuple(maxs)
+ 
+ 
++def _stage_one_model(ctx: dict, pair: tuple[str, str]) -> tuple[StageReport, set[str]]:
++    """One placed model of stage_models, in a worker process: its own report
++    part and the material names it uses. Independent of every other model, so
++    the only shared outputs are LOD files two models may legitimately share,
++    written content-safely with parallel.write_shared."""
++    from .parallel import write_shared
++    src_name, dst_name = pair
++    report = StageReport(project='')
++    materials: set[str] = set()
++    search = ctx['roots'] or [ctx['stage']]
++    project_root = ctx['project_root']
++    material_roots = ctx['material_roots']
++    entity_box_models = ctx['entity_box_models']
++    shadow_cache: dict[str, bool] = {}
++    def shadow_only(name: str) -> bool:
++        if name not in shadow_cache:
++            src = _find(material_roots, techsets.oat_material_path(name))
++            shadow_cache[name] = src is not None and techsets.only_casts_shadow(_load_json(src))
++        return shadow_cache[name]
++    src_root = next((r for r in search if (r / "xmodel" / f"{src_name}.json").exists()), None)
++    if src_root is None:
++        report.errors.append(f"xmodel {src_name}: xmodel/{src_name}.json missing from every WaW zone dump")
++        return report, materials
++    xm = _load_json(src_root / "xmodel" / f"{src_name}.json")
++    lods = []
++    for lod in xm.get("lods", []):
++        gltf = weapons.model_lod_source(search, src_root, lod["file"])
++        if gltf is None:
++            report.errors.append(f"xmodel {src_name}: LOD file {lod['file']} missing")
++            continue
++        dst_file = project_root / lod["file"]
++        data = _load_json(gltf)
++        changed = False
++        if _strip_bad_skins(data):
++            report.warnings.append(f"xmodel {src_name}: skin without a single root joint removed "
++                                   f"({lod['file']}); drawn rigid in its bind pose")
++            changed = True
++        bad_nodes = _neutralize_nan_transforms(data)
++        if bad_nodes:
++            report.warnings.append(f"xmodel {src_name}: {bad_nodes} node transform(s) with NaN components "
++                                   f"neutralized ({lod['file']})")
++            changed = True
++        hidden = _drop_shadow_only_surfaces(data, shadow_only)
++        if hidden:
++            report.content.setdefault("shadow_only_model_surfaces", []).append(
++                {"model": src_name, "lod": lod["file"], "materials": hidden})
++            changed = True
++        write_shared(dst_file, json.dumps(data).encode("utf-8") if changed else gltf.read_bytes())
++        for mat in data.get("materials", []):
++            materials.add(mat["name"])
++        lods.append(lod)
++    if not lods:
++        return report, materials
++    xm["_game"] = "t6"
++    xm["lods"] = lods
++    if dst_name in entity_box_models and not xm.get("collSurfs"):
++        bounds = _gltf_game_bounds(weapons.model_lod_source(search, src_root, lods[0]["file"]))
++        if bounds is None:
++            report.errors.append(f"xmodel {src_name}: no LOD0 positions for its script_model collision box")
++        else:
++            xm["collSurfs"] = [hulls.bounds_box_collsurf(*bounds, xm.get("rootBoneName", "tag_origin"))]
++            xm["contents"] = xm.get("contents", 0) | hulls.SCRIPT_MODEL_CONTENTS
++            # T6 XModelTraceLine (0x40DFD0) rejects a negative collLod
++            # before reading collSurfs. Enable only the synthesized entity
++            # box; authored movement/world clip masks stay untouched.
++            xm["collLod"] = 0
++            report.content.setdefault("script_model_collision_boxes", []).append(dst_name)
++    xm.update(model_runtime_defaults(xm))
++    if xm.pop("physPreset", None) is not None:
++        report.warnings.append(f"xmodel {src_name}: physPreset dropped (static models do not simulate)")
++    write_shared(project_root / "xmodel" / f"{dst_name}.json",
++                 (json.dumps(xm, indent=4) + "\n").encode("utf-8"))
++    return report, materials
++
++
+ @progress.phase('Convert models and collision')
+ def stage_models(report: StageReport, world, project: str, stage: Path, project_root: Path,
+                  extra_models: set[str] = frozenset(), roots: list[Path] | None = None,
+@@ -830,76 +932,27 @@ def stage_models(report: StageReport, world, project: str, stage: Path, project_
+     ``entity_box_models`` are placed as script_model entities. WaW traces such
+     an entity without collSurfs as its model bounds with contents 0x2080; T6
+     only traces collSurfs, so those models get that box as their collSurf.
++
++    Each model is an independent CPU-bound GLTF job, so they run in worker
++    processes (not GIL-bound threads); report parts and used materials merge in
++    input order, keeping output identical to a serial run.
+     """
+     targets = {m.name: m.name for m in world.static_models}
+     targets.update({name: name for name in extra_models})
+     # the skybox is staged by stage_skybox (T6 needs a sky technique)
+     materials: set[str] = set()
+-    material_roots = roots or [stage]
+-
+-    @lru_cache(maxsize=None)
+-    def shadow_only(name: str) -> bool:
+-        src = _find(material_roots, techsets.oat_material_path(name))
+-        return src is not None and techsets.only_casts_shadow(_load_json(src))
+-    for src_name, dst_name in progress.items('Models', sorted(targets.items()), name=lambda pair: pair[0]):
+-        src_root = next((r for r in (roots or [stage]) if (r / "xmodel" / f"{src_name}.json").exists()), None)
+-        if src_root is None:
+-            report.errors.append(f"xmodel {src_name}: xmodel/{src_name}.json missing from every WaW zone dump")
+-            continue
+-        xm = _load_json(src_root / "xmodel" / f"{src_name}.json")
+-        lods = []
+-        for lod in xm.get("lods", []):
+-            gltf = weapons.model_lod_source(roots or [stage], src_root, lod["file"])
+-            if gltf is None:
+-                report.errors.append(f"xmodel {src_name}: LOD file {lod['file']} missing")
+-                continue
+-            dst_file = project_root / lod["file"]
+-            dst_file.parent.mkdir(parents=True, exist_ok=True)
+-            data = _load_json(gltf)
+-            changed = False
+-            if _strip_bad_skins(data):
+-                report.warnings.append(f"xmodel {src_name}: skin without a single root joint removed "
+-                                       f"({lod['file']}); drawn rigid in its bind pose")
+-                changed = True
+-            bad_nodes = _neutralize_nan_transforms(data)
+-            if bad_nodes:
+-                report.warnings.append(f"xmodel {src_name}: {bad_nodes} node transform(s) with NaN components "
+-                                       f"neutralized ({lod['file']})")
+-                changed = True
+-            hidden = _drop_shadow_only_surfaces(data, shadow_only)
+-            if hidden:
+-                report.content.setdefault("shadow_only_model_surfaces", []).append(
+-                    {"model": src_name, "lod": lod["file"], "materials": hidden})
+-                changed = True
+-            if changed:
+-                dst_file.write_text(json.dumps(data), encoding="utf-8")
+-            else:
+-                shutil.copy2(gltf, dst_file)
+-            for mat in data.get("materials", []):
+-                materials.add(mat["name"])
+-            lods.append(lod)
+-        if not lods:
+-            continue
+-        xm["_game"] = "t6"
+-        xm["lods"] = lods
+-        if dst_name in entity_box_models and not xm.get("collSurfs"):
+-            bounds = _gltf_game_bounds(weapons.model_lod_source(roots or [stage], src_root, lods[0]["file"]))
+-            if bounds is None:
+-                report.errors.append(f"xmodel {src_name}: no LOD0 positions for its script_model collision box")
+-            else:
+-                xm["collSurfs"] = [hulls.bounds_box_collsurf(*bounds, xm.get("rootBoneName", "tag_origin"))]
+-                xm["contents"] = xm.get("contents", 0) | hulls.SCRIPT_MODEL_CONTENTS
+-                # T6 XModelTraceLine (0x40DFD0) rejects a negative collLod
+-                # before reading collSurfs. Enable only the synthesized entity
+-                # box; authored movement/world clip masks stay untouched.
+-                xm["collLod"] = 0
+-                report.content.setdefault("script_model_collision_boxes", []).append(dst_name)
+-        xm.update(model_runtime_defaults(xm))
+-        if xm.pop("physPreset", None) is not None:
+-            report.warnings.append(f"xmodel {src_name}: physPreset dropped (static models do not simulate)")
+-        dst = project_root / "xmodel" / f"{dst_name}.json"
+-        dst.parent.mkdir(parents=True, exist_ok=True)
+-        dst.write_text(json.dumps(xm, indent=4) + "\n", encoding="utf-8")
++    from .parallel import ordered_map
++    ctx = dict(roots=roots, stage=stage, project_root=project_root,
++               material_roots=roots or [stage], entity_box_models=set(entity_box_models))
++    for part, used in ordered_map(partial(_stage_one_model, ctx), sorted(targets.items()),
++                                  label='Models', processes=True):
++        report.materials += part.materials
++        report.images += part.images
++        report.warnings += part.warnings
++        report.errors += part.errors
++        for key, value in part.content.items():
++            report.content.setdefault(key, []).extend(value)
++        materials |= used
+     # OAT's xmodel loader reads this from the search-path root
+     part_csv = OAT_T6_RAW / "partclassification.csv"
+     if part_csv.exists():
+@@ -1270,6 +1323,10 @@ def _layer_gap_stride(world, surface) -> int | None:
      return gap // surface.vertex_count if surface.vertex_count and gap % surface.vertex_count == 0 else None
  
  
@@ -2033,7 +2791,7 @@ index 8a7736e..f7f7e03 100644
  def write_shadow_geometry(report: StageReport, world, mesh_of_surface: dict[int, int], path: Path) -> None:
      """BSP/shadowgeom.json: per WaW primary light, the static geometry its
      shadow map draws (GfxShadowGeometry: world meshes by FBX mesh index, static
-@@ -1281,10 +1310,17 @@ def write_shadow_geometry(report: StageReport, world, mesh_of_surface: dict[int,
+@@ -1281,10 +1338,17 @@ def write_shadow_geometry(report: StageReport, world, mesh_of_surface: dict[int,
          return
      lights = []
      dropped = 0
@@ -2053,7 +2811,7 @@ index 8a7736e..f7f7e03 100644
                         "hulls": [{"kdopMidPoint": list(h.kdop_mid_point), "kdopHalfSize": list(h.kdop_half_size),
                                    "axes": [{"dir": list(d), "midPoint": m, "halfSize": s} for d, m, s in h.axes]}
                                   for h in light.hulls]})
-@@ -1664,10 +1700,18 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
+@@ -1664,10 +1728,18 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
      _SKY_IMAGE_ROOTS[:] = [r / "images" for r in roots]
      source_sky_model = next((e.get("skyboxmodel") for e in entities.parse_entities(ents_file.read_text())
                               if e.get("classname") == "worldspawn"), None) if ents_file.exists() else None
@@ -2075,7 +2833,7 @@ index 8a7736e..f7f7e03 100644
          sky_techset, sky_image = stage_skybox(report, project, project_root, bo2_root, sky_image)
      if sky_techset:
          used.add(sky_techset)
-@@ -1731,6 +1775,13 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
+@@ -1731,6 +1803,13 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
      if bo2_root is not None:
          try:
              gscport.ensure_owned_client_bootstrap(project_root, bo2_root)
@@ -2089,7 +2847,7 @@ index 8a7736e..f7f7e03 100644
          except ValueError as exc:
              report.errors.append(f"scripts: {exc}")
      stage_rawfiles(report, project_root, bo2_root)
-@@ -1891,8 +1942,10 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
+@@ -1891,8 +1970,10 @@ def stage_bridge(stage: Path, project: str, gfx_bin: Path, clip_bin: Path, stock
      lighting_base = str(gfx_bin).removesuffix(".gfx.bin")
      grid_file = Path(lighting_base + ".lightgrid.bin")
      if grid_file.exists():
@@ -2101,7 +2859,7 @@ index 8a7736e..f7f7e03 100644
          if sun_file.exists():
              shutil.copy2(sun_file, project_root / "BSP/lighting.json")
              # WaW loads the sun into r_lightTweak* dvars (sub_6FCDE0) and rebuilds
-@@ -2802,6 +2855,8 @@ def compile_scripts(stage: Path, project: str, bo2_root: Path, oat_unlinker: Pat
+@@ -2802,6 +2883,8 @@ def compile_scripts(stage: Path, project: str, bo2_root: Path, oat_unlinker: Pat
      project_root = stage / "zone_raw" / project
      gscport.ensure_owned_client_bootstrap(project_root, bo2_root)
      validate_owned_init_calls(project_root, project)
@@ -2211,10 +2969,10 @@ index d11956f..169e262 100644
                      self.index[zone] = entry['index']
                      self.prepared[zone] = Path(entry['folder'])
 diff --git a/src/waw2bo2/weapons.py b/src/waw2bo2/weapons.py
-index b1537b0..d40e33a 100644
+index b1537b0..9eb3931 100644
 --- a/src/waw2bo2/weapons.py
 +++ b/src/waw2bo2/weapons.py
-@@ -8,6 +8,7 @@ The official BO2 linker consumes these infostrings and WaW's raw v17 xanims.
+@@ -8,11 +8,14 @@ The official BO2 linker consumes these infostrings and WaW's raw v17 xanims.
  from __future__ import annotations
  
  import json
@@ -2222,7 +2980,216 @@ index b1537b0..d40e33a 100644
  import re
  import shutil
  from dataclasses import dataclass, field
-@@ -804,6 +805,22 @@ def separate_alt_ammo(fields: dict[str, str], fields_by_weapon: dict[str, dict[s
++from functools import partial
+ from pathlib import Path
+ from . import wawtext
++from .parallel import ordered_map, write_shared
+ from .resources import resource_root
+ 
+ 
+@@ -353,71 +356,70 @@ def model_lod_source(roots: list[Path], owner: Path, file: str) -> Path | None:
+     return next((root / file for root in dict.fromkeys([owner, *roots]) if (root / file).is_file()), None)
+ 
+ 
+-def stage_models(roots: list[Path], project: Path, names: set[str]) -> dict:
+-    """Preserve weapon skeletons and LODs; never use the static-prop skin stripper.
++def _stage_one_weapon(ctx: dict, name: str) -> dict:
++    """Stage one weapon xmodel (a CPU-bound GLTF job) in a worker process.
+ 
+-    Models/material names are isolated from stock BO2. Multi-root skeletons
+-    require a loader fix and are explicitly rejected, not made rigid. Materials
+-    and image dependencies are reported for the subsequent translation stage.
++    Returns a fragment that stage_models merges in input order, so the result is
++    identical to a serial run. Partial materials/physpresets/reparent recorded
++    before a failure are still reported, exactly as the serial loop left them in
++    its shared accumulators; LOD and xmodel outputs are per-weapon unique paths,
++    and the only shared path (a physpreset two weapons share) is written atomically.
+     """
+-    staged, missing, unsupported, materials = [], [], {}, set()
++    roots: list[Path] = ctx["roots"]
++    project: Path = ctx["project"]
++    renamed = output_name("xmodel", name)
++    relative = Path("xmodel") / f"{name}.json"
++    root = next((r for r in roots if (r / relative).is_file()), None)
++    if root is None:
++        return {"name": name, "missing": True}
++    model_materials: set[str] = set()
+     physpresets: dict[str, dict] = {}
+-    reparented: dict[str, list[str]] = {}
+-    no_collision: list[str] = []
+-    for name in sorted(names):
+-        model_materials = set()
+-        renamed = output_name("xmodel", name)
+-        relative = Path("xmodel") / f"{name}.json"
+-        root = next((r for r in roots if (r / relative).is_file()), None)
+-        if root is None:
+-            missing.append(name)
+-            continue
++    reparent: list[str] | None = None
++    no_collision = False
++    staged = None
++    error = None
++    try:
+         model = json.loads((root / relative).read_text(encoding="utf-8"))
+-        try:
+-            if model.get("flags", 0):
+-                raise WeaponError("nonzero T4 xmodel flags need measured T6 translation")
+-            if model.get("physPreset"):
+-                model["physPreset"] = stage_physpreset(roots, project, model["physPreset"], physpresets)
+-            lods = []
+-            for index, lod in enumerate(model.get("lods", [])):
+-                file = lod["file"]
+-                output_name("model_file", file)
+-                source = model_lod_source(roots, root, file)
+-                if source is None:
+-                    raise WeaponError(f'model geometry {file} is absent from the map and resolved WaW stock assets')
+-                data = json.loads(source.read_text(encoding="utf-8"))
+-                parents = {c: i for i, node in enumerate(data.get("nodes", []))
+-                           for c in node.get("children", [])}
+-                for skin in data.get("skins", []):
+-                    joints = set(skin.get("joints", []))
+-                    root_joints = sorted(j for j in joints if parents.get(j) not in joints)
+-                    if len(root_joints) > 1 and model.get("type") == "rigid" and \
+-                            _merge_equal_roots(data, root_joints):
+-                        reparented[name] = [data["nodes"][r].get("name") for r in root_joints]
+-                        continue
+-                    if len(root_joints) != 1:
+-                        raise WeaponError("multiple/absent skin roots: skeleton preserved at source, not stripped")
+-                # OAT resolves engine materials by the GLTF material NAME;
+-                # GLTF images/textures are exporter previews, not dependencies
+-                # of its xmodel reader (GltfLoader::LoadMaterials). Keep their
+-                # source metadata, but do not mistake DDS preview URIs for
+-                # skeleton buffers or reject otherwise valid animated models.
+-                for resource in data.get("buffers", []):
+-                    uri = resource.get("uri", "")
+-                    if uri and not uri.startswith("data:"):
+-                        raise WeaponError(f"external GLTF resource needs dependency staging: {uri}")
+-                for material in data.get("materials", []):
+-                    material_name = material["name"]
+-                    material["name"] = output_name("material", material_name)
+-                    materials.add(material_name)
+-                    model_materials.add(material_name)
+-                destination = Path("model_export") / f"{renamed}_lod{index}.gltf"
+-                lods.append((dict(lod, file=destination.as_posix()), destination, data))
+-            if not lods:
+-                raise WeaponError("xmodel has no LODs")
+-        except (WeaponError, OSError, KeyError, ValueError) as exc:
+-            unsupported[name] = str(exc)
+-            continue
++        if model.get("flags", 0):
++            raise WeaponError("nonzero T4 xmodel flags need measured T6 translation")
++        if model.get("physPreset"):
++            model["physPreset"] = stage_physpreset(roots, project, model["physPreset"], physpresets)
++        lods = []
++        for index, lod in enumerate(model.get("lods", [])):
++            file = lod["file"]
++            output_name("model_file", file)
++            source = model_lod_source(roots, root, file)
++            if source is None:
++                raise WeaponError(f'model geometry {file} is absent from the map and resolved WaW stock assets')
++            data = json.loads(source.read_text(encoding="utf-8"))
++            parents = {c: i for i, node in enumerate(data.get("nodes", []))
++                       for c in node.get("children", [])}
++            for skin in data.get("skins", []):
++                joints = set(skin.get("joints", []))
++                root_joints = sorted(j for j in joints if parents.get(j) not in joints)
++                if len(root_joints) > 1 and model.get("type") == "rigid" and \
++                        _merge_equal_roots(data, root_joints):
++                    reparent = [data["nodes"][r].get("name") for r in root_joints]
++                    continue
++                if len(root_joints) != 1:
++                    raise WeaponError("multiple/absent skin roots: skeleton preserved at source, not stripped")
++            # OAT resolves engine materials by the GLTF material NAME;
++            # GLTF images/textures are exporter previews, not dependencies
++            # of its xmodel reader (GltfLoader::LoadMaterials). Keep their
++            # source metadata, but do not mistake DDS preview URIs for
++            # skeleton buffers or reject otherwise valid animated models.
++            for resource in data.get("buffers", []):
++                uri = resource.get("uri", "")
++                if uri and not uri.startswith("data:"):
++                    raise WeaponError(f"external GLTF resource needs dependency staging: {uri}")
++            for material in data.get("materials", []):
++                material_name = material["name"]
++                material["name"] = output_name("material", material_name)
++                model_materials.add(material_name)
++            destination = Path("model_export") / f"{renamed}_lod{index}.gltf"
++            lods.append((dict(lod, file=destination.as_posix()), destination, data))
++        if not lods:
++            raise WeaponError("xmodel has no LODs")
+         # Validate every LOD before producing any model with partial geometry.
+         for _, destination, data in lods:
+             dst = project / destination
+@@ -429,7 +431,7 @@ def stage_models(roots: list[Path], project: Path, names: set[str]) -> dict:
+         # T4 plane/svec/tvec triangles). Model collision is for world entities
+         # (map zone, our bridge linker); weapon models do not carry it here.
+         if model.pop("collSurfs", None):
+-            no_collision.append(name)
++            no_collision = True
+         model.pop("contents", None)
+         # The gameplay-mod linker has a different boneInfo JSON schema
+         # (its mins/maxs are vector objects). Keep the original metadata in
+@@ -443,8 +445,46 @@ def stage_models(roots: list[Path], project: Path, names: set[str]) -> dict:
+         dst = project / "xmodel" / f"{renamed}.json"
+         dst.parent.mkdir(parents=True, exist_ok=True)
+         dst.write_text(json.dumps(model, indent=2) + "\n", encoding="utf-8")
+-        staged.append({"name": renamed, "waw": name, "source": str(root / relative), "lods": len(lods),
+-                       "materials": sorted(model_materials)})
++        staged = {"name": renamed, "waw": name, "source": str(root / relative), "lods": len(lods),
++                  "materials": sorted(model_materials)}
++    except (WeaponError, OSError, KeyError, ValueError) as exc:
++        error = str(exc)
++    return {"name": name, "materials": model_materials, "physpresets": physpresets,
++            "reparent": reparent, "no_collision": no_collision, "staged": staged, "error": error}
++
++
++def stage_models(roots: list[Path], project: Path, names: set[str]) -> dict:
++    """Preserve weapon skeletons and LODs; never use the static-prop skin stripper.
++
++    Models/material names are isolated from stock BO2. Multi-root skeletons
++    require a loader fix and are explicitly rejected, not made rigid. Materials
++    and image dependencies are reported for the subsequent translation stage.
++
++    Each weapon xmodel is an independent CPU-bound GLTF job, so they run in
++    worker processes (not GIL-bound threads); fragments merge in input (sorted)
++    order, keeping output identical to a serial run.
++    """
++    staged, missing, unsupported, materials = [], [], {}, set()
++    physpresets: dict[str, dict] = {}
++    reparented: dict[str, list[str]] = {}
++    no_collision: list[str] = []
++    ctx = dict(roots=roots, project=project)
++    for frag in ordered_map(partial(_stage_one_weapon, ctx), sorted(names),
++                            label='Weapon models', processes=True):
++        name = frag["name"]
++        if frag.get("missing"):
++            missing.append(name)
++            continue
++        materials |= frag["materials"]
++        physpresets.update(frag["physpresets"])
++        if frag["reparent"] is not None:
++            reparented[name] = frag["reparent"]
++        if frag["no_collision"]:
++            no_collision.append(name)
++        if frag["error"] is not None:
++            unsupported[name] = frag["error"]
++            continue
++        staged.append(frag["staged"])
+     return {"status": "source_models_staged_materials_not_translated", "models": staged, "missing": missing,
+             "unsupported": unsupported, "materials": sorted(materials), "physpresets": physpresets,
+             "reparented_roots": reparented, "collision_not_carried": no_collision}
+@@ -500,8 +540,9 @@ def stage_physpreset(roots: list[Path], project: Path, name: str, staged: dict[s
+     if pairs.get("sndAliasPrefix"):
+         pairs["sndAliasPrefix"] = "waw/" + pairs["sndAliasPrefix"]
+     dst = project / "physic" / renamed
+-    dst.parent.mkdir(parents=True, exist_ok=True)
+-    dst.write_text("PHYSIC" + "".join(f"\\{k}\\{v}" for k, v in pairs.items()), encoding="utf-8")
++    # Different weapons may share a physpreset, so staging runs in parallel worker
++    # processes can race on this path; write_shared publishes it atomically.
++    write_shared(dst, ("PHYSIC" + "".join(f"\\{k}\\{v}" for k, v in pairs.items())).encode("utf-8"))
+     staged[name] = {"name": renamed, "source": str(source)}
+     return renamed
+ 
+@@ -804,6 +845,22 @@ def separate_alt_ammo(fields: dict[str, str], fields_by_weapon: dict[str, dict[s
          return False
      primary = fields_by_weapon.get(fields.get("altWeapon", ""))
      return primary is not None and primary.get("ammoName") != fields.get("ammoName")
@@ -2245,7 +3212,7 @@ index b1537b0..d40e33a 100644
  WAW_WEAPON_PREFIX = "waw_"
  PREFIXES = {"xmodel": "waw_xmodel/", "material": "waw_material/", "xanim": "waw_xanim/",
              "accuracy": "waw_accuracy/"}
-@@ -846,6 +863,11 @@ def stage_runtime(project: Path, ipak: str, equivalents=None, loaded: dict[str,
+@@ -846,6 +903,11 @@ def stage_runtime(project: Path, ipak: str, equivalents=None, loaded: dict[str,
              # both engines' null weapon; BO2 always provides its own
              table[name] = name
              continue
@@ -2257,7 +3224,7 @@ index b1537b0..d40e33a 100644
          table[name] = name if name.lower() not in reserved else WAW_WEAPON_PREFIX + name
          if table[name] != name:
              notes.append(f"WEAPON_RENAMED {name} -> {table[name]}: BO2 has a weapon of that name; scripts reach "
-@@ -979,7 +1001,11 @@ def stage_runtime(project: Path, ipak: str, equivalents=None, loaded: dict[str,
+@@ -979,7 +1041,11 @@ def stage_runtime(project: Path, ipak: str, equivalents=None, loaded: dict[str,
      # converted effects live in the map zone; mod.ff only references them
      lines += [f"fx,,{n}" for n in sorted(effects)]
      lines += [f"weapon,{table[n]}" for n in runtime]
@@ -2270,6 +3237,302 @@ index b1537b0..d40e33a 100644
      # every WaW weapon: its BO2 name, or "" when mod.ff does not carry it
      table = {w: (b if w in runtime or w in replacements or w.lower() in ENGINE_WEAPONS else "")
               for w, b in table.items()}
+diff --git a/tests/test_builddriver.py b/tests/test_builddriver.py
+index 79003dd..8ab0ca2 100644
+--- a/tests/test_builddriver.py
++++ b/tests/test_builddriver.py
+@@ -150,6 +150,79 @@ if __name__ == '__main__':
+     unittest.main()
+ 
+ 
++    def _fake_build_run(self, commands, paths):
++        """A fake native runner: records commands, fabricates staging + link output."""
++        staged = paths.stage / 'zone_raw/zm_bankjob/content_source/weapons/ak47'
++        def fake_run(command, log=None):
++            commands.append(command)
++            if 'stage-bridge' in command:
++                staged.parent.mkdir(parents=True, exist_ok=True)
++                staged.write_text('weapon fields')
++            if 'bridge-link' in command:
++                for ff in (paths.stage / 'zone_out/zm_bankjob/zm_bankjob.ff', paths.mod / 'out/mod.ff'):
++                    ff.parent.mkdir(parents=True, exist_ok=True)
++                    ff.touch()
++        return fake_run, staged
++
++    def test_stage_cache_is_dormant_without_the_opt_in(self):
++        paths = BuildPaths.for_settings(self.settings)
++        for build in range(2):
++            commands = []
++            fake_run, _ = self._fake_build_run(commands, paths)
++            with patch.object(builddriver, 'run', side_effect=fake_run):
++                self.assertEqual(builddriver.build(self.settings), 0)
++            self.assertTrue(any('stage-bridge' in c for c in commands),
++                            f'staging must always run when the cache is off (build {build})')
++        self.assertFalse((Path(self.settings.work) / 'asset_cache/stage_cache').exists())
++
++    def test_stage_cache_skips_staging_on_identical_rebuild(self):
++        # The input digest hashes the real Unlinker binaries; create them.
++        for engine in ('t4', 't6'):
++            tool = Path(getattr(self.settings, engine)) / 'Unlinker.exe'
++            tool.parent.mkdir(parents=True, exist_ok=True)
++            tool.write_bytes(b'unlinker')
++        paths = BuildPaths.for_settings(self.settings)
++        with patch.dict(os.environ, {'WAW2BO2_STAGE_CACHE': '1'}):
++            first = []
++            fake_run, staged = self._fake_build_run(first, paths)
++            with patch.object(builddriver, 'run', side_effect=fake_run):
++                self.assertEqual(builddriver.build(self.settings), 0)
++            self.assertTrue(any('stage-bridge' in c for c in first))
++
++            # Delete the staged output; an identical rebuild must restore it
++            # from cache and never re-run the stage-bridge step.
++            staged.unlink()
++            second = []
++            fake_run, _ = self._fake_build_run(second, paths)
++            with patch.object(builddriver, 'run', side_effect=fake_run):
++                self.assertEqual(builddriver.build(self.settings), 0)
++            self.assertFalse(any('stage-bridge' in c for c in second),
++                             'identical rebuild should restore staging from cache')
++            self.assertEqual(staged.read_text(), 'weapon fields')
++
++    def test_stage_cache_reruns_staging_when_inputs_change(self):
++        for engine in ('t4', 't6'):
++            tool = Path(getattr(self.settings, engine)) / 'Unlinker.exe'
++            tool.parent.mkdir(parents=True, exist_ok=True)
++            tool.write_bytes(b'unlinker')
++        paths = BuildPaths.for_settings(self.settings)
++        with patch.dict(os.environ, {'WAW2BO2_STAGE_CACHE': '1'}):
++            first = []
++            fake_run, staged = self._fake_build_run(first, paths)
++            with patch.object(builddriver, 'run', side_effect=fake_run):
++                builddriver.build(self.settings)
++            staged.unlink()
++            # A changed option (remaster) changes the digest -> cache miss.
++            from dataclasses import replace
++            changed = replace(self.settings, remaster=True)
++            second = []
++            fake_run, _ = self._fake_build_run(second, paths)
++            with patch.object(builddriver, 'run', side_effect=fake_run):
++                builddriver.build(changed)
++            self.assertTrue(any('stage-bridge' in c for c in second),
++                            'a changed build option must not reuse the cached staging')
++
++
+ class WorldNameTests(unittest.TestCase):
+     def test_map_world_found_inside_mod_ff(self):
+         with tempfile.TemporaryDirectory() as tmp:
+diff --git a/tests/test_launcher.py b/tests/test_launcher.py
+index f3d2c11..9b866e0 100644
+--- a/tests/test_launcher.py
++++ b/tests/test_launcher.py
+@@ -10,7 +10,8 @@ from unittest.mock import patch
+ 
+ from waw2bo2.all2raw import WORLD_DUMPER_MARKER
+ from waw2bo2.launcher import (BuildPaths, ProcessRunner, Settings, build_command, discover,
+-                             input_stamp, map_fastfiles, perform_build, preflight, project_name, validate_project)
++                             input_stamp, map_fastfiles, perform_build, perform_import, preflight,
++                             project_name, resolve_import_settings, validate_project)
+ 
+ 
+ 
+@@ -77,11 +78,90 @@ class LauncherTests(unittest.TestCase):
+         settings.save(path)
+         self.assertEqual(Settings.load(path).t4, settings.t4)
+ 
++    def test_resolve_import_finds_single_map_fastfile(self):
++        folder = self.root / 'MyMap'
++        folder.mkdir()
++        for name in ('mod.ff', 'map_patch.ff', 'nazi_zombie_cellar.ff'):
++            (folder / name).touch()
++        with patch('waw2bo2.launcher.discover', side_effect=lambda s: s):
++            settings = resolve_import_settings(folder=str(folder), base=Settings(work=str(self.root / 'w')))
++        self.assertEqual(Path(settings.fastfile).name, 'nazi_zombie_cellar.ff')
++        self.assertEqual(settings.project, 'zm_cellar_waw')      # companions ignored; project derived
++
++    def test_resolve_import_rejects_ambiguous_and_empty_folders(self):
++        with patch('waw2bo2.launcher.discover', side_effect=lambda s: s):
++            empty = self.root / 'empty'
++            empty.mkdir()
++            with self.assertRaises(ValueError):
++                resolve_import_settings(folder=str(empty), base=Settings())
++            two = self.root / 'two'
++            two.mkdir()
++            (two / 'a.ff').touch()
++            (two / 'b.ff').touch()
++            with self.assertRaises(ValueError):
++                resolve_import_settings(folder=str(two), base=Settings())
++
++    def test_perform_import_builds_then_installs_to_plutonium(self):
++        settings = self.settings()
++        paths = BuildPaths.for_settings(settings)
++        paths.root.mkdir(parents=True, exist_ok=True)      # perform_build (mocked) normally creates it
++        calls = []
++
++        class FakeRunner:
++            def __init__(self):
++                self.cancelled = threading.Event()
++
++            def emit(self, kind, line):
++                calls.append((kind, line))
++
++            def run(self, command, log, cwd=None):
++                calls.append(('run', command))
++                return 0
++
++        with patch('waw2bo2.launcher.perform_build', return_value=0) as build:
++            code = perform_import(settings, FakeRunner())
++        self.assertEqual(code, 0)
++        build.assert_called_once()
++        self.assertTrue((paths.root / 'installed.json').is_file())
++        self.assertTrue(any(k == 'run' and 'package' in c for k, c in calls))   # installed via the package step
++        self.assertTrue(any(k == 'line' and str(l).startswith('installed ') for k, l in calls))
++
+     def test_map_picker_excludes_companion_fastfiles(self):
+         for name in ['mod.ff', 'map_patch.ff', 'map.ff', 'mod_load.ff', 'other.ff']:
+             (self.root / name).touch()
+         self.assertEqual([p.name for p in map_fastfiles(self.root)], ['map.ff', 'other.ff'])
+ 
++    def test_map_picker_excludes_localized_and_load_companions(self):
++        # A real installed WaW usermap folder (nazi_zombie_anotherroad): the map
++        # ships localized_* string banks and a *_load loadscreen beside it.
++        for name in ['mod.ff', 'nazi_zombie_anotherroad.ff', 'nazi_zombie_anotherroad_patch.ff',
++                     'localized_mapname.ff', 'localized_nazi_zombie_anotherroad.ff',
++                     'nazi_zombie_anotherroad_load.ff']:
++            (self.root / name).touch()
++        self.assertEqual([p.name for p in map_fastfiles(self.root)], ['nazi_zombie_anotherroad.ff'])
++
++    def test_check_command_reports_missing_waw_first_and_resolves_source(self):
++        from waw2bo2 import cli
++        from waw2bo2.launcher import Check
++        # WaW missing -> exit 2 and the World at War check is reported.
++        with patch('waw2bo2.launcher.Settings.load', return_value=Settings()), \
++             patch('waw2bo2.launcher.discover', side_effect=lambda s: s), \
++             patch('waw2bo2.launcher.preflight', return_value=[Check('World at War', False, 'Missing: main')]):
++            self.assertEqual(cli.main(['check']), 2)
++        # Everything present and the folder resolves to one .ff -> exit 0.
++        (self.root / 'the_map.ff').touch()
++        with patch('waw2bo2.launcher.Settings.load', return_value=Settings()), \
++             patch('waw2bo2.launcher.discover', side_effect=lambda s: s), \
++             patch('waw2bo2.launcher.preflight', return_value=[Check('World at War', True, 'Ready')]):
++            self.assertEqual(cli.main(['check', '--folder', str(self.root)]), 0)
++        # Installs present but the folder has no map .ff -> exit 2 (source problem).
++        (self.root / 'the_map.ff').unlink()
++        (self.root / 'mod.ff').touch()
++        with patch('waw2bo2.launcher.Settings.load', return_value=Settings()), \
++             patch('waw2bo2.launcher.discover', side_effect=lambda s: s), \
++             patch('waw2bo2.launcher.preflight', return_value=[Check('World at War', True, 'Ready')]):
++            self.assertEqual(cli.main(['check', '--folder', str(self.root)]), 2)
++
+     def test_preflight_reports_missing_game_data_and_optional_source_tools(self):
+         settings = self.settings()
+         self.assertFalse([c for c in preflight(settings) if c.required and not c.ready])
+diff --git a/tests/test_lit_adapters.py b/tests/test_lit_adapters.py
+index d11c4f8..1e1384a 100644
+--- a/tests/test_lit_adapters.py
++++ b/tests/test_lit_adapters.py
+@@ -89,6 +89,34 @@ add oC0, r0, r1
+         self.assertIn('0.6666666666666666', hlsl)
+         shaders.compile_hlsl(hlsl, 'ps_5_0')
+ 
++    def test_bo1_brightness_taps_rebuild_the_16_bit_words(self):
++        ps = 'ps_3_0\ndcl_texcoord v0\ndcl_2d s14\ntexld r0, v0.zwzw, s14\nmov oC0, r0\n'
++        contract = {'inputs': {'v0': {'semantic': 'TEXCOORD0', 'width': 4}},
++                    'outputs': {'oC0': {'semantic': 'SV_Target0', 'width': 4}}, 'constants': {},
++                    'samplers': {'s14': {'texture': 13, 'sampler': 13,
++                                         'v_taps': [list(t) for t in lightmaps.T5_BRIGHTNESS_TAPS],
++                                         'taps_expr': lightmaps.T5_BRIGHTNESS_TEXEL}}}
++        hlsl, _ = shaders.translate(ps, contract)
++        self.assertEqual(hlsl.count('tex_s14.Sample('), 3)
++        shaders.compile_hlsl(hlsl, 'ps_5_0')
++        # the page bytes build_page_t5 writes decode back to the G16R16 words
++        with tempfile.TemporaryDirectory() as tmp:
++            words = [0x0000, 0xFFFF, 0x1234, 0xABCD]           # A0 B0 A1 B1
++            sec = struct.pack('<4H', 0xF800, 0x07E0, 0x001F, 0xFFFF)   # 2x2: top row A, bottom row B
++            def loaddef(name, fmt, w, h, data):
++                path = Path(tmp) / name
++                path.write_bytes(struct.pack('<6i', fmt, len(data), w, h, 1, 0) + data)
++                return path
++            width, height, waw, _ = lightmaps.build_page_t5(
++                loaddef('s.bin', 23, 2, 2, sec), loaddef('b.bin', 34, 2, 1, struct.pack('<4H', *words)), None)
++            pixels = width * height
++            for i in range(pixels):
++                t0, t1, t2 = (waw[(k * pixels + i) * 4:(k * pixels + i) * 4 + 4] for k in range(3))
++                x = (t0[3] / 255 * 65280 + t2[2] / 255 * 255) / 65535
++                y = (t1[3] / 255 * 65280 + t2[3] / 255 * 255) / 65535
++                self.assertAlmostEqual(x, words[2 * i] / 65535, places=6)
++                self.assertAlmostEqual(y, words[2 * i + 1] / 65535, places=6)
++
+     def test_point_load_reads_texels_without_sampler_state(self):
+         ps = 'ps_3_0\ndcl_texcoord v0\ndcl_2d s5\ntexldl r0, v0, s5\nmov oC0, r0\n'
+         contract = {'inputs': {'v0': {'semantic': 'TEXCOORD0', 'width': 4}},
+diff --git a/tests/test_shaderruntime.py b/tests/test_shaderruntime.py
+index d17a525..3e28ecf 100644
+--- a/tests/test_shaderruntime.py
++++ b/tests/test_shaderruntime.py
+@@ -389,3 +389,63 @@ class HashedMaterialTextureTests(unittest.TestCase):
+         self.assertEqual(output['textures'], [texture])
+         self.assertEqual(native['stableArgCount'], 1)
+         self.assertIsNone(runtime.add_material_texture(native, output, source, 123, ''))
++
++class SourceSlotTests(unittest.TestCase):
++    """T6 slots read the source technique of the same meaning in each game."""
++    def test_waw_table(self):
++        present = lambda i: True
++        got = {slot: runtime.source_slot(present, 'wc_l_sm_r0c0', slot, 59) for slot in runtime.SLOTS}
++        self.assertEqual(got, {0: 0, 1: 2, 2: 4, 3: 5, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16, 13: 18, 14: 20})
++
++    def test_bo1_table(self):
++        # T5 MaterialTechniqueType: LIT 10, LIT_SUN 11, LIT_SUN_SHADOW 12, LIT_SPOT 13,
++        # LIT_SPOT_SHADOW 14, LIT_OMNI 15, LIT_OMNI_SHADOW 16
++        present = lambda i: True
++        got = {slot: runtime.source_slot(present, 'wc_l_sm_r0c0', slot, 130) for slot in runtime.SLOTS}
++        self.assertEqual(got, {0: 0, 1: 2, 2: 4, 3: 5, 4: 10, 5: 11, 6: 12, 7: 13, 8: 14, 13: 15, 14: 16})
++
++    def test_bo1_self_lit_alias_is_lit(self):
++        # BO1 unlit variant drawn only through LIT (10) feeds T6 unlit/emissive
++        self.assertEqual(runtime.source_slot(lambda i: i == 10, 'wc_unlitdecalblend_add', 2, 130), 10)
++        self.assertIsNone(runtime.source_slot(lambda i: i == 8, 'wc_unlitdecalblend_add', 2, 130))
++
++    def test_source_technique_uses_table_length(self):
++        techniques = [None] * 130
++        techniques[13] = {'name': 'spot'}
++        techniques[14] = {'name': 'spot shadow'}
++        original = {'techniques': techniques}
++        self.assertEqual(runtime.source_technique(original, 'wc_l_sm_r0c0', 7)['name'], 'spot')
++        self.assertEqual(runtime.source_technique(original, 'wc_l_sm_r0c0', 8)['name'], 'spot shadow')
++
++CTAB = """// Parameters:
++//
++//   float extraCamParam;
++//   float2 sunFog;
++//   float3 sunFogDir;
++//   float4x4 worldMatrix;
++//
++"""
++
++
++class NativeFieldSizeTests(unittest.TestCase):
++    """T6 packs some PerScene fields narrower than a row; D3DX reads only the declared components."""
++    def test_declared_width(self):
++        self.assertEqual(runtime.declared_width(CTAB, 'sunFogDir'), 3)
++        self.assertEqual(runtime.declared_width(CTAB, 'sunFog'), 2)
++        self.assertEqual(runtime.declared_width(CTAB, 'extraCamParam'), 1)
++        self.assertEqual(runtime.declared_width(CTAB, 'worldMatrix'), 4)
++        self.assertEqual(runtime.declared_width(CTAB, 'unknown'), 4)
++
++    def test_fits_declared_size(self):
++        self.assertTrue(runtime.fits(CTAB, 'sunFogDir', 0, 12))   # T6 cb0+464, 12 bytes
++        self.assertTrue(runtime.fits(CTAB, 'sunFog', 0, 8))       # T6 cb0+496, 8 bytes
++        self.assertFalse(runtime.fits(CTAB, 'sunFogDir', 0, 8))
++        self.assertTrue(runtime.fits(CTAB, 'worldMatrix', 3, 64))
++        self.assertFalse(runtime.fits(CTAB, 'worldMatrix', 3, 48))
++
++    def test_unaligned_scalar_rotates_row(self):
++        self.assertEqual(runtime.unaligned_expr(CTAB, 'extraCamParam', 0, 2260, 4),
++                         {'expr': 't6_cb0[141].yzwx', 'uses': [[0, 141]]})
++        self.assertIsNone(runtime.unaligned_expr(CTAB, 'extraCamParam', 0, 2256, 4))  # aligned
++        self.assertIsNone(runtime.unaligned_expr(CTAB, 'extraCamParam', 1, 2260, 4))  # not PerScene
++        self.assertIsNone(runtime.unaligned_expr(CTAB, 'sunFogDir', 0, 2264, 12))      # crosses the row
 diff --git a/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp b/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp
 index 3809886..b0bf6a4 100644
 --- a/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp

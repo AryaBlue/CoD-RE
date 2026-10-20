@@ -1,0 +1,1898 @@
+diff --git a/build/src/ObjLoading/Game/IW3/XModel/LoaderXModelIW3.cpp b/build/src/ObjLoading/Game/IW3/XModel/LoaderXModelIW3.cpp
+index de4af4e..f8d45c5 100644
+--- a/build/src/ObjLoading/Game/IW3/XModel/LoaderXModelIW3.cpp
++++ b/build/src/ObjLoading/Game/IW3/XModel/LoaderXModelIW3.cpp
+@@ -25,8 +25,14 @@
+ #include <algorithm>
+ #include <filesystem>
+ #include <format>
++#include <future>
+ #include <iostream>
++#include <iterator>
+ #include <numeric>
++#include <optional>
++#include <thread>
++#include <unordered_map>
++#include <unordered_set>
+ #include <vector>
+ 
+ using namespace IW3;
+@@ -44,11 +50,41 @@ namespace
+         {
+         }
+ 
++        ~XModelLoader() override
++        {
++            // Parses that were started but never asked for still hold references to nothing of ours; just let them finish
++            for (auto& [name, parse] : m_prefetched)
++                parse.wait();
++        }
++
++        void Prefetch(const std::vector<std::string>& assetNames) override
++        {
++            m_prefetch_names = assetNames;
++            m_prefetch_cursor = 0;
++            TopUpPrefetch();
++        }
++
+         AssetCreationResult CreateAsset(const std::string& assetName, AssetCreationContext& context) override
+         {
+-            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
+-            if (!file.IsOpen())
+-                return AssetCreationResult::NoAction();
++            m_requested.emplace(assetName);
++
++            std::optional<ParsedXModel> parsed;
++            if (const auto prefetched = m_prefetched.find(assetName); prefetched != m_prefetched.end())
++            {
++                auto parse = std::move(prefetched->second);
++                m_prefetched.erase(prefetched);
++                TopUpPrefetch();
++                parsed = parse.get();
++            }
++            else
++            {
++                auto buffer = ReadJson(assetName);
++                if (!buffer)
++                    return AssetCreationResult::NoAction();
++
++                TopUpPrefetch();
++                parsed = ParseJson(*buffer);
++            }
+ 
+             auto* xmodel = m_memory.Alloc<XModel>();
+             xmodel->name = m_memory.Dup(assetName.c_str());
+@@ -57,7 +93,7 @@ namespace
+             m_surfaces.clear();
+ 
+             AssetRegistration<AssetXModel> registration(assetName, xmodel);
+-            if (!LoadFromFile(*file.m_stream, *xmodel, context, registration))
++            if (!LoadFromParsed(*parsed, *xmodel, context, registration))
+             {
+                 con::error("Failed to load xmodel \"{}\"", assetName);
+                 return AssetCreationResult::Failure();
+@@ -67,35 +103,108 @@ namespace
+         }
+ 
+     private:
+-        bool LoadFromFile(std::istream& jsonStream, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        // The JSON parse and conversion of one xmodel file. It touches nothing but its input, so it runs on worker threads.
++        struct ParsedXModel
++        {
++            std::string m_type;
++            unsigned m_version = 0;
++            std::optional<JsonXModel> m_xmodel;
++            std::optional<std::string> m_json_error;
++        };
++
++        std::optional<std::string> ReadJson(const std::string& assetName) const
+         {
++            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
++            if (!file.IsOpen())
++                return std::nullopt;
++
++            std::string buffer;
++            if (file.m_length > 0)
++            {
++                buffer.resize(static_cast<size_t>(file.m_length));
++                file.m_stream->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
++                buffer.resize(static_cast<size_t>(file.m_stream->gcount()));
++            }
++            else
++            {
++                buffer.assign(std::istreambuf_iterator<char>(*file.m_stream), std::istreambuf_iterator<char>());
++            }
++
++            return buffer;
++        }
++
++        static ParsedXModel ParseJson(const std::string& buffer)
++        {
++            ParsedXModel parsed;
+             try
+             {
+-                const auto jRoot = nlohmann::json::parse(jsonStream);
+-                std::string type;
+-                unsigned version;
++                const auto jRoot = nlohmann::json::parse(buffer);
+ 
+-                jRoot.at("_type").get_to(type);
+-                jRoot.at("_version").get_to(version);
++                jRoot.at("_type").get_to(parsed.m_type);
++                jRoot.at("_version").get_to(parsed.m_version);
+ 
+-                if (type != "xmodel" || version < 1u || version > 2u)
+-                {
+-                    con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
+-                    return false;
+-                }
+-                
+-                if (version == 1u)
+-                {
+-                    m_gltf_bad_rotation_formulas = true;
+-                    con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
+-                }
+-                else
+-                {
+-                    m_gltf_bad_rotation_formulas = false;
+-                }
++                if (parsed.m_type == "xmodel" && parsed.m_version >= 1u && parsed.m_version <= 2u)
++                    parsed.m_xmodel = jRoot.get<JsonXModel>();
++            }
++            catch (const nlohmann::json::exception& e)
++            {
++                parsed.m_json_error = e.what();
++            }
++
++            return parsed;
++        }
++
++        // Files are read here on the loading thread (search paths are not thread safe), only parsing runs in the background.
++        // A bounded window keeps the 32 bit address space from holding every parsed model at once.
++        void TopUpPrefetch()
++        {
++            const auto window = std::max(2u, std::thread::hardware_concurrency()) * 2u;
++            while (m_prefetched.size() < window && m_prefetch_cursor < m_prefetch_names.size())
++            {
++                const auto& name = m_prefetch_names[m_prefetch_cursor++];
++                if (m_requested.contains(name) || m_prefetched.contains(name))
++                    continue;
++
++                auto buffer = ReadJson(name);
++                if (!buffer)
++                    continue;
+ 
+-                const auto jXModel = jRoot.get<JsonXModel>();
+-                return CreateXModelFromJson(jXModel, xmodel, context, registration);
++                m_prefetched.emplace(name,
++                                     std::async(std::launch::async,
++                                                [json = std::move(*buffer)]
++                                                {
++                                                    return ParseJson(json);
++                                                }));
++            }
++        }
++
++        bool LoadFromParsed(const ParsedXModel& parsed, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        {
++            if (parsed.m_json_error)
++            {
++                con::error("Failed to parse json of xmodel: {}", *parsed.m_json_error);
++                return false;
++            }
++
++            if (!parsed.m_xmodel)
++            {
++                con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
++                return false;
++            }
++
++            if (parsed.m_version == 1u)
++            {
++                m_gltf_bad_rotation_formulas = true;
++                con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
++            }
++            else
++            {
++                m_gltf_bad_rotation_formulas = false;
++            }
++
++            try
++            {
++                return CreateXModelFromJson(*parsed.m_xmodel, xmodel, context, registration);
+             }
+             catch (const nlohmann::json::exception& e)
+             {
+@@ -1029,6 +1138,11 @@ namespace
+         ISearchPath& m_search_path;
+         ZoneScriptStrings& m_script_strings;
+         PartClassificationState m_part_classification_state;
++
++        std::vector<std::string> m_prefetch_names;
++        size_t m_prefetch_cursor = 0;
++        std::unordered_map<std::string, std::future<ParsedXModel>> m_prefetched;
++        std::unordered_set<std::string> m_requested;
+     };
+ } // namespace
+ 
+diff --git a/build/src/ObjLoading/Game/IW4/XModel/LoaderXModelIW4.cpp b/build/src/ObjLoading/Game/IW4/XModel/LoaderXModelIW4.cpp
+index d479a38..530fdb9 100644
+--- a/build/src/ObjLoading/Game/IW4/XModel/LoaderXModelIW4.cpp
++++ b/build/src/ObjLoading/Game/IW4/XModel/LoaderXModelIW4.cpp
+@@ -25,8 +25,14 @@
+ #include <algorithm>
+ #include <filesystem>
+ #include <format>
++#include <future>
+ #include <iostream>
++#include <iterator>
+ #include <numeric>
++#include <optional>
++#include <thread>
++#include <unordered_map>
++#include <unordered_set>
+ #include <vector>
+ 
+ using namespace IW4;
+@@ -44,11 +50,41 @@ namespace
+         {
+         }
+ 
++        ~XModelLoader() override
++        {
++            // Parses that were started but never asked for still hold references to nothing of ours; just let them finish
++            for (auto& [name, parse] : m_prefetched)
++                parse.wait();
++        }
++
++        void Prefetch(const std::vector<std::string>& assetNames) override
++        {
++            m_prefetch_names = assetNames;
++            m_prefetch_cursor = 0;
++            TopUpPrefetch();
++        }
++
+         AssetCreationResult CreateAsset(const std::string& assetName, AssetCreationContext& context) override
+         {
+-            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
+-            if (!file.IsOpen())
+-                return AssetCreationResult::NoAction();
++            m_requested.emplace(assetName);
++
++            std::optional<ParsedXModel> parsed;
++            if (const auto prefetched = m_prefetched.find(assetName); prefetched != m_prefetched.end())
++            {
++                auto parse = std::move(prefetched->second);
++                m_prefetched.erase(prefetched);
++                TopUpPrefetch();
++                parsed = parse.get();
++            }
++            else
++            {
++                auto buffer = ReadJson(assetName);
++                if (!buffer)
++                    return AssetCreationResult::NoAction();
++
++                TopUpPrefetch();
++                parsed = ParseJson(*buffer);
++            }
+ 
+             auto* xmodel = m_memory.Alloc<XModel>();
+             xmodel->name = m_memory.Dup(assetName.c_str());
+@@ -57,7 +93,7 @@ namespace
+             m_surfaces.clear();
+ 
+             AssetRegistration<AssetXModel> registration(assetName, xmodel);
+-            if (!LoadFromFile(*file.m_stream, *xmodel, context, registration))
++            if (!LoadFromParsed(*parsed, *xmodel, context, registration))
+             {
+                 con::error("Failed to load xmodel \"{}\"", assetName);
+                 return AssetCreationResult::Failure();
+@@ -67,35 +103,108 @@ namespace
+         }
+ 
+     private:
+-        bool LoadFromFile(std::istream& jsonStream, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        // The JSON parse and conversion of one xmodel file. It touches nothing but its input, so it runs on worker threads.
++        struct ParsedXModel
++        {
++            std::string m_type;
++            unsigned m_version = 0;
++            std::optional<JsonXModel> m_xmodel;
++            std::optional<std::string> m_json_error;
++        };
++
++        std::optional<std::string> ReadJson(const std::string& assetName) const
+         {
++            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
++            if (!file.IsOpen())
++                return std::nullopt;
++
++            std::string buffer;
++            if (file.m_length > 0)
++            {
++                buffer.resize(static_cast<size_t>(file.m_length));
++                file.m_stream->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
++                buffer.resize(static_cast<size_t>(file.m_stream->gcount()));
++            }
++            else
++            {
++                buffer.assign(std::istreambuf_iterator<char>(*file.m_stream), std::istreambuf_iterator<char>());
++            }
++
++            return buffer;
++        }
++
++        static ParsedXModel ParseJson(const std::string& buffer)
++        {
++            ParsedXModel parsed;
+             try
+             {
+-                const auto jRoot = nlohmann::json::parse(jsonStream);
+-                std::string type;
+-                unsigned version;
++                const auto jRoot = nlohmann::json::parse(buffer);
+ 
+-                jRoot.at("_type").get_to(type);
+-                jRoot.at("_version").get_to(version);
++                jRoot.at("_type").get_to(parsed.m_type);
++                jRoot.at("_version").get_to(parsed.m_version);
+ 
+-                if (type != "xmodel" || version < 1u || version > 2u)
+-                {
+-                    con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
+-                    return false;
+-                }
+-                
+-                if (version == 1u)
+-                {
+-                    m_gltf_bad_rotation_formulas = true;
+-                    con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
+-                }
+-                else
+-                {
+-                    m_gltf_bad_rotation_formulas = false;
+-                }
++                if (parsed.m_type == "xmodel" && parsed.m_version >= 1u && parsed.m_version <= 2u)
++                    parsed.m_xmodel = jRoot.get<JsonXModel>();
++            }
++            catch (const nlohmann::json::exception& e)
++            {
++                parsed.m_json_error = e.what();
++            }
++
++            return parsed;
++        }
++
++        // Files are read here on the loading thread (search paths are not thread safe), only parsing runs in the background.
++        // A bounded window keeps the 32 bit address space from holding every parsed model at once.
++        void TopUpPrefetch()
++        {
++            const auto window = std::max(2u, std::thread::hardware_concurrency()) * 2u;
++            while (m_prefetched.size() < window && m_prefetch_cursor < m_prefetch_names.size())
++            {
++                const auto& name = m_prefetch_names[m_prefetch_cursor++];
++                if (m_requested.contains(name) || m_prefetched.contains(name))
++                    continue;
++
++                auto buffer = ReadJson(name);
++                if (!buffer)
++                    continue;
+ 
+-                const auto jXModel = jRoot.get<JsonXModel>();
+-                return CreateXModelFromJson(jXModel, xmodel, context, registration);
++                m_prefetched.emplace(name,
++                                     std::async(std::launch::async,
++                                                [json = std::move(*buffer)]
++                                                {
++                                                    return ParseJson(json);
++                                                }));
++            }
++        }
++
++        bool LoadFromParsed(const ParsedXModel& parsed, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        {
++            if (parsed.m_json_error)
++            {
++                con::error("Failed to parse json of xmodel: {}", *parsed.m_json_error);
++                return false;
++            }
++
++            if (!parsed.m_xmodel)
++            {
++                con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
++                return false;
++            }
++
++            if (parsed.m_version == 1u)
++            {
++                m_gltf_bad_rotation_formulas = true;
++                con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
++            }
++            else
++            {
++                m_gltf_bad_rotation_formulas = false;
++            }
++
++            try
++            {
++                return CreateXModelFromJson(*parsed.m_xmodel, xmodel, context, registration);
+             }
+             catch (const nlohmann::json::exception& e)
+             {
+@@ -1074,6 +1183,11 @@ namespace
+         ISearchPath& m_search_path;
+         ZoneScriptStrings& m_script_strings;
+         PartClassificationState m_part_classification_state;
++
++        std::vector<std::string> m_prefetch_names;
++        size_t m_prefetch_cursor = 0;
++        std::unordered_map<std::string, std::future<ParsedXModel>> m_prefetched;
++        std::unordered_set<std::string> m_requested;
+     };
+ } // namespace
+ 
+diff --git a/build/src/ObjLoading/Game/IW5/XModel/LoaderXModelIW5.cpp b/build/src/ObjLoading/Game/IW5/XModel/LoaderXModelIW5.cpp
+index 34992c1..fb2356c 100644
+--- a/build/src/ObjLoading/Game/IW5/XModel/LoaderXModelIW5.cpp
++++ b/build/src/ObjLoading/Game/IW5/XModel/LoaderXModelIW5.cpp
+@@ -25,8 +25,14 @@
+ #include <algorithm>
+ #include <filesystem>
+ #include <format>
++#include <future>
+ #include <iostream>
++#include <iterator>
+ #include <numeric>
++#include <optional>
++#include <thread>
++#include <unordered_map>
++#include <unordered_set>
+ #include <vector>
+ 
+ using namespace IW5;
+@@ -44,11 +50,41 @@ namespace
+         {
+         }
+ 
++        ~XModelLoader() override
++        {
++            // Parses that were started but never asked for still hold references to nothing of ours; just let them finish
++            for (auto& [name, parse] : m_prefetched)
++                parse.wait();
++        }
++
++        void Prefetch(const std::vector<std::string>& assetNames) override
++        {
++            m_prefetch_names = assetNames;
++            m_prefetch_cursor = 0;
++            TopUpPrefetch();
++        }
++
+         AssetCreationResult CreateAsset(const std::string& assetName, AssetCreationContext& context) override
+         {
+-            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
+-            if (!file.IsOpen())
+-                return AssetCreationResult::NoAction();
++            m_requested.emplace(assetName);
++
++            std::optional<ParsedXModel> parsed;
++            if (const auto prefetched = m_prefetched.find(assetName); prefetched != m_prefetched.end())
++            {
++                auto parse = std::move(prefetched->second);
++                m_prefetched.erase(prefetched);
++                TopUpPrefetch();
++                parsed = parse.get();
++            }
++            else
++            {
++                auto buffer = ReadJson(assetName);
++                if (!buffer)
++                    return AssetCreationResult::NoAction();
++
++                TopUpPrefetch();
++                parsed = ParseJson(*buffer);
++            }
+ 
+             auto* xmodel = m_memory.Alloc<XModel>();
+             xmodel->name = m_memory.Dup(assetName.c_str());
+@@ -57,7 +93,7 @@ namespace
+             m_surfaces.clear();
+ 
+             AssetRegistration<AssetXModel> registration(assetName, xmodel);
+-            if (!LoadFromFile(*file.m_stream, *xmodel, context, registration))
++            if (!LoadFromParsed(*parsed, *xmodel, context, registration))
+             {
+                 con::error("Failed to load xmodel \"{}\"", assetName);
+                 return AssetCreationResult::Failure();
+@@ -67,35 +103,108 @@ namespace
+         }
+ 
+     private:
+-        bool LoadFromFile(std::istream& jsonStream, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        // The JSON parse and conversion of one xmodel file. It touches nothing but its input, so it runs on worker threads.
++        struct ParsedXModel
++        {
++            std::string m_type;
++            unsigned m_version = 0;
++            std::optional<JsonXModel> m_xmodel;
++            std::optional<std::string> m_json_error;
++        };
++
++        std::optional<std::string> ReadJson(const std::string& assetName) const
+         {
++            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
++            if (!file.IsOpen())
++                return std::nullopt;
++
++            std::string buffer;
++            if (file.m_length > 0)
++            {
++                buffer.resize(static_cast<size_t>(file.m_length));
++                file.m_stream->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
++                buffer.resize(static_cast<size_t>(file.m_stream->gcount()));
++            }
++            else
++            {
++                buffer.assign(std::istreambuf_iterator<char>(*file.m_stream), std::istreambuf_iterator<char>());
++            }
++
++            return buffer;
++        }
++
++        static ParsedXModel ParseJson(const std::string& buffer)
++        {
++            ParsedXModel parsed;
+             try
+             {
+-                const auto jRoot = nlohmann::json::parse(jsonStream);
+-                std::string type;
+-                unsigned version;
++                const auto jRoot = nlohmann::json::parse(buffer);
+ 
+-                jRoot.at("_type").get_to(type);
+-                jRoot.at("_version").get_to(version);
++                jRoot.at("_type").get_to(parsed.m_type);
++                jRoot.at("_version").get_to(parsed.m_version);
+ 
+-                if (type != "xmodel" || version < 1u || version > 2u)
+-                {
+-                    con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
+-                    return false;
+-                }
+-                
+-                if (version == 1u)
+-                {
+-                    m_gltf_bad_rotation_formulas = true;
+-                    con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
+-                }
+-                else
+-                {
+-                    m_gltf_bad_rotation_formulas = false;
+-                }
++                if (parsed.m_type == "xmodel" && parsed.m_version >= 1u && parsed.m_version <= 2u)
++                    parsed.m_xmodel = jRoot.get<JsonXModel>();
++            }
++            catch (const nlohmann::json::exception& e)
++            {
++                parsed.m_json_error = e.what();
++            }
++
++            return parsed;
++        }
++
++        // Files are read here on the loading thread (search paths are not thread safe), only parsing runs in the background.
++        // A bounded window keeps the 32 bit address space from holding every parsed model at once.
++        void TopUpPrefetch()
++        {
++            const auto window = std::max(2u, std::thread::hardware_concurrency()) * 2u;
++            while (m_prefetched.size() < window && m_prefetch_cursor < m_prefetch_names.size())
++            {
++                const auto& name = m_prefetch_names[m_prefetch_cursor++];
++                if (m_requested.contains(name) || m_prefetched.contains(name))
++                    continue;
++
++                auto buffer = ReadJson(name);
++                if (!buffer)
++                    continue;
+ 
+-                const auto jXModel = jRoot.get<JsonXModel>();
+-                return CreateXModelFromJson(jXModel, xmodel, context, registration);
++                m_prefetched.emplace(name,
++                                     std::async(std::launch::async,
++                                                [json = std::move(*buffer)]
++                                                {
++                                                    return ParseJson(json);
++                                                }));
++            }
++        }
++
++        bool LoadFromParsed(const ParsedXModel& parsed, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        {
++            if (parsed.m_json_error)
++            {
++                con::error("Failed to parse json of xmodel: {}", *parsed.m_json_error);
++                return false;
++            }
++
++            if (!parsed.m_xmodel)
++            {
++                con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
++                return false;
++            }
++
++            if (parsed.m_version == 1u)
++            {
++                m_gltf_bad_rotation_formulas = true;
++                con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
++            }
++            else
++            {
++                m_gltf_bad_rotation_formulas = false;
++            }
++
++            try
++            {
++                return CreateXModelFromJson(*parsed.m_xmodel, xmodel, context, registration);
+             }
+             catch (const nlohmann::json::exception& e)
+             {
+@@ -1074,6 +1183,11 @@ namespace
+         ISearchPath& m_search_path;
+         ZoneScriptStrings& m_script_strings;
+         PartClassificationState m_part_classification_state;
++
++        std::vector<std::string> m_prefetch_names;
++        size_t m_prefetch_cursor = 0;
++        std::unordered_map<std::string, std::future<ParsedXModel>> m_prefetched;
++        std::unordered_set<std::string> m_requested;
+     };
+ } // namespace
+ 
+diff --git a/build/src/ObjLoading/Game/T5/XModel/LoaderXModelT5.cpp b/build/src/ObjLoading/Game/T5/XModel/LoaderXModelT5.cpp
+index 0be3ab5..350e761 100644
+--- a/build/src/ObjLoading/Game/T5/XModel/LoaderXModelT5.cpp
++++ b/build/src/ObjLoading/Game/T5/XModel/LoaderXModelT5.cpp
+@@ -25,8 +25,14 @@
+ #include <algorithm>
+ #include <filesystem>
+ #include <format>
++#include <future>
+ #include <iostream>
++#include <iterator>
+ #include <numeric>
++#include <optional>
++#include <thread>
++#include <unordered_map>
++#include <unordered_set>
+ #include <vector>
+ 
+ using namespace T5;
+@@ -44,11 +50,41 @@ namespace
+         {
+         }
+ 
++        ~XModelLoader() override
++        {
++            // Parses that were started but never asked for still hold references to nothing of ours; just let them finish
++            for (auto& [name, parse] : m_prefetched)
++                parse.wait();
++        }
++
++        void Prefetch(const std::vector<std::string>& assetNames) override
++        {
++            m_prefetch_names = assetNames;
++            m_prefetch_cursor = 0;
++            TopUpPrefetch();
++        }
++
+         AssetCreationResult CreateAsset(const std::string& assetName, AssetCreationContext& context) override
+         {
+-            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
+-            if (!file.IsOpen())
+-                return AssetCreationResult::NoAction();
++            m_requested.emplace(assetName);
++
++            std::optional<ParsedXModel> parsed;
++            if (const auto prefetched = m_prefetched.find(assetName); prefetched != m_prefetched.end())
++            {
++                auto parse = std::move(prefetched->second);
++                m_prefetched.erase(prefetched);
++                TopUpPrefetch();
++                parsed = parse.get();
++            }
++            else
++            {
++                auto buffer = ReadJson(assetName);
++                if (!buffer)
++                    return AssetCreationResult::NoAction();
++
++                TopUpPrefetch();
++                parsed = ParseJson(*buffer);
++            }
+ 
+             auto* xmodel = m_memory.Alloc<XModel>();
+             xmodel->name = m_memory.Dup(assetName.c_str());
+@@ -57,7 +93,7 @@ namespace
+             m_surfaces.clear();
+ 
+             AssetRegistration<AssetXModel> registration(assetName, xmodel);
+-            if (!LoadFromFile(*file.m_stream, *xmodel, context, registration))
++            if (!LoadFromParsed(*parsed, *xmodel, context, registration))
+             {
+                 con::error("Failed to load xmodel \"{}\"", assetName);
+                 return AssetCreationResult::Failure();
+@@ -67,35 +103,108 @@ namespace
+         }
+ 
+     private:
+-        bool LoadFromFile(std::istream& jsonStream, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        // The JSON parse and conversion of one xmodel file. It touches nothing but its input, so it runs on worker threads.
++        struct ParsedXModel
++        {
++            std::string m_type;
++            unsigned m_version = 0;
++            std::optional<JsonXModel> m_xmodel;
++            std::optional<std::string> m_json_error;
++        };
++
++        std::optional<std::string> ReadJson(const std::string& assetName) const
+         {
++            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
++            if (!file.IsOpen())
++                return std::nullopt;
++
++            std::string buffer;
++            if (file.m_length > 0)
++            {
++                buffer.resize(static_cast<size_t>(file.m_length));
++                file.m_stream->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
++                buffer.resize(static_cast<size_t>(file.m_stream->gcount()));
++            }
++            else
++            {
++                buffer.assign(std::istreambuf_iterator<char>(*file.m_stream), std::istreambuf_iterator<char>());
++            }
++
++            return buffer;
++        }
++
++        static ParsedXModel ParseJson(const std::string& buffer)
++        {
++            ParsedXModel parsed;
+             try
+             {
+-                const auto jRoot = nlohmann::json::parse(jsonStream);
+-                std::string type;
+-                unsigned version;
++                const auto jRoot = nlohmann::json::parse(buffer);
+ 
+-                jRoot.at("_type").get_to(type);
+-                jRoot.at("_version").get_to(version);
++                jRoot.at("_type").get_to(parsed.m_type);
++                jRoot.at("_version").get_to(parsed.m_version);
+ 
+-                if (type != "xmodel" || version < 1u || version > 2u)
+-                {
+-                    con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
+-                    return false;
+-                }
+-                
+-                if (version == 1u)
+-                {
+-                    m_gltf_bad_rotation_formulas = true;
+-                    con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
+-                }
+-                else
+-                {
+-                    m_gltf_bad_rotation_formulas = false;
+-                }
++                if (parsed.m_type == "xmodel" && parsed.m_version >= 1u && parsed.m_version <= 2u)
++                    parsed.m_xmodel = jRoot.get<JsonXModel>();
++            }
++            catch (const nlohmann::json::exception& e)
++            {
++                parsed.m_json_error = e.what();
++            }
++
++            return parsed;
++        }
++
++        // Files are read here on the loading thread (search paths are not thread safe), only parsing runs in the background.
++        // A bounded window keeps the 32 bit address space from holding every parsed model at once.
++        void TopUpPrefetch()
++        {
++            const auto window = std::max(2u, std::thread::hardware_concurrency()) * 2u;
++            while (m_prefetched.size() < window && m_prefetch_cursor < m_prefetch_names.size())
++            {
++                const auto& name = m_prefetch_names[m_prefetch_cursor++];
++                if (m_requested.contains(name) || m_prefetched.contains(name))
++                    continue;
++
++                auto buffer = ReadJson(name);
++                if (!buffer)
++                    continue;
+ 
+-                const auto jXModel = jRoot.get<JsonXModel>();
+-                return CreateXModelFromJson(jXModel, xmodel, context, registration);
++                m_prefetched.emplace(name,
++                                     std::async(std::launch::async,
++                                                [json = std::move(*buffer)]
++                                                {
++                                                    return ParseJson(json);
++                                                }));
++            }
++        }
++
++        bool LoadFromParsed(const ParsedXModel& parsed, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        {
++            if (parsed.m_json_error)
++            {
++                con::error("Failed to parse json of xmodel: {}", *parsed.m_json_error);
++                return false;
++            }
++
++            if (!parsed.m_xmodel)
++            {
++                con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
++                return false;
++            }
++
++            if (parsed.m_version == 1u)
++            {
++                m_gltf_bad_rotation_formulas = true;
++                con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
++            }
++            else
++            {
++                m_gltf_bad_rotation_formulas = false;
++            }
++
++            try
++            {
++                return CreateXModelFromJson(*parsed.m_xmodel, xmodel, context, registration);
+             }
+             catch (const nlohmann::json::exception& e)
+             {
+@@ -1065,6 +1174,11 @@ namespace
+         ISearchPath& m_search_path;
+         ZoneScriptStrings& m_script_strings;
+         PartClassificationState m_part_classification_state;
++
++        std::vector<std::string> m_prefetch_names;
++        size_t m_prefetch_cursor = 0;
++        std::unordered_map<std::string, std::future<ParsedXModel>> m_prefetched;
++        std::unordered_set<std::string> m_requested;
+     };
+ } // namespace
+ 
+diff --git a/build/src/ObjLoading/Game/T6/XModel/LoaderXModelT6.cpp b/build/src/ObjLoading/Game/T6/XModel/LoaderXModelT6.cpp
+index 40d1402..247827f 100644
+--- a/build/src/ObjLoading/Game/T6/XModel/LoaderXModelT6.cpp
++++ b/build/src/ObjLoading/Game/T6/XModel/LoaderXModelT6.cpp
+@@ -25,8 +25,14 @@
+ #include <algorithm>
+ #include <filesystem>
+ #include <format>
++#include <future>
+ #include <iostream>
++#include <iterator>
+ #include <numeric>
++#include <optional>
++#include <thread>
++#include <unordered_map>
++#include <unordered_set>
+ #include <vector>
+ 
+ using namespace T6;
+@@ -44,11 +50,41 @@ namespace
+         {
+         }
+ 
++        ~XModelLoader() override
++        {
++            // Parses that were started but never asked for still hold references to nothing of ours; just let them finish
++            for (auto& [name, parse] : m_prefetched)
++                parse.wait();
++        }
++
++        void Prefetch(const std::vector<std::string>& assetNames) override
++        {
++            m_prefetch_names = assetNames;
++            m_prefetch_cursor = 0;
++            TopUpPrefetch();
++        }
++
+         AssetCreationResult CreateAsset(const std::string& assetName, AssetCreationContext& context) override
+         {
+-            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
+-            if (!file.IsOpen())
+-                return AssetCreationResult::NoAction();
++            m_requested.emplace(assetName);
++
++            std::optional<ParsedXModel> parsed;
++            if (const auto prefetched = m_prefetched.find(assetName); prefetched != m_prefetched.end())
++            {
++                auto parse = std::move(prefetched->second);
++                m_prefetched.erase(prefetched);
++                TopUpPrefetch();
++                parsed = parse.get();
++            }
++            else
++            {
++                auto buffer = ReadJson(assetName);
++                if (!buffer)
++                    return AssetCreationResult::NoAction();
++
++                TopUpPrefetch();
++                parsed = ParseJson(*buffer);
++            }
+ 
+             auto* xmodel = m_memory.Alloc<XModel>();
+             xmodel->name = m_memory.Dup(assetName.c_str());
+@@ -57,7 +93,7 @@ namespace
+             m_surfaces.clear();
+ 
+             AssetRegistration<AssetXModel> registration(assetName, xmodel);
+-            if (!LoadFromFile(*file.m_stream, *xmodel, context, registration))
++            if (!LoadFromParsed(*parsed, *xmodel, context, registration))
+             {
+                 con::error("Failed to load xmodel \"{}\"", assetName);
+                 return AssetCreationResult::Failure();
+@@ -67,35 +103,108 @@ namespace
+         }
+ 
+     private:
+-        bool LoadFromFile(std::istream& jsonStream, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        // The JSON parse and conversion of one xmodel file. It touches nothing but its input, so it runs on worker threads.
++        struct ParsedXModel
++        {
++            std::string m_type;
++            unsigned m_version = 0;
++            std::optional<JsonXModel> m_xmodel;
++            std::optional<std::string> m_json_error;
++        };
++
++        std::optional<std::string> ReadJson(const std::string& assetName) const
+         {
++            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
++            if (!file.IsOpen())
++                return std::nullopt;
++
++            std::string buffer;
++            if (file.m_length > 0)
++            {
++                buffer.resize(static_cast<size_t>(file.m_length));
++                file.m_stream->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
++                buffer.resize(static_cast<size_t>(file.m_stream->gcount()));
++            }
++            else
++            {
++                buffer.assign(std::istreambuf_iterator<char>(*file.m_stream), std::istreambuf_iterator<char>());
++            }
++
++            return buffer;
++        }
++
++        static ParsedXModel ParseJson(const std::string& buffer)
++        {
++            ParsedXModel parsed;
+             try
+             {
+-                const auto jRoot = nlohmann::json::parse(jsonStream);
+-                std::string type;
+-                unsigned version;
++                const auto jRoot = nlohmann::json::parse(buffer);
+ 
+-                jRoot.at("_type").get_to(type);
+-                jRoot.at("_version").get_to(version);
++                jRoot.at("_type").get_to(parsed.m_type);
++                jRoot.at("_version").get_to(parsed.m_version);
+ 
+-                if (type != "xmodel" || version < 1u || version > 2u)
+-                {
+-                    con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
+-                    return false;
+-                }
+-                
+-                if (version == 1u)
+-                {
+-                    m_gltf_bad_rotation_formulas = true;
+-                    con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
+-                }
+-                else
+-                {
+-                    m_gltf_bad_rotation_formulas = false;
+-                }
++                if (parsed.m_type == "xmodel" && parsed.m_version >= 1u && parsed.m_version <= 2u)
++                    parsed.m_xmodel = jRoot.get<JsonXModel>();
++            }
++            catch (const nlohmann::json::exception& e)
++            {
++                parsed.m_json_error = e.what();
++            }
++
++            return parsed;
++        }
++
++        // Files are read here on the loading thread (search paths are not thread safe), only parsing runs in the background.
++        // A bounded window keeps the 32 bit address space from holding every parsed model at once.
++        void TopUpPrefetch()
++        {
++            const auto window = std::max(2u, std::thread::hardware_concurrency()) * 2u;
++            while (m_prefetched.size() < window && m_prefetch_cursor < m_prefetch_names.size())
++            {
++                const auto& name = m_prefetch_names[m_prefetch_cursor++];
++                if (m_requested.contains(name) || m_prefetched.contains(name))
++                    continue;
++
++                auto buffer = ReadJson(name);
++                if (!buffer)
++                    continue;
+ 
+-                const auto jXModel = jRoot.get<JsonXModel>();
+-                return CreateXModelFromJson(jXModel, xmodel, context, registration);
++                m_prefetched.emplace(name,
++                                     std::async(std::launch::async,
++                                                [json = std::move(*buffer)]
++                                                {
++                                                    return ParseJson(json);
++                                                }));
++            }
++        }
++
++        bool LoadFromParsed(const ParsedXModel& parsed, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        {
++            if (parsed.m_json_error)
++            {
++                con::error("Failed to parse json of xmodel: {}", *parsed.m_json_error);
++                return false;
++            }
++
++            if (!parsed.m_xmodel)
++            {
++                con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
++                return false;
++            }
++
++            if (parsed.m_version == 1u)
++            {
++                m_gltf_bad_rotation_formulas = true;
++                con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
++            }
++            else
++            {
++                m_gltf_bad_rotation_formulas = false;
++            }
++
++            try
++            {
++                return CreateXModelFromJson(*parsed.m_xmodel, xmodel, context, registration);
+             }
+             catch (const nlohmann::json::exception& e)
+             {
+@@ -1312,6 +1421,11 @@ namespace
+         ISearchPath& m_search_path;
+         ZoneScriptStrings& m_script_strings;
+         PartClassificationState m_part_classification_state;
++
++        std::vector<std::string> m_prefetch_names;
++        size_t m_prefetch_cursor = 0;
++        std::unordered_map<std::string, std::future<ParsedXModel>> m_prefetched;
++        std::unordered_set<std::string> m_requested;
+     };
+ } // namespace
+ 
+diff --git a/build/src/ObjWriting/Game/IW3/XModel/XModelDumperIW3.cpp b/build/src/ObjWriting/Game/IW3/XModel/XModelDumperIW3.cpp
+index f4d1a8f..907c519 100644
+--- a/build/src/ObjWriting/Game/IW3/XModel/XModelDumperIW3.cpp
++++ b/build/src/ObjWriting/Game/IW3/XModel/XModelDumperIW3.cpp
+@@ -595,6 +595,8 @@ namespace
+     void DumpXModelSurfs(const AssetDumpingContext& context, const XAssetInfo<XModel>& asset)
+     {
+         const auto* model = asset.Asset();
++        if (ObjWriting::Configuration.ModelOutputFormat == ObjWriting::Configuration_t::ModelOutputFormat_e::NONE)
++            return;
+ 
+         for (auto currentLod = 0u; currentLod < model->numLods; currentLod++)
+         {
+@@ -676,6 +678,7 @@ namespace
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLTF:
+                 return ".gltf";
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLB:
++            case ObjWriting::Configuration_t::ModelOutputFormat_e::NONE: // same json as the default dump
+                 return ".glb";
+             default:
+                 assert(false);
+diff --git a/build/src/ObjWriting/Game/IW4/XModel/XModelDumperIW4.cpp b/build/src/ObjWriting/Game/IW4/XModel/XModelDumperIW4.cpp
+index 83fcb5d..d82e448 100644
+--- a/build/src/ObjWriting/Game/IW4/XModel/XModelDumperIW4.cpp
++++ b/build/src/ObjWriting/Game/IW4/XModel/XModelDumperIW4.cpp
+@@ -595,6 +595,8 @@ namespace
+     void DumpXModelSurfs(const AssetDumpingContext& context, const XAssetInfo<XModel>& asset)
+     {
+         const auto* model = asset.Asset();
++        if (ObjWriting::Configuration.ModelOutputFormat == ObjWriting::Configuration_t::ModelOutputFormat_e::NONE)
++            return;
+ 
+         for (auto currentLod = 0u; currentLod < model->numLods; currentLod++)
+         {
+@@ -676,6 +678,7 @@ namespace
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLTF:
+                 return ".gltf";
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLB:
++            case ObjWriting::Configuration_t::ModelOutputFormat_e::NONE: // same json as the default dump
+                 return ".glb";
+             default:
+                 assert(false);
+diff --git a/build/src/ObjWriting/Game/IW5/XModel/XModelDumperIW5.cpp b/build/src/ObjWriting/Game/IW5/XModel/XModelDumperIW5.cpp
+index 57e229c..5c82c2d 100644
+--- a/build/src/ObjWriting/Game/IW5/XModel/XModelDumperIW5.cpp
++++ b/build/src/ObjWriting/Game/IW5/XModel/XModelDumperIW5.cpp
+@@ -595,6 +595,8 @@ namespace
+     void DumpXModelSurfs(const AssetDumpingContext& context, const XAssetInfo<XModel>& asset)
+     {
+         const auto* model = asset.Asset();
++        if (ObjWriting::Configuration.ModelOutputFormat == ObjWriting::Configuration_t::ModelOutputFormat_e::NONE)
++            return;
+ 
+         for (auto currentLod = 0u; currentLod < model->numLods; currentLod++)
+         {
+@@ -676,6 +678,7 @@ namespace
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLTF:
+                 return ".gltf";
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLB:
++            case ObjWriting::Configuration_t::ModelOutputFormat_e::NONE: // same json as the default dump
+                 return ".glb";
+             default:
+                 assert(false);
+diff --git a/build/src/ObjWriting/Game/T5/XModel/XModelDumperT5.cpp b/build/src/ObjWriting/Game/T5/XModel/XModelDumperT5.cpp
+index 64e7156..d85f5db 100644
+--- a/build/src/ObjWriting/Game/T5/XModel/XModelDumperT5.cpp
++++ b/build/src/ObjWriting/Game/T5/XModel/XModelDumperT5.cpp
+@@ -595,6 +595,8 @@ namespace
+     void DumpXModelSurfs(const AssetDumpingContext& context, const XAssetInfo<XModel>& asset)
+     {
+         const auto* model = asset.Asset();
++        if (ObjWriting::Configuration.ModelOutputFormat == ObjWriting::Configuration_t::ModelOutputFormat_e::NONE)
++            return;
+ 
+         for (auto currentLod = 0u; currentLod < model->numLods; currentLod++)
+         {
+@@ -676,6 +678,7 @@ namespace
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLTF:
+                 return ".gltf";
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLB:
++            case ObjWriting::Configuration_t::ModelOutputFormat_e::NONE: // same json as the default dump
+                 return ".glb";
+             default:
+                 assert(false);
+diff --git a/build/src/ObjWriting/Game/T6/XModel/XModelDumperT6.cpp b/build/src/ObjWriting/Game/T6/XModel/XModelDumperT6.cpp
+index 1902e5c..1e9afab 100644
+--- a/build/src/ObjWriting/Game/T6/XModel/XModelDumperT6.cpp
++++ b/build/src/ObjWriting/Game/T6/XModel/XModelDumperT6.cpp
+@@ -595,6 +595,8 @@ namespace
+     void DumpXModelSurfs(const AssetDumpingContext& context, const XAssetInfo<XModel>& asset)
+     {
+         const auto* model = asset.Asset();
++        if (ObjWriting::Configuration.ModelOutputFormat == ObjWriting::Configuration_t::ModelOutputFormat_e::NONE)
++            return;
+ 
+         for (auto currentLod = 0u; currentLod < model->numLods; currentLod++)
+         {
+@@ -695,6 +697,7 @@ namespace
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLTF:
+                 return ".gltf";
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLB:
++            case ObjWriting::Configuration_t::ModelOutputFormat_e::NONE: // same json as the default dump
+                 return ".glb";
+             default:
+                 assert(false);
+diff --git a/build/src/ObjWriting/ObjWriting.vcxproj b/build/src/ObjWriting/ObjWriting.vcxproj
+index b2bf615..9cb9a7c 100644
+--- a/build/src/ObjWriting/ObjWriting.vcxproj
++++ b/build/src/ObjWriting/ObjWriting.vcxproj
+@@ -1,4 +1,4 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
++<?xml version="1.0" encoding="utf-8"?>
+ <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup Label="ProjectConfigurations">
+     <ProjectConfiguration Include="Debug|Win32">
+@@ -263,6 +263,7 @@
+     <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\Leaderboard\LeaderboardJsonDumperT6.h" />
+     <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\Localize\LocalizeDumperT6.h" />
+     <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\Maps\MapEntsDumperT6.h" />
++    <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\Maps\WorldConverterDumperT6.h" />
+     <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\Material\MaterialConstantZoneStateT6.h" />
+     <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\ObjWriterT6.h" />
+     <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\PhysConstraints\PhysConstraintsInfoStringDumperT6.h" />
+@@ -393,6 +394,7 @@
+     <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\Leaderboard\LeaderboardJsonDumperT6.cpp" />
+     <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\Localize\LocalizeDumperT6.cpp" />
+     <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\Maps\MapEntsDumperT6.cpp" />
++    <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\Maps\WorldConverterDumperT6.cpp" />
+     <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\Material\MaterialConstantZoneStateT6.cpp" />
+     <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\ObjWriterT6.cpp" />
+     <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\PhysConstraints\PhysConstraintsInfoStringDumperT6.cpp" />
+diff --git a/build/src/ObjWriting/ObjWriting.vcxproj.filters b/build/src/ObjWriting/ObjWriting.vcxproj.filters
+index 0cfdc69..e1b97d9 100644
+--- a/build/src/ObjWriting/ObjWriting.vcxproj.filters
++++ b/build/src/ObjWriting/ObjWriting.vcxproj.filters
+@@ -1,4 +1,4 @@
+-﻿<?xml version="1.0" encoding="utf-8"?>
++<?xml version="1.0" encoding="utf-8"?>
+ <Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+   <ItemGroup>
+     <Filter Include="Dumping">
+@@ -498,6 +498,9 @@
+     <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\Maps\MapEntsDumperT6.h">
+       <Filter>Game\T6\Maps</Filter>
+     </ClInclude>
++    <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\Maps\WorldConverterDumperT6.h">
++      <Filter>Game\T6\Maps</Filter>
++    </ClInclude>
+     <ClInclude Include="..\..\..\src\ObjWriting\Game\T6\Material\MaterialConstantZoneStateT6.h">
+       <Filter>Game\T6\Material</Filter>
+     </ClInclude>
+@@ -856,6 +859,9 @@
+     <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\Maps\MapEntsDumperT6.cpp">
+       <Filter>Game\T6\Maps</Filter>
+     </ClCompile>
++    <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\Maps\WorldConverterDumperT6.cpp">
++      <Filter>Game\T6\Maps</Filter>
++    </ClCompile>
+     <ClCompile Include="..\..\..\src\ObjWriting\Game\T6\Material\MaterialConstantZoneStateT6.cpp">
+       <Filter>Game\T6\Material</Filter>
+     </ClCompile>
+diff --git a/src/Linker/ZoneCreation/ZoneCreator.cpp b/src/Linker/ZoneCreation/ZoneCreator.cpp
+index efcd60c..e9bf8fc 100644
+--- a/src/Linker/ZoneCreation/ZoneCreator.cpp
++++ b/src/Linker/ZoneCreation/ZoneCreator.cpp
+@@ -6,6 +6,7 @@
+ #include "SearchPath/OutputPathFilesystem.h"
+ 
+ #include <cassert>
++#include <map>
+ 
+ namespace
+ {
+@@ -74,6 +75,16 @@ namespace zone_creator
+             creatorCollection, *zone, zoneDefinitionContext, *context.m_asset_search_path, lookup, creationContext, outDir, cacheDir);
+         objLoader->ConfigureCreatorCollection(creatorCollection, *zone, *context.m_asset_search_path, lookup, *context.m_definition);
+ 
++        // Let creators read and parse the definition's assets ahead of the (single threaded) creation loop
++        std::map<asset_type_t, std::vector<std::string>> namesByType;
++        for (const auto& assetEntry : context.m_definition->m_assets)
++        {
++            if (!assetEntry.m_is_reference)
++                namesByType[assetEntry.m_asset_type].emplace_back(assetEntry.m_asset_name);
++        }
++        for (const auto& [assetType, assetNames] : namesByType)
++            creatorCollection.Prefetch(assetType, assetNames);
++
+         for (const auto& assetEntry : context.m_definition->m_assets)
+         {
+             const auto* createdAsset = creationContext.LoadDependencyGeneric(assetEntry.m_asset_type, assetEntry.m_asset_name);
+diff --git a/src/ObjLoading/Asset/AssetCreatorCollection.cpp b/src/ObjLoading/Asset/AssetCreatorCollection.cpp
+index f6eb275..340c728 100644
+--- a/src/ObjLoading/Asset/AssetCreatorCollection.cpp
++++ b/src/ObjLoading/Asset/AssetCreatorCollection.cpp
+@@ -79,6 +79,15 @@ AssetCreationResult AssetCreatorCollection::CreateDefaultAsset(const asset_type_
+     return AssetCreationResult::NoAction();
+ }
+ 
++void AssetCreatorCollection::Prefetch(const asset_type_t assetType, const std::vector<std::string>& assetNames) const
++{
++    if (assetType < m_asset_creators_by_type.size())
++    {
++        for (auto* creator : m_asset_creators_by_type[assetType])
++            creator->Prefetch(assetNames);
++    }
++}
++
+ bool AssetCreatorCollection::FinalizeZone(AssetCreationContext& context) const
+ {
+     for (const auto& creator : m_asset_creators)
+diff --git a/src/ObjLoading/Asset/AssetCreatorCollection.h b/src/ObjLoading/Asset/AssetCreatorCollection.h
+index d11a237..3074b4d 100644
+--- a/src/ObjLoading/Asset/AssetCreatorCollection.h
++++ b/src/ObjLoading/Asset/AssetCreatorCollection.h
+@@ -28,6 +28,7 @@ public:
+     AssetCreationResult CreateAsset(asset_type_t assetType, const std::string& assetName, AssetCreationContext& context) const;
+     AssetCreationResult CreateDefaultAsset(asset_type_t assetType, const std::string& assetName, AssetCreationContext& context) const;
+     bool FinalizeZone(AssetCreationContext& context) const;
++    void Prefetch(asset_type_t assetType, const std::vector<std::string>& assetNames) const;
+ 
+ private:
+     std::vector<std::vector<IAssetCreator*>> m_asset_creators_by_type;
+diff --git a/src/ObjLoading/Asset/IAssetCreator.h b/src/ObjLoading/Asset/IAssetCreator.h
+index f44329c..9d2a0ae 100644
+--- a/src/ObjLoading/Asset/IAssetCreator.h
++++ b/src/ObjLoading/Asset/IAssetCreator.h
+@@ -10,6 +10,7 @@
+ 
+ #include <optional>
+ #include <string>
++#include <vector>
+ 
+ class AssetCreationContext;
+ 
+@@ -26,6 +27,9 @@ public:
+     [[nodiscard]] virtual std::optional<asset_type_t> GetHandlingAssetType() const = 0;
+     virtual AssetCreationResult CreateAsset(const std::string& assetName, AssetCreationContext& context) = 0;
+ 
++    // Names of assets the zone definition will ask for, in definition order, so a creator can start reading them ahead of time
++    virtual void Prefetch(const std::vector<std::string>& assetNames) {}
++
+     virtual bool FinalizeZone(AssetCreationContext& context)
+     {
+         return true;
+diff --git a/src/ObjLoading/XModel/LoaderXModel.cpp.template b/src/ObjLoading/XModel/LoaderXModel.cpp.template
+index b65809c..b2c9731 100644
+--- a/src/ObjLoading/XModel/LoaderXModel.cpp.template
++++ b/src/ObjLoading/XModel/LoaderXModel.cpp.template
+@@ -46,8 +46,14 @@
+ #include <algorithm>
+ #include <filesystem>
+ #include <format>
++#include <future>
+ #include <iostream>
++#include <iterator>
+ #include <numeric>
++#include <optional>
++#include <thread>
++#include <unordered_map>
++#include <unordered_set>
+ #include <vector>
+ 
+ using namespace GAME;
+@@ -65,11 +71,41 @@ namespace
+         {
+         }
+ 
++        ~XModelLoader() override
++        {
++            // Parses that were started but never asked for still hold references to nothing of ours; just let them finish
++            for (auto& [name, parse] : m_prefetched)
++                parse.wait();
++        }
++
++        void Prefetch(const std::vector<std::string>& assetNames) override
++        {
++            m_prefetch_names = assetNames;
++            m_prefetch_cursor = 0;
++            TopUpPrefetch();
++        }
++
+         AssetCreationResult CreateAsset(const std::string& assetName, AssetCreationContext& context) override
+         {
+-            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
+-            if (!file.IsOpen())
+-                return AssetCreationResult::NoAction();
++            m_requested.emplace(assetName);
++
++            std::optional<ParsedXModel> parsed;
++            if (const auto prefetched = m_prefetched.find(assetName); prefetched != m_prefetched.end())
++            {
++                auto parse = std::move(prefetched->second);
++                m_prefetched.erase(prefetched);
++                TopUpPrefetch();
++                parsed = parse.get();
++            }
++            else
++            {
++                auto buffer = ReadJson(assetName);
++                if (!buffer)
++                    return AssetCreationResult::NoAction();
++
++                TopUpPrefetch();
++                parsed = ParseJson(*buffer);
++            }
+ 
+             auto* xmodel = m_memory.Alloc<XModel>();
+             xmodel->name = m_memory.Dup(assetName.c_str());
+@@ -78,7 +114,7 @@ namespace
+             m_surfaces.clear();
+ 
+             AssetRegistration<AssetXModel> registration(assetName, xmodel);
+-            if (!LoadFromFile(*file.m_stream, *xmodel, context, registration))
++            if (!LoadFromParsed(*parsed, *xmodel, context, registration))
+             {
+                 con::error("Failed to load xmodel \"{}\"", assetName);
+                 return AssetCreationResult::Failure();
+@@ -88,35 +124,108 @@ namespace
+         }
+ 
+     private:
+-        bool LoadFromFile(std::istream& jsonStream, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        // The JSON parse and conversion of one xmodel file. It touches nothing but its input, so it runs on worker threads.
++        struct ParsedXModel
++        {
++            std::string m_type;
++            unsigned m_version = 0;
++            std::optional<JsonXModel> m_xmodel;
++            std::optional<std::string> m_json_error;
++        };
++
++        std::optional<std::string> ReadJson(const std::string& assetName) const
+         {
++            const auto file = m_search_path.Open(std::format("xmodel/{}.json", assetName));
++            if (!file.IsOpen())
++                return std::nullopt;
++
++            std::string buffer;
++            if (file.m_length > 0)
++            {
++                buffer.resize(static_cast<size_t>(file.m_length));
++                file.m_stream->read(buffer.data(), static_cast<std::streamsize>(buffer.size()));
++                buffer.resize(static_cast<size_t>(file.m_stream->gcount()));
++            }
++            else
++            {
++                buffer.assign(std::istreambuf_iterator<char>(*file.m_stream), std::istreambuf_iterator<char>());
++            }
++
++            return buffer;
++        }
++
++        static ParsedXModel ParseJson(const std::string& buffer)
++        {
++            ParsedXModel parsed;
+             try
+             {
+-                const auto jRoot = nlohmann::json::parse(jsonStream);
+-                std::string type;
+-                unsigned version;
++                const auto jRoot = nlohmann::json::parse(buffer);
+ 
+-                jRoot.at("_type").get_to(type);
+-                jRoot.at("_version").get_to(version);
++                jRoot.at("_type").get_to(parsed.m_type);
++                jRoot.at("_version").get_to(parsed.m_version);
+ 
+-                if (type != "xmodel" || version < 1u || version > 2u)
+-                {
+-                    con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
+-                    return false;
+-                }
+-                
+-                if (version == 1u)
+-                {
+-                    m_gltf_bad_rotation_formulas = true;
+-                    con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
+-                }
+-                else
+-                {
+-                    m_gltf_bad_rotation_formulas = false;
+-                }
++                if (parsed.m_type == "xmodel" && parsed.m_version >= 1u && parsed.m_version <= 2u)
++                    parsed.m_xmodel = jRoot.get<JsonXModel>();
++            }
++            catch (const nlohmann::json::exception& e)
++            {
++                parsed.m_json_error = e.what();
++            }
++
++            return parsed;
++        }
++
++        // Files are read here on the loading thread (search paths are not thread safe), only parsing runs in the background.
++        // A bounded window keeps the 32 bit address space from holding every parsed model at once.
++        void TopUpPrefetch()
++        {
++            const auto window = std::max(2u, std::thread::hardware_concurrency()) * 2u;
++            while (m_prefetched.size() < window && m_prefetch_cursor < m_prefetch_names.size())
++            {
++                const auto& name = m_prefetch_names[m_prefetch_cursor++];
++                if (m_requested.contains(name) || m_prefetched.contains(name))
++                    continue;
++
++                auto buffer = ReadJson(name);
++                if (!buffer)
++                    continue;
+ 
+-                const auto jXModel = jRoot.get<JsonXModel>();
+-                return CreateXModelFromJson(jXModel, xmodel, context, registration);
++                m_prefetched.emplace(name,
++                                     std::async(std::launch::async,
++                                                [json = std::move(*buffer)]
++                                                {
++                                                    return ParseJson(json);
++                                                }));
++            }
++        }
++
++        bool LoadFromParsed(const ParsedXModel& parsed, XModel& xmodel, AssetCreationContext& context, AssetRegistration<AssetXModel>& registration)
++        {
++            if (parsed.m_json_error)
++            {
++                con::error("Failed to parse json of xmodel: {}", *parsed.m_json_error);
++                return false;
++            }
++
++            if (!parsed.m_xmodel)
++            {
++                con::error("Tried to load xmodel \"{}\" but did not find expected type material of version 1 or 2", xmodel.name);
++                return false;
++            }
++
++            if (parsed.m_version == 1u)
++            {
++                m_gltf_bad_rotation_formulas = true;
++                con::warn("DEPRECATED: XModel {} is version 1 that made use of bad GLTF bone rotations.", xmodel.name);
++            }
++            else
++            {
++                m_gltf_bad_rotation_formulas = false;
++            }
++
++            try
++            {
++                return CreateXModelFromJson(*parsed.m_xmodel, xmodel, context, registration);
+             }
+             catch (const nlohmann::json::exception& e)
+             {
+@@ -1445,6 +1554,11 @@ namespace
+         ISearchPath& m_search_path;
+         ZoneScriptStrings& m_script_strings;
+         PartClassificationState m_part_classification_state;
++
++        std::vector<std::string> m_prefetch_names;
++        size_t m_prefetch_cursor = 0;
++        std::unordered_map<std::string, std::future<ParsedXModel>> m_prefetched;
++        std::unordered_set<std::string> m_requested;
+     };
+ } // namespace
+ 
+diff --git a/src/ObjWriting/Game/T6/ObjWriterT6.cpp b/src/ObjWriting/Game/T6/ObjWriterT6.cpp
+index 39d284b..433bdd4 100644
+--- a/src/ObjWriting/Game/T6/ObjWriterT6.cpp
++++ b/src/ObjWriting/Game/T6/ObjWriterT6.cpp
+@@ -9,6 +9,7 @@
+ #include "Leaderboard/LeaderboardJsonDumperT6.h"
+ #include "Localize/LocalizeDumperT6.h"
+ #include "Maps/MapEntsDumperT6.h"
++#include "Maps/WorldConverterDumperT6.h"
+ #include "ObjWriting.h"
+ #include "PhysConstraints/PhysConstraintsInfoStringDumperT6.h"
+ #include "PhysPreset/PhysPresetInfoStringDumperT6.h"
+@@ -64,6 +65,11 @@ bool ObjWriter::DumpZone(AssetDumpingContext& context) const
+     // REGISTER_DUMPER(AssetDumperGameWorldSp, m_game_world_sp)
+     // REGISTER_DUMPER(AssetDumperGameWorldMp, m_game_world_mp)
+     REGISTER_DUMPER(map_ents::DumperT6, m_map_ents)
++    REGISTER_DUMPER(world_converter::GfxWorldDumperT6, m_gfx_world)
++    // clipmap and clipmap_pvs share one pool
++    if (assetPools->m_clip_map
++        && (ObjWriting::ShouldHandleAssetType(ASSET_TYPE_CLIPMAP) || ObjWriting::ShouldHandleAssetType(ASSET_TYPE_CLIPMAP_PVS)))
++        dumpers.emplace_back(std::make_unique<world_converter::ClipMapDumperT6>(*assetPools->m_clip_map));
+     // REGISTER_DUMPER(AssetDumperGfxWorld, m_gfx_world)
+     // REGISTER_DUMPER(AssetDumperGfxLightDef, m_gfx_light_def)
+     // REGISTER_DUMPER(AssetDumperFont, m_font)
+diff --git a/src/ObjWriting/ObjWriting.h b/src/ObjWriting/ObjWriting.h
+index 200ddab..b59d1bb 100644
+--- a/src/ObjWriting/ObjWriting.h
++++ b/src/ObjWriting/ObjWriting.h
+@@ -23,7 +23,8 @@ public:
+             XMODEL_BIN,
+             OBJ,
+             GLTF,
+-            GLB
++            GLB,
++            NONE // xmodel json only, no mesh files (audits that only read the json)
+         };
+ 
+         std::vector<bool> AssetTypesToHandleBitfield;
+diff --git a/src/ObjWriting/XModel/XModelDumper.cpp.template b/src/ObjWriting/XModel/XModelDumper.cpp.template
+index cfdb8d9..a2a0d7c 100644
+--- a/src/ObjWriting/XModel/XModelDumper.cpp.template
++++ b/src/ObjWriting/XModel/XModelDumper.cpp.template
+@@ -639,6 +639,8 @@ namespace
+     void DumpXModelSurfs(const AssetDumpingContext& context, const XAssetInfo<XModel>& asset)
+     {
+         const auto* model = asset.Asset();
++        if (ObjWriting::Configuration.ModelOutputFormat == ObjWriting::Configuration_t::ModelOutputFormat_e::NONE)
++            return;
+ 
+         for (auto currentLod = 0u; currentLod < model->numLods; currentLod++)
+         {
+@@ -741,6 +743,7 @@ namespace
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLTF:
+                 return ".gltf";
+             case ObjWriting::Configuration_t::ModelOutputFormat_e::GLB:
++            case ObjWriting::Configuration_t::ModelOutputFormat_e::NONE: // same json as the default dump
+                 return ".glb";
+             default:
+                 assert(false);
+diff --git a/src/Unlinker/UnlinkerArgs.cpp b/src/Unlinker/UnlinkerArgs.cpp
+index f5d7e05..1d5047d 100644
+--- a/src/Unlinker/UnlinkerArgs.cpp
++++ b/src/Unlinker/UnlinkerArgs.cpp
+@@ -87,7 +87,7 @@ const CommandLineOption* const OPTION_IMAGE_FORMAT =
+ const CommandLineOption* const OPTION_MODEL_FORMAT = 
+     CommandLineOption::Builder::Create()
+     .WithLongName("model-format")
+-    .WithDescription("Specifies the format of dumped model files. Valid values are: XMODEL_EXPORT, XMODEL_BIN, OBJ, GLTF, GLB")
++    .WithDescription("Specifies the format of dumped model files. Valid values are: XMODEL_EXPORT, XMODEL_BIN, OBJ, GLTF, GLB, NONE")
+     .WithParameter("modelFormatValue")
+     .Build();
+ 
+@@ -234,6 +234,12 @@ bool UnlinkerArgs::SetModelDumpingMode() const
+         return true;
+     }
+ 
++    if (specifiedValue == "none")
++    {
++        ObjWriting::Configuration.ModelOutputFormat = ObjWriting::Configuration_t::ModelOutputFormat_e::NONE;
++        return true;
++    }
++
+     const std::string originalValue = m_argument_parser.GetValueForOption(OPTION_MODEL_FORMAT);
+     con::error("Illegal value: \"{}\" is not a valid model output format. Use -? to see usage information.", originalValue);
+     return false;
+diff --git a/src/ZoneCommon/Zone/XChunk/IXChunkProcessor.h b/src/ZoneCommon/Zone/XChunk/IXChunkProcessor.h
+index bcc744f..f89179b 100644
+--- a/src/ZoneCommon/Zone/XChunk/IXChunkProcessor.h
++++ b/src/ZoneCommon/Zone/XChunk/IXChunkProcessor.h
+@@ -14,4 +14,10 @@ public:
+     IXChunkProcessor& operator=(IXChunkProcessor&& other) noexcept = default;
+ 
+     virtual size_t Process(unsigned streamNumber, const uint8_t* input, size_t inputLength, uint8_t* output, size_t outputBufferSize) = 0;
++
++    // True when Process keeps no state between chunks and may run for several chunks at once on different threads
++    [[nodiscard]] virtual bool IsStateless() const
++    {
++        return false;
++    }
+ };
+diff --git a/src/ZoneCommon/Zone/XChunk/XChunkProcessorDeflate.h b/src/ZoneCommon/Zone/XChunk/XChunkProcessorDeflate.h
+index 9dda186..b67dfd1 100644
+--- a/src/ZoneCommon/Zone/XChunk/XChunkProcessorDeflate.h
++++ b/src/ZoneCommon/Zone/XChunk/XChunkProcessorDeflate.h
+@@ -5,4 +5,9 @@ class XChunkProcessorDeflate final : public IXChunkProcessor
+ {
+ public:
+     size_t Process(unsigned streamNumber, const uint8_t* input, size_t inputLength, uint8_t* output, size_t outputBufferSize) override;
++
++    [[nodiscard]] bool IsStateless() const override
++    {
++        return true;
++    }
+ };
+diff --git a/src/ZoneWriting/Writing/Processor/OutputProcessorXChunks.cpp b/src/ZoneWriting/Writing/Processor/OutputProcessorXChunks.cpp
+index 910e941..ad84ef0 100644
+--- a/src/ZoneWriting/Writing/Processor/OutputProcessorXChunks.cpp
++++ b/src/ZoneWriting/Writing/Processor/OutputProcessorXChunks.cpp
+@@ -4,8 +4,19 @@
+ #include "Zone/XChunk/XChunkException.h"
+ #include "Zone/ZoneTypes.h"
+ 
++#include <algorithm>
++#include <atomic>
+ #include <cassert>
+ #include <cstring>
++#include <exception>
++#include <thread>
++
++namespace
++{
++    // Chunks are deflated in batches of this many on all cores, then encrypted and written in order.
++    // Deflate starts a fresh stream for every chunk, so the output is byte identical to doing it one by one.
++    constexpr size_t PENDING_BATCH_SIZE = 256;
++} // namespace
+ 
+ void OutputProcessorXChunks::Init()
+ {
+@@ -15,6 +26,25 @@ void OutputProcessorXChunks::Init()
+     m_initialized = true;
+ }
+ 
++size_t OutputProcessorXChunks::StatelessProcessorCount() const
++{
++    size_t count = 0;
++    while (count < m_chunk_processors.size() && m_chunk_processors[count]->IsStateless())
++        count++;
++
++    return count;
++}
++
++std::unique_ptr<uint8_t[]> OutputProcessorXChunks::TakeBuffer()
++{
++    if (m_free_buffers.empty())
++        return std::make_unique<uint8_t[]>(m_chunk_size);
++
++    auto buffer = std::move(m_free_buffers.back());
++    m_free_buffers.pop_back();
++    return buffer;
++}
++
+ void OutputProcessorXChunks::WriteChunk()
+ {
+     if (m_vanilla_buffer_size > 0)
+@@ -56,6 +86,108 @@ void OutputProcessorXChunks::WriteChunk()
+     m_input_size = 0;
+ }
+ 
++void OutputProcessorXChunks::QueueChunk()
++{
++    PendingChunk chunk{TakeBuffer(), TakeBuffer(), m_input_size, static_cast<unsigned>(m_current_stream)};
++    memcpy(chunk.m_input.get(), m_input_buffer, m_input_size);
++    m_pending.emplace_back(std::move(chunk));
++
++    m_current_stream = (m_current_stream + 1) % m_stream_count;
++    m_input_size = 0;
++
++    if (m_pending.size() >= PENDING_BATCH_SIZE)
++        FlushPending();
++}
++
++void OutputProcessorXChunks::FlushPending()
++{
++    if (m_pending.empty())
++        return;
++
++    const auto statelessCount = StatelessProcessorCount();
++    std::vector<std::exception_ptr> errors(m_pending.size());
++    std::atomic_size_t nextChunk = 0;
++
++    const auto processChunks = [&]
++    {
++        for (auto index = nextChunk++; index < m_pending.size(); index = nextChunk++)
++        {
++            auto& chunk = m_pending[index];
++            try
++            {
++                for (auto processorIndex = 0u; processorIndex < statelessCount; processorIndex++)
++                {
++                    chunk.m_size = m_chunk_processors[processorIndex]->Process(
++                        chunk.m_stream, chunk.m_input.get(), chunk.m_size, chunk.m_output.get(), m_chunk_size);
++                    std::swap(chunk.m_input, chunk.m_output);
++                }
++            }
++            catch (...)
++            {
++                errors[index] = std::current_exception();
++            }
++        }
++    };
++
++    const auto threadCount = std::min<size_t>(std::max(1u, std::thread::hardware_concurrency()), m_pending.size());
++    std::vector<std::thread> workers;
++    workers.reserve(threadCount - 1);
++    for (auto i = 1u; i < threadCount; i++)
++        workers.emplace_back(processChunks);
++    processChunks();
++    for (auto& worker : workers)
++        worker.join();
++
++    // Encryption is stateful per stream, so it and the writing happen in chunk order on this thread
++    for (auto index = 0u; index < m_pending.size(); index++)
++    {
++        auto& chunk = m_pending[index];
++
++        if (m_vanilla_buffer_size > 0)
++        {
++            if (m_vanilla_buffer_offset + sizeof(xchunk_size_t) > m_vanilla_buffer_size)
++            {
++                xchunk_size_t zeroMem = 0;
++                m_base_stream->Write(&zeroMem, m_vanilla_buffer_size - m_vanilla_buffer_offset);
++                m_vanilla_buffer_offset = 0;
++            }
++        }
++
++        try
++        {
++            if (errors[index])
++                std::rethrow_exception(errors[index]);
++
++            for (auto processorIndex = statelessCount; processorIndex < m_chunk_processors.size(); processorIndex++)
++            {
++                chunk.m_size =
++                    m_chunk_processors[processorIndex]->Process(chunk.m_stream, chunk.m_input.get(), chunk.m_size, chunk.m_output.get(), m_chunk_size);
++                std::swap(chunk.m_input, chunk.m_output);
++            }
++        }
++        catch (XChunkException& e)
++        {
++            m_pending.clear();
++            throw WritingException(e.Message());
++        }
++
++        auto chunkSize = static_cast<xchunk_size_t>(chunk.m_size);
++        m_base_stream->Write(&chunkSize, sizeof(chunkSize));
++        m_base_stream->Write(chunk.m_input.get(), chunk.m_size);
++
++        if (m_vanilla_buffer_size > 0)
++        {
++            m_vanilla_buffer_offset += sizeof(chunkSize) + chunk.m_size;
++            m_vanilla_buffer_offset %= m_vanilla_buffer_size;
++        }
++
++        m_free_buffers.emplace_back(std::move(chunk.m_input));
++        m_free_buffers.emplace_back(std::move(chunk.m_output));
++    }
++
++    m_pending.clear();
++}
++
+ OutputProcessorXChunks::OutputProcessorXChunks(const int numStreams, const size_t xChunkSize, const size_t xChunkWriteSize)
+     : m_stream_count(numStreams),
+       m_chunk_size(xChunkSize),
+@@ -99,6 +231,7 @@ void OutputProcessorXChunks::Write(const void* buffer, const size_t length)
+     if (!m_initialized)
+         Init();
+ 
++    const auto batched = StatelessProcessorCount() > 0;
+     auto sizeRemaining = length;
+     while (sizeRemaining > 0)
+     {
+@@ -107,7 +240,12 @@ void OutputProcessorXChunks::Write(const void* buffer, const size_t length)
+         memcpy(&m_input_buffer[m_input_size], &static_cast<const char*>(buffer)[length - sizeRemaining], toWrite);
+         m_input_size += toWrite;
+         if (m_input_size >= m_chunk_write_size)
+-            WriteChunk();
++        {
++            if (batched)
++                QueueChunk();
++            else
++                WriteChunk();
++        }
+ 
+         sizeRemaining -= toWrite;
+     }
+@@ -116,12 +254,19 @@ void OutputProcessorXChunks::Write(const void* buffer, const size_t length)
+ void OutputProcessorXChunks::Flush()
+ {
+     if (m_input_size)
+-        WriteChunk();
++    {
++        if (StatelessProcessorCount() > 0)
++            QueueChunk();
++        else
++            WriteChunk();
++    }
+ 
++    FlushPending();
+     m_base_stream->Flush();
+ }
+ 
+ int64_t OutputProcessorXChunks::Pos()
+ {
++    FlushPending();
+     return m_base_stream->Pos();
+ }
+diff --git a/src/ZoneWriting/Writing/Processor/OutputProcessorXChunks.h b/src/ZoneWriting/Writing/Processor/OutputProcessorXChunks.h
+index 5a8a28e..a45547e 100644
+--- a/src/ZoneWriting/Writing/Processor/OutputProcessorXChunks.h
++++ b/src/ZoneWriting/Writing/Processor/OutputProcessorXChunks.h
+@@ -9,6 +9,15 @@
+ 
+ class OutputProcessorXChunks final : public OutputStreamProcessor
+ {
++    // A filled chunk waiting for its stateless processors (deflate), which run for a whole batch in parallel
++    struct PendingChunk
++    {
++        std::unique_ptr<uint8_t[]> m_input;
++        std::unique_ptr<uint8_t[]> m_output;
++        size_t m_size;
++        unsigned m_stream;
++    };
++
+     std::vector<std::unique_ptr<IXChunkProcessor>> m_chunk_processors;
+ 
+     int m_stream_count;
+@@ -25,8 +34,15 @@ class OutputProcessorXChunks final : public OutputStreamProcessor
+     uint8_t* m_output_buffer;
+     size_t m_input_size;
+ 
++    std::vector<PendingChunk> m_pending;
++    std::vector<std::unique_ptr<uint8_t[]>> m_free_buffers;
++
+     void Init();
+     void WriteChunk();
++    void QueueChunk();
++    void FlushPending();
++    size_t StatelessProcessorCount() const;
++    std::unique_ptr<uint8_t[]> TakeBuffer();
+ 
+ public:
+     OutputProcessorXChunks(int numStreams, size_t xChunkSize, size_t xChunkWriteSize);

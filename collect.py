@@ -26,6 +26,9 @@ COPIES = {
 
 # local OAT trees: our uncommitted changes as a patch plus our new untracked files
 OAT_TREES = ('oat', 'oat-bsp', 'oat_ext')
+# NB: oat-patches/oatfork/ is a MANUAL snapshot (the optimized Linker/Unlinker fork
+# lives in F:\ClaudeBench\oatfork, outside CONV), so collect.py does not regenerate
+# it. Refresh it by hand when that fork's speed/dumper work changes.
 # our BO1 converter: changes against upstream B2W (github.com/Ticass/B2W), same layout
 CONVERTER_TREE = 'b2w_bo1'
 SKIP_NEW = ('.png', '.jpg', '.dds', '.iwi', '.webp')  # art isn't ours to publish

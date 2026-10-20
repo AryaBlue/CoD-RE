@@ -1,6 +1,6 @@
 # CoD-RE
 
-Our reverse-engineering notes for Call of Duty WaW (T4), BO1 (T5) and BO2 (T6):
+Our reverse-engineering notes for Call of Duty WaW (T4), BO1 (T5), BO2 (T6) and BO3 (T7):
 struct layouts, size probes, OpenAssetTools patches, binary-format notes. OAT patches
 are GPL-3.0 like OpenAssetTools itself. No game files or dumped assets go in here.
 
@@ -19,6 +19,7 @@ BO1 → BO2 converter) live in `shared/` and `converter/`.
 | `t6-bo2/t6match/` | match server-exe functions and globals to t6zm.exe by strings and call graph |
 | `t6-bo2/perks/` | Lua perks for BO2 Zombies: `lua2gsc` compiler (C++ header + CLI), GSC runtime, `API.md`, examples, tests |
 | `t6-bo2/oatfork/` | our optimized OAT Linker/Unlinker fork + the T6 GfxWorld/ClipMap `.bin` dumper (see its own README) |
+| `t7-bo3/notes/` | BO3 (T7) RE: the XModel `assetPools` table base offset for the current retail build + GfxMap read layout (repairs the C2M/Husky memory-based map extractor) |
 
 ## `shared/` and `converter/`
 

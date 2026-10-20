@@ -160,7 +160,11 @@ def main() -> int:
     ap.add_argument("--no-install", action="store_true", help="build only; leave the installed Plutonium mod alone")
     ap.add_argument("--from", dest="from_step", choices=["stage", "build-mod", "compile-scripts", "bridge-link", "audit"],
                     help="resume at this step, reusing the earlier steps' output from the last build")
+    ap.add_argument("--fast-link", action="store_true",
+                    help="WAW2BO2_FAST_LINK: reuse cached stock ipak images and build-mod's shader dump")
     a = ap.parse_args()
+    if a.fast_link:
+        os.environ["WAW2BO2_FAST_LINK"] = "1"
     if not a.bo1:
         print("error: Black Ops 1 was not found in your Steam libraries; pass --bo1 <install folder>",
               file=sys.stderr)

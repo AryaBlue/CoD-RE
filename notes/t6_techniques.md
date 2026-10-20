@@ -226,7 +226,83 @@ per-object cbuffer is cb3: worldMatrix, gridLightingCoordsAndVis, gridLightingSH
 `R_SetupPassPerObjectArgs` / `PerPrimArgs` apply the per-object and per-primitive groups (the first
 `perPrimArgCount`, then `perObjArgCount` of `MaterialPass.args`).
 
-## 6. What this changed in the converter (B2W fork)
+## 6. Dynamic lights ("dlight glight" techniques 15-25)
+
+### What the engine fills: `R_SetDLightsConstants` (0x00A17480)
+
+The engine walks the view's visible dynamic lights. **Omni lights** (type 5) go into up to 4 packed "glights";
+**one spot light** (type 2) becomes "the dlight". Values land in `GfxCmdBufInput.consts[]` (code constant index =
+byte offset / 16), which T6 copies into `PerScene` (cb0) without per-pass arguments:
+
+| code const | field | value |
+|---|---|---|
+| 125-127 | glightPosXs / PosYs / PosZs | x, y, z of the 4 omni lights, minus `consts[0x10]` (camera-relative) |
+| 128 | glightFallOffs | `-1 / radius` per light |
+| 129-131 | glightReds / Greens / Blues | colour per light |
+| 132 | dlightPosition | xyz camera-relative, **w = -1/radius** |
+| 133 | dlightDiffuse | colour, w = 1 |
+| 134 | dlightAttenuation | **always 0** |
+| 135 | dlightFallOff | `(1/(b-a), 1/(d-c), -a/(b-a), -c/(d-c))` from the light's four falloff distances: two smoothstep ranges |
+| 136-139 | dlightSpotMatrix0-3 | light view x light projection (cookie lookup) |
+| 140 | dlightSpotDir | the light's direction (copied as is), w = 0 |
+| 141 | dlightSpotFactors | `(1/(c1-c0), -c0/(c1-c0), 0, shadow fade)` from the light's two cone cosines |
+| 142-145 | dlightShadowLookupMatrix0-3 | spot shadow lookup (only when the light has a shadow; the shadow image is `gfxRenderTargets[0x10]` otherwise) |
+| 61 (0x3D) | dlightSpotShadowmapPixelAdjust | PCF tap spacing (this one *is* routed by a pass argument) |
+
+The cookie texture is code texture 16 (`TEXTURE_SRC_CODE_DLIGHT_ATTENUATION`, the light def's image, white if none).
+The spot shadow map is code texture 7.
+
+### How a T6 dlight program uses it (stock `wpc_lit_sm_r0c0n0s0`, slot 15)
+
+The pixel program reads a 2-word mask at **cb3 (`dlights`) row 11** (byte 0xB0), written per draw by `R_GetTechType`:
+- `if (cb3[11].x)`: the spot dlight term. Cookie: `dlightSpotMatrix` projection → `dlightAttenuationSampler` (t11),
+  sample squared. Distance: `sat(1 + d * dlightPosition.w)^2`. Cone: `sat(dot(L, dlightSpotDir) * f.x + f.y)`.
+  Shadow: 12-tap PCF with `sample_c_lz` on t10 (comparison sampler), taps scaled by `dlightSpotShadowmapPixelAdjust`,
+  then `lerp(1, shadow, dlightSpotFactors.w)`.
+- `if (cb3[11].y)`: the 4 glights. Per light: `sat(1 + d * falloff)^2 * sat(N.L)`, colour from the Reds/Greens/Blues
+  rows.
+
+### BO1 dlight programs (T5 techniques 31-37 `*_DLIGHT_GLIGHT`)
+
+BO1 reads the same constant names. Its math differs in a few places:
+- **Distance attenuation:** `1 / (a + b*d + c*d^2)` from `dlightAttenuation`, with a guard that gives 0 when the sum is
+  0. It also uses `dlightFallOff`'s two smoothsteps on the spot-space depth (`dot(pos, dlightSpotMatrix2)`).
+- **Shadow:** 4 hardware-PCF `texldp` taps on `shadowmapSamplerSpot`, averaged (x 0.25).
+- **Separate specular colour:** `dlightSpecular`, which T6 doesn't have.
+- **No mask:** BO1 picks a separate technique per case instead (`_DLIGHT`, `_GLIGHT`, `_DLIGHT_GLIGHT`).
+
+Because T6 writes `dlightAttenuation = 0`, a BO1 program bound by name gets **no dynamic light at all**.
+
+### BO1 works in linear light, like T6
+
+BO1 lit pixel programs end with `oC0 = sqrt(sat(colour * hdrControl0.x))`. That is T6's `sqrt(colour * hdr)`, apart
+from the saturate. They also square the reflection-probe sample. WaW programs work in gamma space instead, so the
+converter's WaW unit adapters (`sqrt(4 hdr * linear)` for sun, fog and light colours, the probe, and model lighting)
+must not be applied to BO1 programs. BO1's primary-light constants are T6's set by name (`lightAttenuation`,
+`lightFallOffA/B`, `lightSpotMatrix0-3`, `lightSpotAABB`, `lightConeControl1/2`, `lightSpotCookieSlideControl`),
+plus `lightSpecular`.
+
+### Per-light code constants (pass argument type 5, value `0x01000000 + id`)
+
+Measured from the arguments of every stock pass, matching the argument's location to the program's reflected field.
+These rows are per light, so a pass must route each one it reads:
+
+| id | field | id | field |
+|---|---|---|---|
+| 0 | lightPosition | 7-10 | lightSpotMatrix0-3 (10 inferred) |
+| 1 | lightDiffuse | 11 | lightSpotAABB |
+| 2 | lightSpotDir | 12, 13 | lightConeControl1, 2 (13 inferred) |
+| 3 | lightSpotFactors | 14 | lightSpotCookieSlideControl |
+| 4 | lightAttenuation (inferred) | 0x3C | spotShadowmapPixelAdjust |
+| 5, 6 | lightFallOffA, B | 0x3D | dlightSpotShadowmapPixelAdjust |
+
+"Inferred" ids are not routed by any stock pass. They follow the cbuffer field order, which every measured id matches.
+Other ids seen: 0x11 renderTargetSize, 0x25 shadowmapSwitchPartition, 0x26 sunShadowmapPixelSize, 0x2E materialColor,
+0x45-0x48 gridLighting*, 0x6B-0x7A postFxControl0-F, 0xA9-0xB0 scriptVector0-7, 0xB3-0xB9 weaponParam*,
+0xCA skyColorMultiplier. The vertex matrices (type 3, `0x04000000 + id`): 0xD5 worldMatrix, 0xE5 viewProjectionMatrix,
+0xED shadowLookupMatrix, 0xE9 worldViewProjectionMatrix, 0xDA inverseViewMatrix.
+
+## 7. What this changed in the converter (B2W fork)
 
 Measured offline with a harness that re-runs `shaderruntime.bind_material` for every material of the staged Kino
 build (1,235 materials, donor choice as in the bridge). **Not yet verified in game.**
@@ -286,6 +362,7 @@ is the Ghidra headless script used for the decompiles:
 | Load_BuildVertexDecl | 0x00A28E10 |
 | Material_StreamSourceForName / StreamDestForName | 0x00A47FB0 / 0x00A47DE0 |
 | R_SetPassShaderStableArguments | 0x00AA35C0 |
+| R_SetDLightsConstants | 0x00A17480 |
 | R_AddXModelSurfacesCamera | 0x00A11D40 |
 | gfxDrawMethod (data) | 0x084F6F08 |
 | s_drawSurfListInfoSetup (data) | 0x00D06298 |

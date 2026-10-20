@@ -53,9 +53,14 @@ def main():
             shutil.rmtree(out)
         out.mkdir(parents=True)
         base = git(tree, 'rev-parse', 'HEAD').strip()
+        if 'upstream' in git(tree, 'remote').split():
+            # our work is committed on a branch: diff against where it left upstream
+            base = git(tree, 'merge-base', 'HEAD', 'upstream/main').strip()
+        added = git(tree, 'diff', '--name-only', '--diff-filter=A', base).splitlines()
         (out / 'BASE_COMMIT').write_text(base + '\n')
-        (out / 'changes.patch').write_text(git(tree, 'diff', '--binary'), encoding='utf-8')
-        for rel in git(tree, 'ls-files', '--others', '--exclude-standard').splitlines():
+        (out / 'changes.patch').write_text(
+            git(tree, 'diff', '--binary', base, '--', '.', *[f':(exclude){rel}' for rel in added]), encoding='utf-8')
+        for rel in added + git(tree, 'ls-files', '--others', '--exclude-standard').splitlines():
             if not rel.startswith('src/') or rel.lower().endswith(SKIP_NEW):
                 continue  # build output and art stay out
             if name != CONVERTER_TREE and rel.startswith('src/waw2bo2/'):

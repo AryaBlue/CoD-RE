@@ -4,7 +4,7 @@ Time-boxed pass on 2026-10-20 (25 minutes). Sources:
 
 - **Server build:** the dedicated server `CoDMPServer_PC.exe` (2013-03-11) in the game's `pc pdb` folder ships the whole
   D3D11 renderer (`gfx_d3d:*` objects, 1,581 functions), with its `.map` (names, addresses) and `.pdb` (types).
-- **Matcher:** we matched those functions to Plutonium's client `t6zm.exe` with `tools/t6match`.
+- **Matcher:** we matched those functions to Plutonium's client `t6zm.exe` with `../t6match`.
 
 Files next to this note:
 

@@ -9,24 +9,34 @@ from pathlib import Path
 HERE = Path(__file__).parent
 CONV = Path(r'E:\Documents\BO1MapConverter')
 
+# Repo is organised by game: games/<game>/ holds game-specific RE; shared/ and the
+# top-level converter/ hold the cross-game pieces that can't live under one game.
 COPIES = {
-    'headers': [CONV / 'research' / n for n in ('T5.h', 'T5_Assets.h')]
-               + [CONV / 'research' / 'probe' / n for n in ('T6_Assets.h', 'sizes.cpp', 'sizes.txt', 'b.bat')],
-    'tools': [CONV / 'research' / n for n in ('structdiff.py', 'structdiff.txt')],
+    'games/t5-bo1/headers': [CONV / 'research' / n for n in ('T5.h', 'T5_Assets.h')],
+    'games/t6-bo2/headers': [CONV / 'research' / 'probe' / 'T6_Assets.h'],
+    'shared/probe': [CONV / 'research' / 'probe' / n for n in ('sizes.cpp', 'sizes.txt', 'b.bat')],
+    'shared/tools': [CONV / 'research' / n for n in ('structdiff.py', 'structdiff.txt')],
     # B2W's handoff log stays out (other people's paths); its code goes in as our patch below
-    'notes': [CONV / 'research' / 'bo1_to_bo2_porting.md', CONV / 'research' / 't6_cbuf.md', CONV / 'research' / 't6_sv_sendservercommand.md',
+    'shared/notes': [CONV / 'research' / 'bo1_to_bo2_porting.md'],
+    'games/t6-bo2/notes': [CONV / 'research' / 't6_cbuf.md', CONV / 'research' / 't6_sv_sendservercommand.md',
               CONV / 'research' / 't6_sound_playsound.md',
               CONV / 'research' / 't6_materials_runtime.md']
              + sorted(f for f in (CONV / 'research' / 't6_renderer').glob('t6*') if f.is_file()),
-    'tools/t6match': sorted(f for f in (CONV / 'research' / 't6_renderer' / 't6match').iterdir() if f.suffix in ('.py', '.java')),
+    'games/t6-bo2/t6match': sorted(f for f in (CONV / 'research' / 't6_renderer' / 't6match').iterdir() if f.suffix in ('.py', '.java')),
     'converter': [CONV / 'run_bo1.py', CONV / 'README.md'],
     'converter/tools': sorted((CONV / 'tools').glob('*.py')),
     # ZM Workshop's code stays private: the user doesn't want the tool uploaded
 }
 
-# local OAT trees: our uncommitted changes as a patch plus our new untracked files
-OAT_TREES = ('oat', 'oat-bsp', 'oat_ext')
-# NB: oat-patches/oatfork/ is a MANUAL snapshot (the optimized Linker/Unlinker fork
+# local OAT checkouts -> their by-game home here (key = source tree under CONV, value =
+# dest). Each checkout's changes.patch is one multi-game unit, so it lives under the game
+# it serves; cross-game checkouts go to shared/.
+OAT_TREES = {
+    'oat': HERE / 'shared' / 'oat-patches' / 'oat',          # base, multi-game
+    'oat-bsp': HERE / 'games' / 't5-bo1' / 'oat-bsp',        # T5 BSP dumpers
+    'oat_ext': HERE / 'shared' / 'oat-patches' / 'oat_ext',  # T4 + T5 extraction dumpers
+}
+# NB: games/t6-bo2/oatfork/ is a MANUAL snapshot (the optimized Linker/Unlinker fork
 # lives in F:\ClaudeBench\oatfork, outside CONV), so collect.py does not regenerate
 # it. Refresh it by hand when that fork's speed/dumper work changes.
 # our BO1 converter: changes against upstream B2W (github.com/Ticass/B2W), same layout
@@ -48,7 +58,7 @@ def main():
                 shutil.copy2(src, out / src.name)
             else:
                 print('missing', src)
-    trees = [(name, HERE / 'oat-patches' / name) for name in OAT_TREES]
+    trees = list(OAT_TREES.items())
     trees.append((CONVERTER_TREE, HERE / 'converter' / 'b2w-patch'))
     for name, out in trees:
         tree = CONV / name

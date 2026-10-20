@@ -1,4 +1,4 @@
-"""Print the T6 technique, draw-list and vertex-format tables from the server exe (see notes/t6_techniques.md).
+"""Print the T6 technique, draw-list and vertex-format tables from the server exe (see ../notes/t6_techniques.md).
 usage: t6tables.py CoDMPServer_PC.exe"""
 import os, re, struct, sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

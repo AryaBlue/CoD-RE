@@ -393,8 +393,8 @@ Still open: **in-game check.** Everything above is measured offline only, by uni
 
 ## Reproducing the tables
 
-`tools/t6match/t6tables.py CoDMPServer_PC.exe` prints sections 1, 2 and 4 straight from the server exe. It reads the
-name, list-setup and stream tables and emulates `R_SetDefaultLitTechTypes` with capstone. `tools/t6match/Decomp.java`
+`../t6match/t6tables.py CoDMPServer_PC.exe` prints sections 1, 2 and 4 straight from the server exe. It reads the
+name, list-setup and stream tables and emulates `R_SetDefaultLitTechTypes` with capstone. `../t6match/Decomp.java`
 is the Ghidra headless script used for the decompiles:
 `analyzeHeadless <proj> <name> -process -noanalysis -postScript Decomp.java out.c R_GetTechType 0x00AA5AC0 ...`.
 

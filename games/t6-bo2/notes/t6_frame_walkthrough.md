@@ -6,7 +6,7 @@ This walks one client frame of Black Ops II (Plutonium `t6zm.exe`) through every
 - **Names and call order** come from the server build `CoDMPServer_PC.exe` in the game's `pc pdb` folder. It ships the
   full client renderer with a `.map` and `.pdb`. The call graph was read straight from its code, including tail jumps
   and the dispatch tables.
-- **t6zm addresses** come from `tools/t6match`.
+- **t6zm addresses** come from `../t6match`.
 - **The steps of this walk** were confirmed by hand: each function's call order was lined up against its t6zm twin,
   and the two render-command tables were compared.
 

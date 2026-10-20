@@ -2,7 +2,7 @@
 
 Reversed in 2026-10 while building live texture, camo and model replacement for BO2 Zombies, and used in game on
 Plutonium t6zm (x86, image base 0x400000). Struct layouts come from the dedicated server's `CoDMPServer_PC.pdb`
-and match t6zm's disassembly. Offsets are hex. The full asset structs are in `headers/T6_Assets.h`; this file covers
+and match t6zm's disassembly. Offsets are hex. The full asset structs are in `../headers/T6_Assets.h`; this file covers
 what the running game does with them.
 
 ## Layouts used live

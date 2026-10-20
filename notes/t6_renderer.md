@@ -89,6 +89,9 @@ Globals (t6zm):
 
 ## How a frame flows (from the names, call graph and structs)
 
+The full step-by-step path, main loop to `Present`, with t6zm addresses for each step: [`t6_frame_walkthrough.md`](t6_frame_walkthrough.md).
+Every t6zm function match (9,800+ rows) is in `t6zm_all_functions.tsv`, globals in `t6zm_all_globals.tsv`.
+
 1. **Front end (main thread).** cgame builds the scene:
    - `R_ClearScene`, then `R_AddDObjToScene`, `R_AddBrushModelToSceneFromAngles` and the light adders fill `GfxScene`
      (one `GfxDrawSurf` array per pass and surface type: bsp, static model, entity, fx, times lit, emissive, shadow).

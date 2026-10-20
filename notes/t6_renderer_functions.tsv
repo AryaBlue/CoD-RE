@@ -1,5 +1,5 @@
 # T6 renderer functions: source object, server CoDMPServer_PC.exe address (from its .map), t6zm.exe address, match pass, name
-# pass A = strings + call-sequence alignment (~92% right on 24 runtime-verified addresses); B = callers-of-matched-callees pass (not independently checked); - = not matched
+# pass A = strings + call-sequence alignment (~92% right on 24 runtime-verified addresses); B = callers-of-matched-callees pass (not independently checked); M = confirmed by hand in the frame walk-through (call order / dispatch table, see t6_frame_walkthrough.md); - = not matched
 object	server	t6zm	pass	name
 DynEntity_client.obj	0056D140	00605A90	B	SCR_DynEnt_GetDynEntityArray
 aim_target.obj	00409B60	-	-	R_SortStaticModelsOnAxis_PosX
@@ -60,7 +60,7 @@ cg_draw_mp.obj	00437980	00799C30	B	CG_DrawGenericOverlay
 cg_draw_mp.obj	00438300	0079A510	B	CG_DrawFollow
 cg_draw_mp.obj	00438530	0079A5E0	B	CG_DrawHideGumpTransition
 cg_draw_mp.obj	00438C10	004A5930	B	CG_DrawExtraCam
-cg_draw_mp.obj	004398B0	00640EB0	B	CG_DrawActive
+cg_draw_mp.obj	004398B0	00640EB0	M	CG_DrawActive
 cg_draw_mp.obj	00439ED0	0079AF70	B	CG_Draw2DInternal
 cg_draw_mp.obj	0043A1F0	-	-	CG_Draw2D
 cg_draw_mp.obj	008B3F40	-	-	CG_DrawFPS_PC
@@ -97,12 +97,12 @@ cg_drawtools.obj	00441280	-	-	CG_DrawDevString
 cg_drawtools.obj	00441400	-	-	CG_DrawSmallDevStringColor
 cg_drawtools.obj	004418C0	-	-	CG_DrawBigDevString
 cg_hudelem.obj	00459A30	-	-	CG_Draw2dHudElemList
-cg_hudelem.obj	00459B50	00639AA0	B	CG_Draw2dHudElems
+cg_hudelem.obj	00459B50	00639AA0	M	CG_Draw2dHudElems
 cg_hudelem.obj	00459DC0	-	-	RB_AddWaypoint
 cg_hudelem.obj	00459FD0	-	-	RB_AddWaypoints
 cg_hudelem.obj	0045A090	00692AD0	B	RB_ClearWaypoints
 cg_hudelem.obj	0045A220	006D6D60	A	RB_NumDrawWaypoints
-cg_hudelem.obj	0045A230	004AC5A0	A	RB_DrawWaypoints
+cg_hudelem.obj	0045A230	00731790	M	RB_DrawWaypoints
 cg_info.obj	0045A350	006F5660	A	CG_DrawInformation
 cg_newDraw_mp.obj	0046D100	007AA580	B	CG_DrawPlayerAmmoBackdrop
 cg_newDraw_mp.obj	0046D280	007AA6B0	B	CG_DrawPlayerAmmoValue
@@ -168,8 +168,8 @@ cg_view_mp.obj	004C0E90	-	-	CG_DrawWaterTrail
 cg_view_mp.obj	004C10C0	-	-	CG_DrawWaterTrail
 cg_view_mp.obj	004C12D0	-	-	CG_DrawWaterTrail
 cg_view_mp.obj	004C62F0	-	-	CG_DrawBeamEffect
-cg_view_mp.obj	004C69A0	-	-	CG_DrawExtraCamFrame
-cg_view_mp.obj	004C7550	0059BAA0	A	CG_DrawActiveFrame
+cg_view_mp.obj	004C69A0	005B2B60	M	CG_DrawExtraCamFrame
+cg_view_mp.obj	004C7550	0059BAA0	M	CG_DrawActiveFrame
 cg_weapon_attachments.obj	004CB7C0	007D9E90	A	CG_DrawFhj18HUD
 cg_weapon_attachments.obj	004CC480	-	-	CG_DrawRangefinderHUD
 cg_weapon_attachments.obj	004CD340	007DBFF0	A	CG_DrawBallisticCpuHUD
@@ -177,14 +177,14 @@ cg_weapon_attachments.obj	004CD830	007DC450	A	CG_DrawTacticalInsertionHUD
 cg_weapon_attachments.obj	004CDD70	007DC920	A	CG_DrawBriefcaseBombHUD
 cg_weapon_attachments.obj	004CE200	007DCD80	A	CG_DrawPDAHackerHUD
 cg_weapon_attachments.obj	004CE5D0	-	-	CG_DrawWeaponDynamicTextures
-cl_cgame_mp.obj	004F09C0	-	-	CL_RenderScene
+cl_cgame_mp.obj	004F09C0	00639E20	M	CL_RenderScene
 cl_scrn_mp.obj	0050FD50	-	-	SCR_DrawSmallStringExt
 cl_scrn_mp.obj	0050FDD0	-	-	SCR_Init
 cl_scrn_mp.obj	00510150	-	-	SCR_ClearScreen
 cl_scrn_mp.obj	00510170	007EE840	B	SCR_DrawLoadingAndLogo
 cl_scrn_mp.obj	00510400	-	-	SCR_DrawScreenField
-cl_scrn_mp.obj	00510E70	00418D20	A	SCR_UpdateFrame
-cl_scrn_mp.obj	00511320	00569940	A	SCR_UpdateScreen
+cl_scrn_mp.obj	00510E70	007EEDE0	M	SCR_UpdateFrame
+cl_scrn_mp.obj	00511320	00569940	M	SCR_UpdateScreen
 cl_scrn_mp.obj	00511450	-	-	SCR_UpdateLoadScreen
 com_workercmds.obj	0076FBA0	-	-	R_FinishedFrontendWorkerCmds
 com_workercmds.obj	0076FD30	-	-	R_WaitFrontendWorkerCmds
@@ -603,7 +603,7 @@ r_draw_lit.obj	00A93580	-	-	R_DrawLitStaticModel
 r_draw_lit.obj	00A936C0	-	-	R_DrawViewModelTransCallback
 r_draw_lit.obj	00A93770	-	-	R_DrawViewModelTrans
 r_draw_lit.obj	00A93820	-	-	R_PostBlurCallback
-r_draw_lit.obj	00A938C0	-	-	R_DrawPostBlur
+r_draw_lit.obj	00A938C0	00731090	M	R_DrawPostBlur
 r_draw_lit.obj	00A93940	-	-	R_DrawLitCmd
 r_draw_lit.obj	00A93C20	-	-	R_DrawLitBspCmd
 r_draw_lit.obj	00A93E60	-	-	R_DrawLitStaticModelCmd
@@ -1094,7 +1094,7 @@ r_rendercmds.obj	00A2B370	-	-	R_InitGlassRenderBuffers
 r_rendercmds.obj	00A2B400	-	-	R_InitTempSkinBuf
 r_rendercmds.obj	00A2B490	-	-	R_ShutdownTempSkinBuf
 r_rendercmds.obj	00A2B4D0	-	-	R_UpdateSkinCacheUsage
-r_rendercmds.obj	00A2B5C0	0070EA40	A	R_GetCommandBuffer
+r_rendercmds.obj	00A2B5C0	0070EA40	M	R_GetCommandBuffer
 r_rendercmds.obj	00A2B870	-	-	R_BeginClientCmdList2D
 r_rendercmds.obj	00A2B8A0	-	-	R_ClearClientCmdList2D
 r_rendercmds.obj	00A2B8D0	-	-	R_BeginSharedCmdList
@@ -1130,7 +1130,7 @@ r_rendercmds.obj	00A2E1A0	-	-	R_AddCmdPCCopyImageGenMIPInternal
 r_rendercmds.obj	00A2E1F0	-	-	R_LightTweaksModified
 r_rendercmds.obj	00A2E360	-	-	R_SetTestLods
 r_rendercmds.obj	00A2E420	-	-	R_SetOutdoorFeatherConst
-r_rendercmds.obj	00A2E4A0	00710BB0	A	R_EndFrame
+r_rendercmds.obj	00A2E4A0	00710BB0	M	R_EndFrame
 r_rendercmds.obj	00A2E560	00710C30	B	R_AddCmdClearScreenInternal
 r_rendercmds.obj	00A2E6A0	-	-	R_AddCmdDrawQuadList2DInternal
 r_rendercmds.obj	00A2E720	00710F50	B	R_AddCmdProjectionSet2DInternal
@@ -1144,11 +1144,11 @@ r_rendercmds.obj	00A2EC40	007111C0	A	R_PopRemoteScreenUpdate
 r_rendercmds.obj	00A2EEB0	-	-	R_IsInRemoteScreenUpdate
 r_rendercmds.obj	00A2EEF0	-	-	R_InitRenderCommands
 r_rendercmds.obj	00A2EF60	-	-	R_FreeGlassRenderBuffers
-r_rendercmds.obj	00A2F050	0070E780	A	R_SyncRenderThread
+r_rendercmds.obj	00A2F050	0070E780	M	R_SyncRenderThread
 r_rendercmds.obj	00A2F110	-	-	R_ToggleSmpFrameCmd
-r_rendercmds.obj	00A2F1E0	0070E850	A	R_IssueRenderCommands
+r_rendercmds.obj	00A2F1E0	0070E850	M	R_IssueRenderCommands
 r_rendercmds.obj	00A2F330	-	-	R_UpdateFrontEndDvarOptions
-r_rendercmds.obj	00A2F4C0	-	-	R_BeginFrame
+r_rendercmds.obj	00A2F4C0	00710B10	M	R_BeginFrame
 r_rendertarget.obj	00A874D0	00759F30	A	R_AssignImageToRenderTargetDepthStencil
 r_rendertarget.obj	00A87540	0075A0C0	A	R_AssignImageToRenderTargetColor
 r_rendertarget.obj	00A87630	0075A170	A	R_InitRenderTargetImage
@@ -1261,7 +1261,7 @@ r_scene.obj	00A1AA40	-	-	R_SetupVisibility
 r_scene.obj	00A1AAF0	-	-	R_SetupNeedResolve
 r_scene.obj	00A1AC60	-	-	R_AllocViewInfo
 r_scene.obj	00A1AD10	-	-	R_SetupSunShadowGlobals
-r_scene.obj	00A1AE70	0072CF60	A	R_GenerateSortedDrawSurfs
+r_scene.obj	00A1AE70	0072CF60	M	R_GenerateSortedDrawSurfs
 r_scene.obj	00A1CC70	0072EB60	A	R_AddDrawCalls
 r_scene.obj	00A1D030	0072F180	A	R_ClearScene
 r_scene.obj	00A1D1E0	0072F300	A	R_GetLocalClientNum
@@ -1274,7 +1274,7 @@ r_scene.obj	00A1DDD0	-	-	R_LodScaleForSkinCacheOverflow
 r_scene.obj	00A1DE30	0072FDE0	A	R_UpdateLodParms
 r_scene.obj	00A1E090	00730020	A	R_SetLodOrigin
 r_scene.obj	00A1E140	-	-	R_SetupRenderSceneViewParms
-r_scene.obj	00A1E280	-	-	R_RenderScene
+r_scene.obj	00A1E280	00730140	M	R_RenderScene
 r_scene.obj	00A1E550	-	-	R_LinkDObjEntity
 r_scene.obj	00A1E5B0	-	-	R_LinkBModelEntity
 r_scene.obj	00A1E600	-	-	R_UnlinkEntity
@@ -1286,7 +1286,7 @@ r_scene.obj	00A1E6C0	00730590	A	R_PvsLock_GetViewParms
 r_scene.obj	00A1E7E0	-	-	R_PerMap_Init
 r_scene.obj	00A1E7F0	00726DA0	A	R_AddDObjSurfacesCamera
 r_scene.obj	00A1F1C0	-	-	R_SetupVisibilityEarly
-r_scene.obj	00A1F2F0	-	-	R_RenderExtraCam
+r_scene.obj	00A1F2F0	00730250	M	R_RenderExtraCam
 r_screenshot.obj	00A631B0	-	-	R_CubemapShotFlipVerticalBuffer
 r_screenshot.obj	00A63240	-	-	R_CubemapShotWriteTargaHeader
 r_screenshot.obj	00A632D0	-	-	R_CubemapShotCopyBufferToTarga
@@ -1409,7 +1409,7 @@ r_state.obj	00A8EC20	-	-	R_UpdateViewport
 r_state.obj	00A8EE10	-	-	R_DisableSampler
 r_state.obj	00A8EE40	00772320	A	R_UnbindImage
 r_state.obj	00A8EEA0	00772380	A	R_SetRenderTargetSize
-r_state.obj	00A8EFF0	007723B0	A	R_SetRenderTarget
+r_state.obj	00A8EFF0	007723B0	M	R_SetRenderTarget
 r_state.obj	00A8F120	00772420	A	R_ClearRenderTargetForMultiGpu
 r_state.obj	00A8F1B0	-	-	R_ClearScreenInternal
 r_state.obj	00A8F2B0	-	-	R_ClearScreen
@@ -1421,11 +1421,11 @@ r_state.obj	00A8F8F0	-	-	R_SetMeshStream
 r_state.obj	00A90F40	-	-	R_HW_SetBlendState
 r_state.obj	00A90FE0	-	-	R_HW_FindDepthStencilState
 r_state.obj	00A91090	-	-	R_HW_SetDepthStencilState
-r_state_utils.obj	00A8B950	0076D490	A	R_InitCmdBufSourceState
+r_state_utils.obj	00A8B950	0076D490	M	R_InitCmdBufSourceState
 r_state_utils.obj	00A8BBE0	-	-	R_SetDebugShaderFeatures
 r_state_utils.obj	00A8BD60	-	-	R_PixStartNamedRenderTarget
 r_state_utils.obj	00A8BDF0	-	-	R_InitCmdBufState
-r_state_utils.obj	00A8BFD0	0076D9B0	A	R_ShutdownCmdBufState
+r_state_utils.obj	00A8BFD0	0076D9B0	M	R_ShutdownCmdBufState
 r_state_utils.obj	00A8C0C0	-	-	R_GetActiveWorldMatrix
 r_state_utils.obj	00A8C100	-	-	R_CmdBufSet2D
 r_state_utils.obj	00A8C2E0	0076DB80	A	R_Set2D
@@ -1433,7 +1433,7 @@ r_state_utils.obj	00A8C380	-	-	R_CmdBufSet3D
 r_state_utils.obj	00A8C420	-	-	R_Set3D
 r_state_utils.obj	00A8C590	-	-	R_BeginView
 r_state_utils.obj	00A8C620	-	-	R_SetShadowLookupMatrix
-r_state_utils.obj	00A8C650	0076D820	A	R_InitGlobalCmdBufState
+r_state_utils.obj	00A8C650	0076D820	M	R_InitGlobalCmdBufState
 r_staticmodel_load_obj.obj	00A9CE40	-	-	R_AllocStaticModels
 r_staticmodel_load_obj.obj	00A9CEB0	-	-	R_SortGfxAabbTreeChildren
 r_staticmodel_load_obj.obj	00A9CFD0	-	-	R_SortGfxAabbTree
@@ -1477,7 +1477,7 @@ r_ui3d.obj	00A40B50	00737F60	A	R_UI3D_SetupTextureWindow
 r_ui3d.obj	00A40D30	-	-	RB_UI3D_SetShaderConstants
 r_ui3d.obj	00A40E70	-	-	RB_SetUI3DSamplerAndConstants
 r_ui3d.obj	00A40ED0	-	-	RB_UI3D_GetValidWindows
-r_ui3d.obj	00A40FB0	00738500	A	RB_UI3D_RenderToTexture
+r_ui3d.obj	00A40FB0	00738500	M	RB_UI3D_RenderToTexture
 r_ui3d.obj	00A413C0	007379F0	A	R_UI3D_OnetimeInit
 r_ui3d.obj	00A415E0	-	-	R_UI3D_PerframeInit
 r_utils.obj	00A2A680	00732C10	A	R_HashAssetName
@@ -1534,7 +1534,7 @@ rb_backend.obj	00A51100	-	-	RB_FullScreenFilterWithFlag
 rb_backend.obj	00A511E0	0073FCC0	A	RB_FullScreenFilter
 rb_backend.obj	00A51230	-	-	RB_SplitScreenTexCoords
 rb_backend.obj	00A51340	-	-	RB_SplitScreenFilter
-rb_backend.obj	00A514A0	0073FF40	A	R_Resolve
+rb_backend.obj	00A514A0	0073FF40	M	R_Resolve
 rb_backend.obj	00A516D0	-	-	R_ResolveFloatZ
 rb_backend.obj	00A51880	-	-	RB_StretchPicCmd
 rb_backend.obj	00A51940	-	-	RB_StretchPicCmdFlipST
@@ -1591,18 +1591,18 @@ rb_backend.obj	00A59F80	-	-	RB_DrawTextInSpace
 rb_backend.obj	00A5A260	-	-	RB_DrawText2DCmd
 rb_backend.obj	00A5A430	-	-	RB_DrawText3DCmd
 rb_backend.obj	00A5A470	-	-	RB_ProjectionSetCmd
-rb_backend.obj	00A5A510	-	-	RB_SwapBuffers
-rb_backend.obj	00A5A750	00748580	A	RB_EndFrame
-rb_backend.obj	00A5A7E0	-	-	RB_ExecuteRenderCommandsLoop
-rb_backend.obj	00A5A9D0	00748680	A	RB_Draw3D
-rb_backend.obj	00A5AB50	00748BD0	A	RB_CallExecuteRenderCommands
+rb_backend.obj	00A5A510	00748350	M	RB_SwapBuffers
+rb_backend.obj	00A5A750	00748580	M	RB_EndFrame
+rb_backend.obj	00A5A7E0	007485D0	M	RB_ExecuteRenderCommandsLoop
+rb_backend.obj	00A5A9D0	00748680	M	RB_Draw3D
+rb_backend.obj	00A5AB50	00748BD0	M	RB_CallExecuteRenderCommands
 rb_backend.obj	00A5AE70	-	-	RB_SetBspImages
 rb_backend.obj	00A5AE90	-	-	RB_SaveScreen_BlendBlurred
 rb_backend.obj	00A5B080	-	-	RB_SaveScreen_BlendFlashed
 rb_backend.obj	00A5B200	-	-	RB_SaveScreen
 rb_backend.obj	00A5B340	007499E0	A	R_DrawSurfsDepthOnly
 rb_backend.obj	00A5BF80	-	-	RB_Filter
-rb_backend.obj	00A5C030	-	-	RB_BeginFrame
+rb_backend.obj	00A5C030	00747BC0	M	RB_BeginFrame
 rb_corona.obj	00A41920	-	-	RB_HW_BeginOcclusionQuery
 rb_corona.obj	00A41970	-	-	RB_HW_ReadOcclusionQuery
 rb_corona.obj	00A41A00	-	-	RB_SetTessQuad
@@ -1635,14 +1635,14 @@ rb_debug.obj	00A79DB0	-	-	RB_GetCmd
 rb_debug.obj	00A79DC0	-	-	RB_EndCollisionPolygons
 rb_depthprepass.obj	00A96810	00774000	B	R_DepthPrepassCallback
 rb_depthprepass.obj	00A96920	-	-	R_DepthPrepass
-rb_depthprepass.obj	00A969C0	007741B0	A	RB_DrawDepthPrepassCommandBuffer
+rb_depthprepass.obj	00A969C0	007741B0	M	RB_DrawDepthPrepassCommandBuffer
 rb_depthprepass.obj	00A96AD0	-	-	R_DrawDepthCmd
 rb_draw3d.obj	00A24EC0	-	-	R_SetCodeConstant
 rb_draw3d.obj	00A24F70	-	-	R_UpdateCodeConstant
 rb_draw3d.obj	00A25050	007307D0	A	R_CalcGameTimeVec
 rb_draw3d.obj	00A25110	-	-	R_ShowTris
 rb_draw3d.obj	00A25200	-	-	RB_CompositeSceneGroup
-rb_draw3d.obj	00A25380	00730AB0	A	RB_EndSceneRendering
+rb_draw3d.obj	00A25380	00730AB0	M	RB_EndSceneRendering
 rb_draw3d.obj	00A254E0	-	-	R_RunCommandBuffer
 rb_draw3d.obj	00A25550	-	-	R_SetAndClearSceneTarget
 rb_draw3d.obj	00A25650	-	-	R_DrawFullbrightLitCallback
@@ -1664,14 +1664,14 @@ rb_draw3d.obj	00A26520	-	-	R_DrawEmissiveFXCallback
 rb_draw3d.obj	00A26690	00730F80	A	R_DrawEmissiveFX
 rb_draw3d.obj	00A26770	-	-	R_DrawEmissiveFX
 rb_draw3d.obj	00A267A0	-	-	R_DrawViewmodelFX
-rb_draw3d.obj	00A267D0	00731090	A	R_DrawPostBlur
-rb_draw3d.obj	00A26840	00731110	A	R_DrawSuperflare
+rb_draw3d.obj	00A267D0	00731090	M	R_DrawPostBlur
+rb_draw3d.obj	00A26840	00731110	M	R_DrawSuperflare
 rb_draw3d.obj	00A26910	-	-	R_ResolveDistortion
 rb_draw3d.obj	00A269B0	-	-	RB_StandardRenderCommands
 rb_draw3d.obj	00A26B10	-	-	RB_SonarRenderToTexture
-rb_draw3d.obj	00A26CB0	007315B0	A	RB_DrawLitCommandBuffer
-rb_draw3d.obj	00A26E00	007316D0	A	RB_DrawMiscCommandBuffer
-rb_draw3d.obj	00A26F00	00731790	A	RB_DrawWaypoints
+rb_draw3d.obj	00A26CB0	007315B0	M	RB_DrawLitCommandBuffer
+rb_draw3d.obj	00A26E00	007316D0	M	RB_DrawMiscCommandBuffer
+rb_draw3d.obj	00A26F00	00731790	M	RB_DrawWaypoints
 rb_draw3d.obj	00A27000	-	-	RB_StandardDrawCommands_ClearScreen
 rb_draw3d.obj	00A27160	-	-	RB_UI3D_DebugDisplay
 rb_draw3d.obj	00A27220	-	-	RB_ExtraCam_DebugDisplay
@@ -1680,7 +1680,7 @@ rb_draw3d.obj	00A275A0	-	-	RB_DrawSonarDebugText
 rb_draw3d.obj	00A276A0	-	-	RB_DrawLODScaleDebugText
 rb_draw3d.obj	00A27750	-	-	RB_StandardDrawCommandsCommon
 rb_draw3d.obj	00A27A60	-	-	RB_Draw3DCommon
-rb_draw3d.obj	00A27AE0	007318C0	A	RB_StandardDrawCommands
+rb_draw3d.obj	00A27AE0	007318C0	M	RB_StandardDrawCommands
 rb_draw3d.obj	00A28130	-	-	RB_Draw3DInternal
 rb_fog.obj	00A8A9A0	-	-	R_SetFrameFog
 rb_imagefilter.obj	00A94AD0	-	-	RB_VirtualToSceneRadius
@@ -1723,7 +1723,7 @@ rb_postfx.obj	00A7F7D0	-	-	RB_FindActivePostFX
 rb_postfx.obj	00A7F960	-	-	RB_SetVisionSetColorCorrection
 rb_postfx.obj	00A804B0	-	-	RB_CreateVisionLut
 rb_postfx.obj	00A80730	00766AE0	A	RB_SetBloomRemapConstants
-rb_postfx.obj	00A80BF0	00766EB0	A	RB_SSAO
+rb_postfx.obj	00A80BF0	00766EB0	M	RB_SSAO
 rb_postfx.obj	00A810F0	00767840	A	RB_TXAA
 rb_postfx.obj	00A81760	-	-	R_UsingDoubleVision
 rb_postfx.obj	00A81790	-	-	RB_PoisonFX
@@ -1739,7 +1739,7 @@ rb_postfx.obj	00A82E10	-	-	RB_DepthOfFieldHDR
 rb_postfx.obj	00A83240	-	-	RB_ReviveFX
 rb_postfx.obj	00A83550	-	-	RB_BlurSceneFX
 rb_postfx.obj	00A83700	-	-	RB_AdditionalPostFX
-rb_postfx.obj	00A838E0	00767DE0	A	RB_BloomLDR
+rb_postfx.obj	00A838E0	00767DE0	M	RB_BloomLDR
 rb_query.obj	00A66CB0	-	-	RB_CalcOcclusionQuerySamples
 rb_query.obj	00A66CF0	-	-	RB_SetTessQuad
 rb_query.obj	00A66DD0	-	-	RB_TessRectBillboard

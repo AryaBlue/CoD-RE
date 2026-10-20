@@ -17,7 +17,7 @@ COPIES = {
     'notes': [CONV / 'research' / 'bo1_to_bo2_porting.md', CONV / 'research' / 't6_cbuf.md', CONV / 'research' / 't6_sv_sendservercommand.md',
               CONV / 'research' / 't6_sound_playsound.md',
               CONV / 'research' / 't6_materials_runtime.md']
-             + sorted(f for f in (CONV / 'research' / 't6_renderer').glob('t6_renderer*') if f.is_file()),
+             + sorted(f for f in (CONV / 'research' / 't6_renderer').glob('t6*') if f.is_file()),
     'tools/t6match': sorted((CONV / 'research' / 't6_renderer' / 't6match').glob('*.py')),
     'converter': [CONV / 'run_bo1.py', CONV / 'README.md'],
     'converter/tools': sorted((CONV / 'tools').glob('*.py')),

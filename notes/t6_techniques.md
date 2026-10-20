@@ -302,6 +302,36 @@ Other ids seen: 0x11 renderTargetSize, 0x25 shadowmapSwitchPartition, 0x26 sunSh
 0xCA skyColorMultiplier. The vertex matrices (type 3, `0x04000000 + id`): 0xD5 worldMatrix, 0xE5 viewProjectionMatrix,
 0xED shadowLookupMatrix, 0xE9 worldViewProjectionMatrix, 0xDA inverseViewMatrix.
 
+### Other BO1 program facts found on the way
+
+- **Material constant and texture names use T6's hash.** In BO1 material assets, a pass argument's value is
+  `(h * 33) ^ (byte | 0x20)` over the name (T6's hash), not WaW's lower-case djb2. Checked: `Reflection_Amount` =
+  211931156, `Scatter_Intensity` = 4240161686, `Rim_Specular` = 1536689958. BO1 source materials dumped by OAT carry
+  `"_game": "t5"`.
+- **Technique-set names.** BO1 calls the opaque unlit set `*_unlit_replace`, as T6 does; WaW calls it `*_unlit`. BO1
+  also has `*_unlitdecalblend_add` / `_multiply`, which keep their blend in the material state bits (multiply:
+  `zero, srccolor`).
+- **Cloak models** (`mc_cod7modelcloak_*`) read the tangent as `TEXCOORD1`, with the same UBYTE4 decode as the normal
+  (`mad r, v, c.xxxy, c.zzzw` with 0.00787401572 / 0.752941191). T6 model passes stream the tangent as `TEXCOORD2`.
+- **`__characterDissolveColor`** (cloak vertex programs, c23) only feeds `TEXCOORD7`:
+  `o.x = 31 sat(c.w) + 1`, `o.y = (2 sat(c.x) - 1) * o.x`. No lit pixel program reads `TEXCOORD7`, so the value is
+  dead there. The cloak pixel programs `texkill` on `sat(cloakMap.a * scriptVector0.x + scriptVector0.y) < 0.5`, so
+  `scriptVector0 = 0` keeps the model visible. BO1 technique 4 of the cloak sets is the "cloaked" overlay: it samples
+  the resolved frame at `vPos` (`cloakedSampler`, code texture 9).
+- **`vPos`** (SM3 pixel position) is integer pixel coordinates; D3D11 `SV_Position` is the pixel centre, so
+  `vPos = SV_Position.xy - 0.5`.
+- **Canopy sway** (`mc_sm_treecanopy*`, vertex program `treecanopy`): per vertex,
+  `i = floor(15 * color.r)` (`mova a0.w`), spring = `lerp(u_customWindSpring, variantWindSpring[i].yzw, t)` with
+  `t = sat(|world.xy - u_customWindCenter.xy| / (1e-5 + u_customWindCenter.w))`. The spring angles are scaled by
+  `treeCanopySwayParms.z` into a rotation, and the result is blended with the rest pose by a weight built from
+  `treeCanopySwayParms.x/.y`, plus a push along `windDirection`. So `u_customWindCenter.w = 0` (no script wind zone)
+  selects `variantWindSpring`, and `treeCanopySwayParms = 0` gives exactly the rest pose. BO1 canopies light from
+  the grid texture (`modelLightingSampler`).
+- **T6 keeps the wind in PerScene** (cb0): `windDirection` at offset 0, `variantWindSpring[16]` at 32 (rows 2-17).
+  T6's own `mc_treecanopy_sm` lit vertex program declares `gameTime` and `treeCanopySwayParms` but doesn't read
+  them (it is static), and it lights from the grid SH rows in cb3, not a 3D texture.
+- **`gameTime`** is T6 code constant 0x19. Stock pixel passes route it to buffer 2 row 4.
+
 ## 7. What this changed in the converter (B2W fork)
 
 Measured offline with a harness that re-runs `shaderruntime.bind_material` for every material of the staged Kino
@@ -310,7 +340,11 @@ build (1,235 materials, donor choice as in the bridge). **Not yet verified in ga
 | | materials binding translated lit passes (slots 4-8, 13-14) | depth/shadow (0/1) | unlit (2) |
 |---|---|---|---|
 | before | 0 | 1,086 / 4 | 44 |
-| after | **1,099** | 1,076 / 1,077 | 1,111 |
+| after fixes 1-5 | 1,099 | 1,076 / 1,077 | 1,111 |
+| after fixes 1-14 | **1,145** (and dlight slots 15-25 on all 1,145) | 1,101 / 1,088 | 1,189 |
+
+After fix 14 no material fails donor matching (was 54), and about 30 passes in the whole map stay on their donor
+program (mostly BO1's cloak overlay, which is better left untranslated).
 
 The fixes:
 1. **Technique numbering per source game.** The converter mapped T6 slots to *WaW* numbers for BO1 sources too, so
@@ -331,12 +365,31 @@ The fixes:
    the filtered bytes recombine to exactly the filtered 16-bit value. This one sampler had blocked 5,453 lit
    passes.
 
-Still open (Kino counts):
-- **Dynamic lights.** T6 slots 15-25 draw the plain lit pass. BO1's own `LIT_DLIGHT_GLIGHT` techniques (31-37) aren't
-  translated yet (1,099 materials).
-- **Vertex adapters** for packed/extra texcoords on some model materials (about 300 passes).
-- **Missing donor rules:** `mc_unlit_replace`, `wc_unlitdecalblend_*`, tree canopy, reflex sight (about 55 materials).
-- **`vPos` and relative addressing (`mova`):** not translated yet (a few programs).
+6. **BO1 works in linear light** (section 6). BO1 sources (`_game: t5`) skip every WaW gamma adapter. Instead: shadow
+   fetches become T6 comparison samples, model lighting is scaled by `sqrt(32 / 31.875)`, and the probe texel is
+   converted from T6's encoding to BO1's `8 * texel^2`.
+7. **Dynamic lights.** BO1's `*_DLIGHT_GLIGHT` techniques (31-37) now feed T6 slots 15-25. The spot term is gated by
+   the T6 mask `cb3[11].x` and the glights by `.y`, and `dlightAttenuation` is the constant `(1, 0, 0, 0)`, since T6
+   always writes 0 there, which would make BO1's `1/(a+bd+cd^2)` zero. Per-light rows (`lightFallOffA`, the spot
+   matrices, ...) are added to the pass as code arguments by id. `lightSpecular` / `dlightSpecular` read the
+   diffuse colour.
+8. **T6 name hash for BO1 material constants and textures** (161 passes had lost their constants).
+9. **Cloak tangent:** source `TEXCOORD1` is read from T6 `TEXCOORD2` when it has the UBYTE4 unit-vector decode.
+10. **`vPos`** = `SV_Position.xy - 0.5`.
+11. **`mova` and relative constant reads** (`c40[a0.w]`). The bound contract gives the array length (`count`), and the
+    read is clamped to it. In the unbound ABI the array is the rest of the 256-register file.
+12. **Neutral BO1-only uniforms:** `__characterDissolveColor` and `u_customWindCenter/Spring` are 0, and vertex
+    `gameTime` is routed as code constant 0x19 to a free material row for any material, not just the sky.
+    **Canopy sway is held static** (`treeCanopySwayParms = 0`): T6 draws a depth prepass and fills
+    `variantWindSpring` from its own wind, which is unmeasured, so a swaying lit pass risks depth holes.
+13. **Donor rules:** `*_unlit_replace` is treated as WaW `*_unlit` (blend detection applies). `unlitdecalblend_add` /
+    `_multiply` get the unlit pass with the source blend (model add: `mc_unlit_add`). BO1 canopies get the
+    alpha-tested lit model pass, because T6's canopy pass has no `modelLightingSampler`. `l_r0c0n0s0sc0x0` and the
+    hero eyeball get `l_sm_r0c0n0s0`.
+14. **Tangent-reading BO1 shaders** (`sw4_3d_rotate`, clan tag, player icon) get normal-mapped donors, the only ones
+    that stream `TEXCOORD2`.
+
+Still open: **in-game check.** Everything above is measured offline only, by unit tests and the bind harness.
 
 ## Reproducing the tables
 

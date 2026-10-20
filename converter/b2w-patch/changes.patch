@@ -107,7 +107,7 @@ index d0a25f8..0befc86 100644
          raise weapons.WeaponError('weapon sound notifications require a raw v17 animation')
      frames = struct.unpack_from('<H', raw, 2)[0]
 diff --git a/src/waw2bo2/builddriver.py b/src/waw2bo2/builddriver.py
-index 9f3963e..5df16c6 100644
+index 9f3963e..5d38c10 100644
 --- a/src/waw2bo2/builddriver.py
 +++ b/src/waw2bo2/builddriver.py
 @@ -8,11 +8,47 @@ import shutil
@@ -115,7 +115,7 @@ index 9f3963e..5df16c6 100644
  import subprocess
  
 -from . import all2raw, modelhitboxes, progress
-+from . import all2raw, modelhitboxes, modzone, progress, stagecache
++from . import all2raw, modelhitboxes, progress, stagecache
  from .launcher import BuildPaths, Settings, cli_command
  from .resources import resource_root
  
@@ -159,44 +159,7 @@ index 9f3963e..5df16c6 100644
  def run(command: list[str], log: Path | None = None) -> None:
      if log is None:
          result = subprocess.run(command, check=False)
-@@ -42,6 +78,36 @@ def world_name(dump: Path, stem: str) -> str:
-     return stem     # no world dumped: staging reports the missing world files
- 
- 
-+def _sha256(path: Path) -> str:
-+    import hashlib
-+    digest = hashlib.sha256()
-+    with path.open('rb') as stream:
-+        for block in iter(lambda: stream.read(1 << 20), b''):
-+            digest.update(block)
-+    return digest.hexdigest()
-+
-+
-+def shader_check_dump(mod: Path, ff: Path) -> Path | None:
-+    """build-mod's material,techniqueset dump of the final mod.ff, when it is
-+    provably a dump of ``ff`` itself: activate_mod_shaders unlinked
-+    shader_out/mod.ff and copied those bytes to ``ff``. Anything else (no shader
-+    activation, an older dump, a different file) returns None."""
-+    if ff.resolve() != (mod / 'out/mod.ff').resolve():
-+        return None
-+    check, linked = mod / 'shader_check', mod / 'shader_out/mod.ff'
-+    try:
-+        meta = json.loads((mod / 'shader_activation.json').read_text(encoding='utf-8'))
-+        if Path(meta['output']).resolve() != ff.resolve() or not (check / 'materials').is_dir():
-+            return None
-+        if linked.stat().st_size != ff.stat().st_size or _sha256(linked) != _sha256(ff):
-+            return None
-+        if (mod / 'shader_check.log').stat().st_mtime < linked.stat().st_mtime:
-+            return None
-+    except (OSError, ValueError, KeyError):
-+        return None
-+    return check
-+
-+
- def ensure_laa(linker: Path) -> None:
-     data = bytearray(linker.read_bytes())
-     if len(data) < 64 or data[:2] != b'MZ':
-@@ -61,7 +127,7 @@ def build(settings: Settings, *, redump: bool = False, root: Path | None = None,
+@@ -61,7 +97,7 @@ def build(settings: Settings, *, redump: bool = False, root: Path | None = None,
      # Prepare only missing/stale caches before acquiring the read locks.
      # prepare() owns the extraction lock itself and resumes cached zones.
      for game, tool, cache, engine in (
@@ -205,7 +168,7 @@ index 9f3963e..5df16c6 100644
              (Path(settings.bo2), Path(settings.t6) / 'Unlinker.exe', caches.bo2, 'T6')):
          try:
              all2raw.ready(game, tool, cache, engine=engine)
-@@ -91,7 +157,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+@@ -91,7 +127,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
      t6 = Path(settings.t6) / 'Unlinker.exe'
      # Builds never extract or list a stock FF. Extract All owns every static
      # asset, index, sound driver and API cache.
@@ -214,7 +177,7 @@ index 9f3963e..5df16c6 100644
      stock = all2raw.ready(bo2, t6, caches.bo2, engine='T6')
      stage, mod = paths.stage, paths.mod
      # Stage in the worker as well: standalone CLI and Wine builds do not
-@@ -102,7 +168,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+@@ -102,7 +138,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
          folder.mkdir(parents=True, exist_ok=True)
      shutil.copy2(stock / 't6api_cache.json', stage / 't6api_cache.json')
      print('== 0. reusing shared game assets and preparing cached map sources', flush=True)
@@ -223,7 +186,7 @@ index 9f3963e..5df16c6 100644
      source = Path(settings.fastfile).resolve()
      project = settings.project
      mapraw = sources['map']
-@@ -136,16 +202,50 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+@@ -136,16 +172,50 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
      if settings.source_fx:
          args += ['--waw-mod-tools', settings.waw_tools, '--waw-source-fx',
                   '--waw-source-dumps', str(caches.waw / 'source')]
@@ -280,27 +243,8 @@ index 9f3963e..5df16c6 100644
      print('== 6. auditing built material arguments', flush=True)
      for ff in (stage / 'zone_out' / project / (project + '.ff'), mod / 'out/mod.ff'):
          if not ff.is_file():
-@@ -157,9 +257,15 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
-             shutil.rmtree(audit)
-         model_source = stage / 'zone_raw' / project
-         audit_hitboxes = ff.stem == project and modelhitboxes.has_authored_hitboxes(model_source)
--        run([str(t6), '--no-color', '--search-path', str(bo2 / 'zone/all'), '--include-assets',
--             'material,techniqueset' + (',xmodel' if audit_hitboxes else ''),
--             '--output-folder', str(audit), str(ff)], stage / (audit.name + '.log'))
-+        reused = shader_check_dump(mod, ff) if modzone.fast_link_enabled() else None
-+        if reused is not None:
-+            # build-mod already dumped material,techniqueset of these exact bytes
-+            print(f'WAW2BO2_FAST_LINK: auditing {ff.name} from the build-mod shader check dump', flush=True)
-+            audit = reused
-+        else:
-+            run([str(t6), '--no-color', '--search-path', str(bo2 / 'zone/all'), '--include-assets',
-+                 'material,techniqueset' + (',xmodel' if audit_hitboxes else ''),
-+                 '--output-folder', str(audit), str(ff)], stage / (audit.name + '.log'))
-         from .launcher import python_command
-         run(python_command() + [str(resource_root() / 'tools/audit_material_args.py'), str(audit), str(stock)])
-         if audit_hitboxes:
 diff --git a/src/waw2bo2/cli.py b/src/waw2bo2/cli.py
-index c256284..23c34f0 100644
+index c256284..1c1eb34 100644
 --- a/src/waw2bo2/cli.py
 +++ b/src/waw2bo2/cli.py
 @@ -292,6 +292,10 @@ def _stage_bridge(args: argparse.Namespace) -> int:
@@ -314,7 +258,7 @@ index c256284..23c34f0 100644
      return 1 if report.errors else 0
  
  
-@@ -417,6 +421,25 @@ def parser() -> argparse.ArgumentParser:
+@@ -417,6 +421,23 @@ def parser() -> argparse.ArgumentParser:
      desktop_p.add_argument('--waw-cache-root', type=Path)
      desktop_p.add_argument('--bo2-cache-root', type=Path)
      desktop_p.set_defaults(func=_build_map)
@@ -329,8 +273,6 @@ index c256284..23c34f0 100644
 +    import_p.add_argument('--remaster', action='store_true', help='draw ported BO2 materials with their original BO2 material')
 +    import_p.add_argument('--redump', action='store_true', help='force a fresh stock re-dump')
 +    import_p.add_argument('--verbose', action='store_true', help='name each asset as it is staged')
-+    import_p.add_argument('--fast-link', action='store_true',
-+                          help='WAW2BO2_FAST_LINK: reuse cached stock ipak images and build-mod\'s shader dump')
 +    import_p.set_defaults(func=_import_map)
 +    check_p = sub.add_parser('check', help='fast pre-check: report which installs/tools a WaW import needs are missing')
 +    check_p.add_argument('--folder', help='also check that this folder holds a single resolvable map .ff')
@@ -340,7 +282,7 @@ index c256284..23c34f0 100644
      extract_p = sub.add_parser('all2raw', help='Extract All installed WaW/BO2 zones once into shared caches')
      extract_p.add_argument('--settings-json', required=True)
      extract_p.add_argument('--waw-cache-root', type=Path)
-@@ -596,6 +619,78 @@ def _translate_shader(args: argparse.Namespace) -> int:
+@@ -596,6 +617,76 @@ def _translate_shader(args: argparse.Namespace) -> int:
      return 0
  
  
@@ -356,8 +298,6 @@ index c256284..23c34f0 100644
 +    the env var propagates to the stage-bridge subprocess, which honours it."""
 +    import os
 +    os.environ.setdefault("WAW2BO2_ALLOW_STAGE_ERRORS", "1")
-+    if getattr(args, "fast_link", False):
-+        os.environ["WAW2BO2_FAST_LINK"] = "1"
 +    from .launcher import ProcessRunner, perform_import, resolve_import_settings
 +    settings = resolve_import_settings(folder=args.folder, fastfile=args.fastfile,
 +                                       project=args.project, work=args.work,
@@ -2016,10 +1956,17 @@ index 59f82ed..85f2b2c 100644
              home = ex.dump(Path(zone), "material,techniqueset,image")
              rel = techsets.oat_material_path(material)
 diff --git a/src/waw2bo2/shaderruntime.py b/src/waw2bo2/shaderruntime.py
-index 2902bc4..30e4cdf 100644
+index 2902bc4..228be47 100644
 --- a/src/waw2bo2/shaderruntime.py
 +++ b/src/waw2bo2/shaderruntime.py
-@@ -14,6 +14,7 @@ from functools import lru_cache
+@@ -8,12 +8,14 @@ from __future__ import annotations
+ import copy
+ import hashlib
+ import json
++import math
+ import os
+ import re
+ from functools import lru_cache
  from pathlib import Path
  
  from . import lightmaps, shaders, techsets
@@ -2027,7 +1974,7 @@ index 2902bc4..30e4cdf 100644
  
  
  def _find(roots, relative):
-@@ -34,6 +35,32 @@ def registers(assembly):
+@@ -34,6 +36,32 @@ def registers(assembly):
      return result
  
  
@@ -2060,7 +2007,29 @@ index 2902bc4..30e4cdf 100644
  def embed_literals(assembly, source_pass, stage):
      kind = 7 if stage == 'ps' else 1
      definitions = [f'def c{a["dest"]}, ' + ', '.join(repr(float(v)) for v in a['literal'])
-@@ -141,7 +168,7 @@ def pixel_contract(source_assembly, source_pass, native_pass, native_root, sourc
+@@ -91,12 +119,20 @@ def t6_hash(name: str) -> int:
+     return value
+ 
+ 
++def source_hash(source_material):
++    """The name hash of the source game's pass arguments: BO1 (T5) already
++    uses T6's (measured: Reflection_Amount, Scatter_Intensity, Rim_Specular
++    of mc_sw4_3d_char_skin match t6_hash, not waw_hash)."""
++    return t6_hash if (source_material or {}).get('_game') == 't5' else waw_hash
++
++
+ def material_literal(source_material, hash_value):
+     """The source material's own value for a material constant argument."""
++    hash_name = source_hash(source_material)
+     for constant in (source_material or {}).get('constants', []):
+         key = constant.get('nameHash')
+         if key is None and constant.get('name'):
+-            key = waw_hash(constant['name'])
++            key = hash_name(constant['name'])
+         if key == hash_value and len(constant.get('literal', [])) == 4:
+             return [float(v) for v in constant['literal']]
+     return None
+@@ -141,7 +177,7 @@ def pixel_contract(source_assembly, source_pass, native_pass, native_root, sourc
              slot, offset, size = native_fields[name]
              # PerScene is globally maintained by T6. Other buffers need the
              # donor pass's explicit argument routing and cannot be assumed live.
@@ -2069,19 +2038,24 @@ index 2902bc4..30e4cdf 100644
                  raise shaders.ShaderError(f'code uniform requires an adapter: {name}')
              contract['constants'][reg] = {'buffer': slot, 'index': offset//16 + row}
          elif arg['type'] == 6:
-@@ -185,7 +212,10 @@ CODE_UNIFORM_ALIASES = {'baseLightingCoords': 'gridLightingCoordsAndVis', 'sunSp
+@@ -185,7 +221,15 @@ CODE_UNIFORM_ALIASES = {'baseLightingCoords': 'gridLightingCoordsAndVis', 'sunSp
  NEUTRAL_CODE_UNIFORMS = {'destructibleParms': 'float4(0, 0, 0, 0)',
                           # per-entity burn amount of WaW "charred" programs; static
                           # models carry none (unburnt) and no T6 pass routes one
 -                         '__characterCharredAmount': 'float4(0, 0, 0, 0)'}
 +                         '__characterCharredAmount': 'float4(0, 0, 0, 0)',
++                         # BO1 character dissolve: the cloak vertex programs write it to
++                         # TEXCOORD7, which no lit pixel program reads; 0 is no dissolve
++                         '__characterDissolveColor': 'float4(0, 0, 0, 0)',
++                         # BO1 script wind zone: radius .w = 0 selects variantWindSpring
++                         'u_customWindCenter': 'float4(0, 0, 0, 0)', 'u_customWindSpring': 'float4(0, 0, 0, 0)',
 +                         # script-set vectors (setshaderconstant) default to 0 in both games;
 +                         # T6 keeps them in cb1, which a donor pass may not route
 +                         **{f'scriptVector{i}': 'float4(0, 0, 0, 0)' for i in range(8)}}
  # Vertex inputs WaW reads as biased UBYTE4 unit vectors (NORMAL, tangent in
  # TEXCOORD2); T6 feeds decoded floats. Checked against the decode literals.
  PACKED_VECTOR_INPUTS = ('NORMAL0', 'TEXCOORD2')
-@@ -250,7 +280,8 @@ WORLD_SURFACE_TEXTURE_SLOTS = {'lightmapSamplerSecondary': (13, '2d'), 'reflecti
+@@ -250,7 +294,8 @@ WORLD_SURFACE_TEXTURE_SLOTS = {'lightmapSamplerSecondary': (13, '2d'), 'reflecti
  # lightmapSamplerSecondary); without the bit the slot keeps a stale texture.
  CUSTOM_SAMPLER_BITS = {'reflectionProbeSampler': 1, 'lightmapSamplerSecondary': 2}
  # Samplers both engines bind per surface, outside the pass arguments.
@@ -2091,7 +2065,118 @@ index 2902bc4..30e4cdf 100644
  
  
  # WaW primary-light code uniforms (WaW sub_742400, sub_7425D0) rebuilt from the
-@@ -512,11 +543,26 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+@@ -277,8 +322,14 @@ LIGHT_ADAPTERS = {
+ # source + 2048 + 16 * index). A pass copies each into its constant buffer
+ # through a type-5 argument (value 0x01000000 + index, location = byte offset):
+ # they are not global, so a pass must carry every row its program reads.
++# Ids measured on stock pass arguments; 4, 10 and 13 are not routed by any stock
++# pass and follow the field order (research/t6_renderer/t6_techniques.md).
+ LIGHT_CODE_CONSTANTS = {'lightPosition': 0, 'lightDiffuse': 1, 'lightSpotDir': 2, 'lightSpotFactors': 3,
+-                        'lightFallOffA': 5, 'lightFallOffB': 6, 'spotShadowmapPixelAdjust': 60}
++                        'lightAttenuation': 4, 'lightFallOffA': 5, 'lightFallOffB': 6,
++                        'lightSpotMatrix0': 7, 'lightSpotMatrix1': 8, 'lightSpotMatrix2': 9, 'lightSpotMatrix3': 10,
++                        'lightSpotAABB': 11, 'lightConeControl1': 12, 'lightConeControl2': 13,
++                        'lightSpotCookieSlideControl': 14, 'spotShadowmapPixelAdjust': 60,
++                        'dlightSpotShadowmapPixelAdjust': 61}
+ # WaW spot shadow taps (sub_737E60, 1024 tiles): offsets (1/4096, 1/4096) and
+ # (1/2048, -1/8192) = (0.25, 0.25) and (0.5, -0.125) per 1/1024 tile unit. T6
+ # (sub_76A7A0) stores (1/S, 1/S, 0, 0) for its tile size S: the WaW pattern is
+@@ -299,6 +350,54 @@ def ensure_code_constant_arg(native_pass, field, location):
+     native_pass['stableArgCount'] += 1
+ 
+ 
++# BO1 (T5) programs light in linear space like T6 (they write
++# sqrt(sat(colour * hdrControl0.x)) and square the probe) and read T6's light
++# uniforms by name, so they take T6's values as they are; only these differ.
++# WaW's gamma adapters above must not be applied to them.
++T5_ALIASES = {'lightSpecular': 'lightDiffuse', 'dlightSpecular': 'dlightDiffuse'}
++# T6 R_GetTechType writes the dynamic-light mask to pixel cb3 row 11: .x the
++# spot dlight, .y the four glights. BO1 has a technique per case instead, so its
++# combined program would add whatever stale lights the rows hold: gate them.
++T5_DLIGHT_MASK = (3, 11)
++T5_GATED = {'dlightDiffuse': 'x', 'glightReds': 'y', 'glightGreens': 'y', 'glightBlues': 'y'}
++# T6 R_SetDLightsConstants always writes dlightAttenuation = 0, where BO1
++# divides by a + b d + c d^2 (0 = no light): 1 keeps BO1's falloff smoothsteps.
++T5_DLIGHT_ATTENUATION = 'float4(1.0, 0.0, 0.0, 0.0)'
++# BO1 spot shadow taps sit at +-xy and +-zw of the pixel adjust; T6 stores
++# (1/S, 1/S, 0, 0) for tile size S: four diagonal taps one texel out (derived).
++T5_SHADOW_TAPS = (1.0, 1.0, 1.0, -1.0)
++# T6 model lighting is 32 * texel^2 (lprobe, measured); BO1's is 31.875 * texel^2.
++T5_MODEL_LIGHTING_SCALE = math.sqrt(32.0 / 31.875)
++# BO1 reflection probe: 8 * texel^2; T6: rgb / (a + 1e-6), linear.
++T5_PROBE_SCALE = 8.0
++
++
++def t5_constant(name, native_fields, native_pass, row):
++    """(binding, note) for a BO1 code uniform that needs more than its T6 field
++    of the same name, or None for the generic by-name binding."""
++    field = T5_ALIASES.get(name, name)
++    if field == 'dlightAttenuation':
++        return {'expr': T5_DLIGHT_ATTENUATION, 'uses': []}, 'dlightAttenuation: 1 (T6 writes 0)'
++    if field not in LIGHT_CODE_CONSTANTS and field not in T5_GATED and field == name:
++        return None
++    found = native_fields.get(field)
++    if found is None or found[0] != 0 or found[1] % 16:
++        raise shaders.ShaderError(f'native light uniform absent: {field}')
++    if field in LIGHT_CODE_CONSTANTS:
++        ensure_code_constant_arg(native_pass, field, found[1])
++    index = found[1] // 16 + row
++    if field in ('spotShadowmapPixelAdjust', 'dlightSpotShadowmapPixelAdjust'):
++        taps = ', '.join(repr(t) for t in T5_SHADOW_TAPS)
++        return ({'expr': f'(t6_cb0[{index}].xyxy * float4({taps}))', 'uses': [[0, index]]},
++                f'{field}: diagonal taps one T6 texel out (derived)')
++    if field in T5_GATED:
++        buffer, mask_row = T5_DLIGHT_MASK
++        return ({'expr': f'(asuint(t6_cb{buffer}[{mask_row}].{T5_GATED[field]}) != 0 ? t6_cb0[{index}] : '
++                         f'float4(0.0, 0.0, 0.0, 0.0))', 'uses': [[0, index], [buffer, mask_row]]},
++                f'{field}: gated by the T6 dynamic-light mask')
++    return {'buffer': 0, 'index': index}, (f'{name}: T6 {field}' if field != name else None)
++
++
+ def light_constant(name, native_fields, hdr_row, falloff_placement, native_pass=None):
+     def row(field):
+         found = native_fields.get(field)
+@@ -362,7 +461,7 @@ def light_falloff_placement(primary_lights: Path, roots) -> tuple[float, float,
+ 
+ # T6 code textures bound through type-4 pass arguments (value = T6 code
+ # texture index, measured on stock spot passes: attenuation 15 at slot 12).
+-CODE_TEXTURE_ARGS = {'attenuationSampler': 15, 'floatZSampler': 18, 'refractSampler': 9}
++CODE_TEXTURE_ARGS = {'attenuationSampler': 15, 'dlightAttenuationSampler': 16, 'floatZSampler': 18, 'refractSampler': 9}
+ 
+ 
+ @lru_cache(maxsize=32)
+@@ -423,7 +522,7 @@ def add_material_texture(native_pass, output_material, source_material, hash_val
+     texture (measured: the Wunderwaffe's detail map, banded first-person).
+     Returns the new argument, or None when the source has no such texture."""
+     texture = next((t for t in (source_material or {}).get('textures', [])
+-                    if t.get('image') and (waw_hash(t['name']) if t.get('name') else t.get('nameHash')) == hash_value), None)
++                    if t.get('image') and (source_hash(source_material)(t['name']) if t.get('name') else t.get('nameHash')) == hash_value), None)
+     if texture is None or (texture.get('name') and t6_hash(texture['name']) != hash_value):
+         return None
+     textures = output_material.setdefault('textures', [])
+@@ -473,6 +572,7 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+     if sqrt_hdr and (hdr is None or hdr[0] != 0 or hdr[1] % 16):
+         raise shaders.ShaderError('native hdr scale not addressable')
+     hdr_row = hdr[1] // 16 if sqrt_hdr else None
++    linear_source = (source_material or {}).get('_game') == 't5'
+     source_args = {f'c{a["dest"]+row}': a for a in source_pass['args'] if a['type'] in (5, 6, 7)
+                    for row in range(a.get('rowCount', 1))}
+     for reg in ir['constants']:
+@@ -506,20 +606,42 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+             contract['constants'][reg] = {'buffer': 2, 'index': 4}
+             contract.setdefault('unit_conversions', []).append('gameTime: T6 code constant 0x19')
+             continue
+-        if name in LIGHT_ADAPTERS:
++        if linear_source:
++            bound = t5_constant(name, native_fields, native_pass, arg.get('firstRow', 0) + int(reg[1:]) - arg['dest'])
++            if bound is not None:
++                contract['constants'][reg], note = bound
++                if note:
++                    contract.setdefault('unit_conversions', []).append(note)
++                continue
++        if name in LIGHT_ADAPTERS and not linear_source:
+             contract['constants'][reg] = light_constant(name, native_fields, hdr_row if sqrt_hdr else None,
+                                                         falloff_placement, native_pass)
              contract.setdefault('unit_conversions', []).append(LIGHT_ADAPTERS[name])
              continue
          name = CODE_UNIFORM_ALIASES.get(name, name) if name not in native_fields else name
@@ -2118,8 +2203,12 @@ index 2902bc4..30e4cdf 100644
 +        if not routed or offset % 16 or not fits(source_assembly, names[reg][0], row, size):
              raise shaders.ShaderError(f'code uniform requires an adapter: {name}')
          index = offset // 16 + row
-         if name in ('fogColor', 'sunDiffuse') and sqrt_hdr:  # includes aliased sunSpecular
-@@ -557,7 +603,7 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+-        if name in ('fogColor', 'sunDiffuse') and sqrt_hdr:  # includes aliased sunSpecular
++        if name in ('fogColor', 'sunDiffuse') and sqrt_hdr and not linear_source:  # includes aliased sunSpecular
+             # T6 keeps these linear (summed/lerped before * hdr, sqrt); WaW's
+             # programs sum them in gamma space. Convert the quantity itself.
+             contract['constants'][reg] = {
+@@ -557,7 +679,7 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
                  contract['samplers'][reg] = {'texture': 0, 'sampler': 0, 'constant': list(SCORCH_NEUTRAL)}
                  contract.setdefault('unit_conversions', []).append(f'{source_name}: unscorched (weight 0)')
                  continue
@@ -2128,7 +2217,47 @@ index 2902bc4..30e4cdf 100644
              slots = [t for t, (n, _) in native_textures.items() if n == lookup]
              if not slots and lookup in CODE_TEXTURE_ARGS:
                  # the engine fills this code texture for every draw (T6 sub_782FA0
-@@ -633,6 +679,12 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+@@ -586,6 +708,14 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+                 # there, so read texels without it (exact for point sampling).
+                 if not re.search(rf'^dcl_sampler s{sampler}, mode_comparison', ps, re.M):
+                     raise shaders.ShaderError(f'native {source_name} sampler mode not recognized')
++                if linear_source:
++                    # BO1 fetches through a hardware shadow sampler (the texel is
++                    # the comparison itself, 1 = lit) with T6's lookup matrices:
++                    # T6's own comparison sampler gives the same test.
++                    entry['compare'] = True
++                    contract.setdefault('unit_conversions', []).append(f'{source_name}: T6 comparison sampler')
++                    contract['samplers'][reg] = entry
++                    continue
+                 entry['point_load'] = True
+                 # T6 creates these comparison samplers with GREATER (5),
+                 # verified in the D3D11 sampler initializer. WaW's SM3 body
+@@ -618,8 +748,13 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+                 # displayed at twice that; WaW = 2 L' C, so L' = sqrt(8 * 4 hdr) L.
+                 if not re.search(r'(?:mul|mad) r\d+\.\w+, r\d+\.\w+, l\((?:[^)]*32\.000000){3}[^)]*\)', ps):
+                     raise shaders.ShaderError('native model lighting scale not recognized')
+-                entry.update(rgb_scale=f'sqrt(8.0 * {hdr_display(hdr_row)})', uses=[[0, hdr_row]])
+-                contract.setdefault('unit_conversions', []).append('modelLighting: sqrt(8 * 4 hdr) * L')
++                if linear_source:
++                    # BO1 lighting = 31.875 * texel^2, T6 = 32 * texel^2
++                    entry.update(rgb_scale=repr(T5_MODEL_LIGHTING_SCALE), uses=[])
++                    contract.setdefault('unit_conversions', []).append('modelLighting: sqrt(32 / 31.875) * L')
++                else:
++                    entry.update(rgb_scale=f'sqrt(8.0 * {hdr_display(hdr_row)})', uses=[[0, hdr_row]])
++                    contract.setdefault('unit_conversions', []).append('modelLighting: sqrt(8 * 4 hdr) * L')
+                 if 'sunDiffuse' in {n for n, _ in names.values()}:
+                     # WaW reads sun visibility from the texel alpha; T6 from
+                     # gridLightingCoordsAndVis.w, carried by the vertex program.
+@@ -628,11 +763,21 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+                     if link is None:
+                         raise shaders.ShaderError('sun visibility varying absent')
+                     entry['alpha_expr'] = f'input.link{link}.w'
++            elif source_name == 'dlightAttenuationSampler' and linear_source:
++                # T6 code texture 16, the dlight def's image (white without one):
++                # BO1 and T6 both square the cookie texel
++                contract.setdefault('unit_conversions', []).append('dlightAttenuationSampler: T6 code texture 16')
+             elif source_name == 'attenuationSampler':
+                 # T6 code texture 15 is the light def's attenuation image, staged
                  # from the WaW light def with its sampler state: WaW reads the
                  # same texel (T6 programs square it; WaW uses it directly).
                  pass
@@ -2141,7 +2270,23 @@ index 2902bc4..30e4cdf 100644
              elif source_name in lightmaps.WAW_PAGE_UV:
                  # WaW and T6 lightmap pages are encoded differently (WaW: two
                  # halves, colour + tangent-space direction in alpha, plus a
-@@ -655,7 +707,7 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+@@ -648,14 +793,20 @@ def paired_pixel_contract(source_assembly, source_pass, native_pass, native_root
+                 donor_samples_probe = 'reflectionProbeSampler' in {n for n, _ in resource_names(ps).values()}
+                 if donor_samples_probe and not re.search(r'add r\d+\.[xyzw], r\d+\.w, l\(0\.000001\)', ps):
+                     raise shaders.ShaderError('native reflection probe encoding not recognized')
+-                entry.update(texel_expr=f'float4(sqrt(max(T.xyz / (T.w + 0.000001) * {hdr_display(hdr_row)}, 0)), 1.0)',
+-                             uses=[[0, hdr_row]])
+-                contract.setdefault('unit_conversions', []).append('reflectionProbe: sqrt(4 hdr * rgb / a)')
++                if linear_source:
++                    # BO1 probe = 8 * texel^2, linear
++                    entry.update(texel_expr=f'float4(sqrt(max(T.xyz / (T.w + 0.000001) / {T5_PROBE_SCALE!r}, 0)), 1.0)',
++                                 uses=[])
++                    contract.setdefault('unit_conversions', []).append('reflectionProbe: sqrt(rgb / a / 8)')
++                else:
++                    entry.update(texel_expr=f'float4(sqrt(max(T.xyz / (T.w + 0.000001) * {hdr_display(hdr_row)}, 0)), 1.0)',
++                                 uses=[[0, hdr_row]])
++                    contract.setdefault('unit_conversions', []).append('reflectionProbe: sqrt(4 hdr * rgb / a)')
+             else:
                  raise shaders.ShaderError(f'code texture {source_name} needs a unit adapter')
          contract['samplers'][reg] = entry
          if arg is None or arg['type'] == 4:
@@ -2150,7 +2295,72 @@ index 2902bc4..30e4cdf 100644
              if bit:
                  native_pass['customSamplerFlags'] = native_pass.get('customSamplerFlags', 0) | bit
      return contract
-@@ -849,7 +901,10 @@ def vertex_contract(source_assembly, source_pass, native_pass, native_root, pair
+@@ -690,6 +841,19 @@ def is_scorch_program(source_material):
+ FACE_ON_FALLOFF_PARMS = (0.0, 0.0, 0.0, 1.0)
+ 
+ 
++def unit_vector_input(source_assembly, reg):
++    """True when every read of input ``reg`` is the biased UBYTE4 unit-vector
++    decode ``mad r, v, c.xxxy, c.zzzw`` (c = 1/127, ..., -1, 192/255)."""
++    reads = [line.strip() for line in source_assembly.splitlines()
++             if not line.strip().startswith(('//', 'dcl_')) and re.search(r'\b' + re.escape(reg) + r'\b', line)]
++    for line in reads:
++        match = re.fullmatch(r'mad r\d+, ' + re.escape(reg) + r', (c\d+)\.xxxy, \1\.zzzw', line)
++        literal = match and re.search(rf'def {match[1]}, ([^\n]+)', source_assembly)
++        if not literal or '0.00787401572' not in literal[1] or '0.752941191' not in literal[1]:
++            return False
++    return bool(reads)
++
++
+ def vertex_contract(source_assembly, source_pass, native_pass, native_root, paired=False, source_material=None,
+                     layered=False, trail_geometry=False):
+     _, ir = shaders.translate(source_assembly)
+@@ -726,6 +890,15 @@ def vertex_contract(source_assembly, source_pass, native_pass, native_root, pair
+                                        'constant': list(SCORCH_NEUTRAL)}
+             contract.setdefault('neutral', []).append('terrain scorch weights: unscorched (0)')
+             continue
++        if (key == 'TEXCOORD1' and paired and not layered and incoming.get('TEXCOORD2') == (3, 'float')
++                and 'TEXCOORD2' not in {s.upper() for s, _ in ir['inputs'].values()}
++                and unit_vector_input(source_assembly, reg)):
++            # BO1 cloak model programs (mc_cod7modelcloak_*) read the packed
++            # tangent as TEXCOORD1: same UBYTE4 decode, crossed with the normal
++            # and the binormal sign. T6 model passes stream it as TEXCOORD2.
++            contract['inputs'][reg] = {'semantic': 'TEXCOORD2', 'width': 3, 'adapter': 'waw_ubyte4_vector'}
++            contract.setdefault('unit_conversions', []).append('tangent: source TEXCOORD1 from T6 TEXCOORD2')
++            continue
+         if key not in allowed or key not in incoming:
+             raise shaders.ShaderError(f'packed vertex adapter required for {semantic}')
+         native_width, typ = incoming[key]
+@@ -777,15 +950,26 @@ def vertex_contract(source_assembly, source_pass, native_pass, native_root, pair
+             if trail_geometry and names.get(reg, (None, 0))[0] == 'falloffParms':
+                 literal = list(FACE_ON_FALLOFF_PARMS)
+                 contract['face_on_falloff'] = True
++            if names.get(reg, (None, 0))[0] == 'treeCanopySwayParms':
++                # BO1 canopy sway: 0 gives no rotation and no displacement. T6
++                # fills variantWindSpring from its own (unmeasured) wind, and a
++                # pass left on its donor program would not sway against a
++                # swaying depth pass, so every pass keeps the rest pose.
++                literal = [0.0, 0.0, 0.0, 0.0]
++                contract.setdefault('neutral', []).append('treeCanopySwayParms: canopy held static')
+             contract['constants'][reg] = {'expr': 'float4(' + ', '.join(repr(v) for v in literal) + ')', 'uses': []}
+             continue
+         arg = next((a for a in source_pass['args'] if a['type'] == 3 and a['dest'] <= int(reg[1:]) < a['dest'] + a['rowCount']), None)
+         source_name = names.get(reg, (None, 0))[0]
+-        if arg is not None and source_name == 'gameTime' and source_material and source_material.get('techniqueSet', '').startswith('mc_sky'):
++        if arg is not None and source_name == 'gameTime' and source_name not in fields and not is_scorch_program(source_material):
+             # T6 CONST_SRC_CODE_GAMETIME (0x19), routed to a free material row.
+-            # This sky donor omits time because its original variant is static.
++            # Static donors (the sky, plain lit/objective passes standing in
++            # for moving BO1 shaders) omit time.
+             binding = {'type': 3, 'buffer': 2, 'location': 240, 'size': 16, 'u': {'value': 0x01000019}}
+             if binding not in native_pass['args']:
++                if any(a['type'] in (0, 1, 3) and a.get('buffer') == 2 and a['location'] < 256 and a['location'] + a.get('size', 16) > 240
++                       for a in native_pass['args'] if 'location' in a):
++                    raise shaders.ShaderError('vertex game time row is taken')
+                 native_pass['args'].append(binding)
+                 native_pass['stableArgCount'] = native_pass.get('stableArgCount', 0) + 1
+             contract['constants'][reg] = {'buffer': 2, 'index': 15}
+@@ -849,11 +1033,17 @@ def vertex_contract(source_assembly, source_pass, native_pass, native_root, pair
          row = arg.get('firstRow', 0) + int(reg[1:]) - arg['dest']
          slot, offset, size = fields[name]
          at = offset + row * 16
@@ -2162,7 +2372,14 @@ index 2902bc4..30e4cdf 100644
              raise shaders.ShaderError(f'incompatible vertex uniform {name}')
          if slot != 0 and not any(a['type'] == 3 and a['buffer'] == slot and a['location'] <= at and at+16 <= a['location']+a['size'] for a in native_pass['args']):
              raise shaders.ShaderError(f'native pass does not maintain vertex uniform {name}')
-@@ -979,27 +1034,42 @@ def native_fog_adapter(hlsl, source_assembly, contract, native_pass, native_root
+         contract['constants'][reg] = {'buffer': slot, 'index': at//16}
++        if re.search(r'\b' + reg + r'\[a0\.', source_assembly):
++            # indexed by the address register (BO1 canopy variantWindSpring[16])
++            contract['constants'][reg]['count'] = (size - row * 16) // 16
+         if paired and source_name == 'baseLightingCoords' and name == 'gridLightingCoordsAndVis' and size >= 16:
+             # T6 keeps sun visibility in gridLightingCoordsAndVis.w (lprobe sun
+             # PS: sun term * v.w); WaW keeps it in the model lighting texel
+@@ -979,27 +1169,46 @@ def native_fog_adapter(hlsl, source_assembly, contract, native_pass, native_root
      return hlsl.replace('Output output;', code + '\nOutput output;')
  
  
@@ -2175,8 +2392,10 @@ index 2902bc4..30e4cdf 100644
 +# (T5, 130) number their techniques differently; T6 slot 1 is build shadowmap
 +# depth (T6 names: CoDMPServer_PC.exe 0xD1BE90; T4/T5: OAT MaterialTechniqueType).
 +WAW_SLOTS = {0: 0, 1: 2, 2: 4, 3: 5, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16, 13: 18, 14: 20}
-+BO1_SLOTS = {0: 0, 1: 2, 2: 4, 3: 5, 4: 10, 5: 11, 6: 12, 7: 13, 8: 14, 13: 15, 14: 16}
-+SLOTS = WAW_SLOTS  # the T6 slots; both tables share them
++# BO1 also has the T6 dynamic-light techniques: T5 LIT_*_DLIGHT_GLIGHT 31-37
++BO1_SLOTS = {0: 0, 1: 2, 2: 4, 3: 5, 4: 10, 5: 11, 6: 12, 7: 13, 8: 14, 13: 15, 14: 16,
++             15: 31, 16: 32, 17: 33, 18: 34, 19: 35, 24: 36, 25: 37}
++SLOTS = sorted({*WAW_SLOTS, *BO1_SLOTS})  # every T6 slot either table feeds
 +WAW_TECHNIQUE_COUNT = 59
 +
 +
@@ -2197,7 +2416,9 @@ index 2902bc4..30e4cdf 100644
 +    """Source technique index feeding T6 ``slot``; ``present(i)`` tells whether
 +    source technique ``i`` exists and ``count`` is the source table length."""
 +    table = slot_table(count)
-+    index = table[slot]
++    index = table.get(slot)
++    if index is None:
++        return None
      if present(index):
          return index
      parsed = techsets.parse(source_name)
@@ -2214,7 +2435,7 @@ index 2902bc4..30e4cdf 100644
              if present(alias):
                  return alias
      return None
-@@ -1014,7 +1084,7 @@ def _output_scale(source_material, source_name, slot):
+@@ -1014,7 +1223,7 @@ def _output_scale(source_material, source_name, slot):
      entries = source_material.get('stateBitsEntry', [])
      states = source_material.get('stateBits', [])
      present = lambda i: i < len(entries) and 0 <= entries[i] < len(states)
@@ -2223,7 +2444,7 @@ index 2902bc4..30e4cdf 100644
      state = states[entries[index]] if index is not None else None
      return {'output_rgb_scale': WAW_OUTPUT_SCALE} if scales_output(state) else {}
  
-@@ -1055,7 +1125,7 @@ def _source_state(source_material, source_name, slot):
+@@ -1055,7 +1264,7 @@ def _source_state(source_material, source_name, slot):
      entries = source_material.get('stateBitsEntry', [])
      states = source_material.get('stateBits', [])
      present = lambda i: i < len(entries) and 0 <= entries[i] < len(states)
@@ -2232,7 +2453,7 @@ index 2902bc4..30e4cdf 100644
      return states[entries[index]] if index is not None else None
  
  
-@@ -1079,14 +1149,14 @@ def _blended_state(source_material, source_name, slot):
+@@ -1079,14 +1288,14 @@ def _blended_state(source_material, source_name, slot):
      entries = source_material.get('stateBitsEntry', [])
      states = source_material.get('stateBits', [])
      present = lambda i: i < len(entries) and 0 <= entries[i] < len(states)
@@ -2249,7 +2470,7 @@ index 2902bc4..30e4cdf 100644
      return techniques[index] if index is not None else None
  
  
-@@ -1119,7 +1189,7 @@ def apply_source_pass_states(source_material, output_material, runtime):
+@@ -1119,7 +1328,7 @@ def apply_source_pass_states(source_material, output_material, runtime):
      for slot in SLOTS:
          if slot >= len(entries) or not 0 <= entries[slot] < len(states):
              continue
@@ -2258,7 +2479,7 @@ index 2902bc4..30e4cdf 100644
          if index is None:
              continue
          wanted, native = src_states[src_entries[index]], states[entries[slot]]
-@@ -1161,11 +1231,11 @@ def _write_program(project_root, stage, code, source, contract, info):
+@@ -1161,11 +1370,11 @@ def _write_program(project_root, stage, code, source, contract, info):
      name = 'waw/runtime_' + hashlib.sha256(code).hexdigest()[:20]
      path = project_root / 'shader_bin' / f'{stage}_{name}.cso'
      path.parent.mkdir(parents=True, exist_ok=True)
@@ -2273,7 +2494,7 @@ index 2902bc4..30e4cdf 100644
      return name
  
  
-@@ -1199,7 +1269,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
+@@ -1199,7 +1408,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
      original = json.loads(source_file.read_text())
      pristine = json.loads(native_file.read_text())
      native = copy.deepcopy(pristine)
@@ -2282,7 +2503,7 @@ index 2902bc4..30e4cdf 100644
          target = native['techniques'][slot]
          source = source_technique(original, source_name, slot)
          if not target or not source:
-@@ -1396,7 +1466,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
+@@ -1396,7 +1605,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
          native['name'] = ts_name
          path = project_root / 'techniquesets' / f'{ts_name}.json'
          path.parent.mkdir(parents=True, exist_ok=True)
@@ -2292,7 +2513,7 @@ index 2902bc4..30e4cdf 100644
      return result
  
 diff --git a/src/waw2bo2/shaders.py b/src/waw2bo2/shaders.py
-index 67d0aa8..e088f15 100644
+index 67d0aa8..0df0550 100644
 --- a/src/waw2bo2/shaders.py
 +++ b/src/waw2bo2/shaders.py
 @@ -10,7 +10,10 @@ import ctypes as ct
@@ -2306,7 +2527,86 @@ index 67d0aa8..e088f15 100644
  from functools import lru_cache
  from pathlib import Path
  
-@@ -219,6 +222,10 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+@@ -83,8 +86,15 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+     if not lines or lines[0] not in ('ps_3_0', 'vs_3_0'):
+         raise ShaderError('requires ps_3_0 or vs_3_0 bytecode')
+     stage = lines.pop(0)[:2]
++    vpos = None
++    if stage == 'ps' and any(re.search(r'\bvPos\b', s) for s in lines):
++        # SM3 vPos (screen pixel position) becomes a spare input register
++        # read from SV_Position; see the input initialisation below.
++        vpos = 'v%d' % (1 + max([int(n) for s in lines for n in re.findall(r'\bv(\d+)\b', s)], default=-1))
++        lines = ['dcl_vpos ' + vpos + s[len('dcl vPos'):] if s.startswith('dcl vPos')
++                 else re.sub(r'\bvPos\b', vpos, s) for s in lines]
+     defs, integers, inputs, outputs, samplers, operations = {}, {}, {}, {}, {}, []
+-    used, writes, centroid = set(), set(), set()
++    used, writes, centroid, relative = set(), set(), set(), set()
+     for line in lines:
+         op, _, tail = line.partition(' ')
+         args = [s.strip() for s in tail.split(',')]
+@@ -130,10 +140,13 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+                 raise ShaderError(f'unsupported declaration: {line}')
+         else:
+             operations.append((op, args, line))
+-            used.update(re.findall(r'\b(?:r\d+|v\d+|c\d+|oC\d+|o\d+|oDepth)(?=[._,\s)]|$)', tail))
++            used.update(re.findall(r'\b(?:r\d+|v\d+|c\d+|oC\d+|o\d+|oDepth)(?=[._,\s)\[]|$)', tail))
++            relative.update(re.findall(r'\b(c\d+)\[a0\.', tail))
+             if args and REG.fullmatch(args[0]):
+                 writes.add(REG.fullmatch(args[0])[1])
+ 
++    if vpos in inputs:
++        inputs[vpos] = ('SV_Position', 4)
+     for reg in writes:
+         if reg.startswith('o') and reg not in outputs:
+             if stage == 'ps' and re.fullmatch(r'oC\d+', reg):
+@@ -145,7 +158,7 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+     if not outputs:
+         raise ShaderError('shader has no output')
+     constants = sorted((used - defs.keys()) & {r for r in used if r.startswith('c')})
+-    resources, cb_sizes, reg_expr = [], {}, {}
++    resources, cb_sizes, reg_expr, reg_array = [], {}, {}, {}
+ 
+     def use_buffers(uses):
+         # uses: [[slot, index], ...] read by an adapter expression
+@@ -160,13 +173,23 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+             raise ShaderError(f'missing target constant binding {reg}')
+         if entry and 'expr' in entry:
+             # measured adapter: an HLSL float4 expression over t6_cbN rows
++            if reg in relative and entry.get('uses'):
++                raise ShaderError(f'relative read of adapted constant {reg}')
+             use_buffers(entry.get('uses', []))
+             reg_expr[reg] = f'({entry["expr"]})'
+             continue
+         slot, index = (entry['buffer'], entry['index']) if entry else (0, int(reg[1:]))
+         if type(slot) is not int or type(index) is not int or not 0 <= slot < 14 or not 0 <= index < 4096:
+             raise ShaderError(f'invalid constant binding {reg}')
+-        cb_sizes[slot] = max(cb_sizes.get(slot, 0), index + 1)
++        count = 1
++        if reg in relative:
++            # c<base>[a0.c]: the whole array must sit in one target buffer
++            # unbound ABI (cN = t6_cb0[N]): the rest of the 256-register D3D9 file
++            count = entry.get('count') if entry else (None if bound else 256 - index)
++            if type(count) is not int or not 1 <= count <= 4096 - index:
++                raise ShaderError(f'relative read needs a bound array for {reg}')
++            reg_array[reg] = (slot, index, count)
++        cb_sizes[slot] = max(cb_sizes.get(slot, 0), index + count)
+         reg_expr[reg] = f't6_cb{slot}[{index}]'
+     sample_scale, sample_alpha, sample_texel = {}, {}, {}
+     for reg, entry in bindings.get('samplers', {}).items():
+@@ -197,6 +220,12 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+         typ = {'2d': 'Texture2D', 'cube': 'TextureCube', 'volume': 'Texture3D'}[dim]
+         if entry and entry.get('constant') is not None:
+             continue  # neutral texel (shaderruntime: source system absent in T6)
++        if entry and entry.get('compare'):
++            if dim != '2d':
++                raise ShaderError(f'shadow compare adapter needs a 2D texture: {reg}')
++            resources += [f'Texture2D<float> tex_{reg} : register(t{tex});',
++                          f'SamplerComparisonState samp_{reg} : register(s{samp});']
++            continue
+         if entry and entry.get('point_load'):
+             # Point sampling without the target's sampler state (the target
+             # binds a comparison sampler here): read the texel directly, with
+@@ -219,6 +248,10 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
  
      for reg, code in sample_texel.items():
          resources.append(f'float4 waw_texel_{reg}(float4 T) {{ return {code}; }}')
@@ -2317,7 +2617,53 @@ index 67d0aa8..e088f15 100644
  
      def interface(kind, declarations):
          result = {}
-@@ -344,7 +351,20 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+@@ -254,6 +287,21 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+         modifier = re.fullmatch(r'(r\d+|v\d+|c\d+)_abs(\.[xyzwrgba]{1,4})?', token)
+         if modifier:
+             return f'abs({source(modifier[1] + (modifier[2] or ""))})'
++        indexed = re.fullmatch(r'(c\d+)\[a0\.([xyzw])\](?:\.([xyzwrgba]{1,4}))?', token)
++        if indexed:
++            # relative constant read; D3D9 leaves out-of-range rows undefined
++            reg, component, swizzle = indexed.groups()
++            if reg in defs or (reg not in reg_array and reg_expr.get(reg, '').startswith('t6_cb')):
++                raise ShaderError(f'relative read needs a bound array for {reg}')
++            if reg in reg_array:
++                slot, index, count = reg_array[reg]
++                expr = f't6_cb{slot}[{index} + clamp(a0.{component}, 0, {count - 1})]'
++            else:
++                expr = reg_expr[reg]  # constant adapter: every row reads the same value
++            if swizzle:
++                swizzle = swizzle.translate(SWIZZLE)
++                expr = f'({expr}).{swizzle + swizzle[-1] * (4 - len(swizzle))}'
++            return expr
+         match = REG.fullmatch(token)
+         if not match:
+             raise ShaderError(f'unsupported operand {token}')
+@@ -269,6 +317,7 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+ 
+     body, flow = [], []
+     repeat_index = 0
++    addressed = bool(relative)
+     comparison = {'gt': '>', 'lt': '<', 'ge': '>=', 'le': '<=', 'eq': '==', 'ne': '!='}
+     for decorated, args, original in operations:
+         flags = decorated.split('_')
+@@ -308,6 +357,15 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+         if op == 'texkill' and len(args) == 1 and stage == 'ps':
+             body.append(f'clip(({source(args[0])}).xyz);')
+             continue
++        if op == 'mova' and len(args) == 2 and stage == 'vs' and 'sat' not in flags:
++            # vs_3_0 address register load: round to nearest
++            dst = re.fullmatch(r'a0(?:\.([xyzw]{1,4}))?', args[0])
++            if not dst or len(set(dst[1] or 'xyzw')) != len(dst[1] or 'xyzw'):
++                raise ShaderError(f'invalid address register write: {original}')
++            mask = dst[1] or 'xyzw'
++            body.append(f'{{ int4 value = int4(floor({source(args[1])} + 0.5)); a0.{mask} = value.{mask}; }}')
++            addressed = True
++            continue
+         arities = {'mov': 1, 'add': 2, 'sub': 2, 'mul': 2, 'mad': 3, 'dp3': 2,
+                    'dp4': 2, 'dp2add': 3, 'min': 2, 'max': 2, 'rcp': 1, 'rsq': 1,
+                    'abs': 1, 'frc': 1, 'exp': 1, 'log': 1, 'pow': 2,
+@@ -344,7 +402,20 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
              if op == 'texldp':
                  uv = f'({uv} / ({coord}).w)'
              constant = bindings.get('samplers', {}).get(sampler, {}).get('constant')
@@ -2339,7 +2685,42 @@ index 67d0aa8..e088f15 100644
                  expr = f'tex_{sampler}.SampleLevel(samp_{sampler}, {uv}, ({coord}).w)'
              elif op == 'texldb':
                  expr = f'tex_{sampler}.SampleBias(samp_{sampler}, {uv}, ({coord}).w)'
-@@ -494,16 +514,75 @@ def translate_file(source: Path, output: Path, bindings: dict | None = None, *,
+@@ -354,6 +425,14 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+                 if stage != 'ps':
+                     raise ShaderError('vertex texture reads must use explicit LOD')
+                 expr = f'tex_{sampler}.Sample(samp_{sampler}, {uv})'
++            if bindings.get('samplers', {}).get(sampler, {}).get('compare'):
++                # SM3 hardware shadow fetch (depth texture): the texel is the
++                # comparison of coord.z (texldp: z/w) with the stored depth.
++                # The target's comparison sampler supplies its own test.
++                if samplers[sampler] != '2d' or op not in ('texld', 'texldl', 'texldp') or v_remap or taps or point_load:
++                    raise ShaderError(f'shadow compare adapter cannot express {original}')
++                depth = f'(({coord}).z / ({coord}).w)' if op == 'texldp' else f'({coord}).z'
++                expr = f'tex_{sampler}.SampleCmpLevelZero(samp_{sampler}, {uv}, {depth}).xxxx'
+             if point_load:
+                 # reads mip 0 (WaW shadow lookups pass LOD 0; reported by the contract)
+                 expr = f'load_{sampler}({uv})'
+@@ -407,7 +486,7 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+     if flow:
+         raise ShaderError('unclosed flow control')
+     decls = [f'float4 {reg} = 0;' for reg in sorted(used | inputs.keys() | outputs.keys())
+-             if reg.startswith(('r', 'v', 'o'))]
++             if reg.startswith(('r', 'v', 'o'))] + (['int4 a0 = 0;'] if addressed else [])
+     fields = lambda items: ' '.join(f'{"centroid " if reg in centroid else ""}float{width if width > 1 else ""} {reg} : {sem};' for reg, (sem, width) in items.items())
+     # A pixel shader paired with a translated vertex shader must declare the
+     # vertex output signature exactly (D3D11 links by register order).
+@@ -433,6 +512,10 @@ def translate(assembly: str, bindings: dict | None = None) -> tuple[str, dict]:
+     for reg, (_, width) in inputs.items():
+         adapter = bindings.get('inputs', {}).get(reg, {}).get('adapter')
+         name = f'input.{field_of[reg]}'
++        if reg == vpos:
++            # D3D9 pixel centres sit on integer coordinates; SV_Position's on +0.5
++            init.append(f'{reg} = float4({name}.xy - 0.5, 0.0, 0.0);')
++            continue
+         if adapter == 'waw_neutral':
+             # the source system that fills this stream does not exist in T6
+             init.append(f'{reg} = float4(' + ', '.join(repr(float(c)) for c in bindings['inputs'][reg]['constant']) + ');')
+@@ -494,16 +577,75 @@ def translate_file(source: Path, output: Path, bindings: dict | None = None, *,
      return report
  
  
@@ -2355,7 +2736,7 @@ index 67d0aa8..e088f15 100644
 +
 +def _cached_row(entry, digest, output):
 +    if not entry or entry.get('translator') != _TRANSLATOR or entry.get('source_sha256') != digest:
-         return None
++        return None
 +    row = entry['row']
 +    if row['status'] == 'translated_unbound' and not all(
 +            output.with_suffix(suffix).is_file() for suffix in ('.hlsl', '.cso', '.json')):
@@ -2371,24 +2752,24 @@ index 67d0aa8..e088f15 100644
 +
 +
 +def _from_shared(shared, name, source, output):
-     try:
--        report = translate_file(source, destination / name)
--        return dict(report, name=name, status='translated_unbound')
--    except (ShaderError, OSError, AttributeError) as exc:
--        return {'name': name, 'source': str(source), 'status': 'unsupported', 'error': str(exc)}
++    try:
 +        row = json.loads((shared / 'row.json').read_text(encoding='utf-8'))
 +        if row['status'] == 'translated_unbound':
 +            output.parent.mkdir(parents=True, exist_ok=True)
 +            for suffix in ('.hlsl', '.cso', '.json'):
 +                shutil.copyfile(shared / ('out' + suffix), output.with_suffix(suffix))
 +    except (OSError, ValueError, KeyError):
-+        return None
+         return None
 +    return dict(row, name=name, source=str(source))
 +
 +
 +def _to_shared(shared, row, output):
 +    temp = shared.with_name(f'{shared.name}.{os.getpid()}.{threading.get_ident()}.tmp')
-+    try:
+     try:
+-        report = translate_file(source, destination / name)
+-        return dict(report, name=name, status='translated_unbound')
+-    except (ShaderError, OSError, AttributeError) as exc:
+-        return {'name': name, 'source': str(source), 'status': 'unsupported', 'error': str(exc)}
 +        temp.mkdir(parents=True, exist_ok=True)
 +        if row['status'] == 'translated_unbound':
 +            for suffix in ('.hlsl', '.cso', '.json'):
@@ -2423,7 +2804,7 @@ index 67d0aa8..e088f15 100644
  
  
  def stage(roots: list[Path], destination: Path) -> dict:
-@@ -518,12 +597,29 @@ def stage(roots: list[Path], destination: Path) -> dict:
+@@ -518,12 +660,29 @@ def stage(roots: list[Path], destination: Path) -> dict:
          for folder in (root / 'shader_bin', root / 'content_source/shader_bin'):
              for path in sorted(folder.rglob('*.cso')):
                  sources.setdefault(path.relative_to(folder).as_posix(), path)
@@ -3044,7 +3425,7 @@ index 8a7736e..abfad3d 100644
      work = stage / "script_build"
      if work.exists():
 diff --git a/src/waw2bo2/techsets.py b/src/waw2bo2/techsets.py
-index a32c77e..9deb3e5 100644
+index a32c77e..d020541 100644
 --- a/src/waw2bo2/techsets.py
 +++ b/src/waw2bo2/techsets.py
 @@ -25,8 +25,8 @@ import re
@@ -3058,16 +3439,19 @@ index a32c77e..9deb3e5 100644
  HASH_RE = re.compile(r"^[0-9a-z]{8}$")
  
  # Maps whose absence in the source can be filled with a neutral code image.
-@@ -44,6 +44,8 @@ UNLIT_MAP = {
+@@ -44,6 +44,11 @@ UNLIT_MAP = {
      # (e.g. wc/caulk_shadow); T6 has a dedicated technique for that.
      "tools": ("shadowcaster", ["tools technique mapped to shadowcaster"]),
      "shadowcaster": ("shadowcaster", []),
 +    # BO1 custom (sw4) world shaders: keep the colour map on a plain unlit pass
 +    "sw4_3d_projector_ring": ("unlit_blend", ["BO1 projector ring shader drawn as unlit blend"]),
++    # BO1 decal blends: the unlit pass with the source's own add/multiply state
++    "unlitdecalblend_add": ("unlit_blend", ["BO1 additive decal drawn as unlit with its own blend"]),
++    "unlitdecalblend": ("unlit_blend", ["BO1 multiply decal drawn as unlit with its own blend"]),
  }
  
  
-@@ -108,7 +110,7 @@ def _layer_cost(src, dst, notes: list[str]) -> int | None:
+@@ -108,7 +113,7 @@ def _layer_cost(src, dst, notes: list[str]) -> int | None:
      if sblend != dblend:
          # alpha-test/add have no layered T6 equivalent in zm_nuked; blend is
          # the closest (keeps the alpha channel meaningful).
@@ -3076,7 +3460,15 @@ index a32c77e..9deb3e5 100644
              cost += 6
              notes.append(f"layer {sidx}: blend '{sblend}' -> '{dblend}'")
          else:
-@@ -162,6 +164,14 @@ MODEL_FALLBACK = {
+@@ -151,6 +156,7 @@ MODEL_UNLIT_MAP = {
+     "unlit": "unlit_replace",
+     "unlit_blend": "unlit_blend",
+     "unlit_add": "unlit_add",
++    "unlitdecalblend_add": "unlit_add",
+     "objective": "objective",
+ }
+ # Model techsets with no T6 equivalent in the donor zone. The replacement
+@@ -162,6 +168,24 @@ MODEL_FALLBACK = {
      "cooktorrance_sm": ("l_sm_r0c0n0s0", "cook-torrance approximated by lit_sm"),
      "projected_decal_unlit": ("l_sm_t0c0", "projected decal drawn as alpha-tested model"),
      "ambient_t0c0_sco": ("l_sm_t0c0", "ambient-only technique lit by the light grid"),
@@ -3084,14 +3476,24 @@ index a32c77e..9deb3e5 100644
 +    "sw4_3d_char_cloth": ("l_sm_r0c0n0s0", "BO1 character cloth shader approximated by lit_sm"),
 +    "sw4_3d_char_skin": ("l_sm_r0c0n0s0", "BO1 character skin shader approximated by lit_sm"),
 +    "cod7modelcloak_ck": ("l_sm_r0c0n0s0", "BO1 cloak shader approximated by lit_sm"),
-+    "sw4_3d_rotate": ("l_sm_r0c0", "BO1 rotating-UV shader drawn static"),
++    # these BO1 programs read the tangent (TEXCOORD2): only normal-mapped donors stream it
++    "sw4_3d_rotate": ("l_sm_r0c0n0", "BO1 rotating-UV shader on the normal-mapped lit pass"),
++    "sw4_3d_clan_tag_transparent": ("l_sm_b0c0n0", "BO1 clan tag shader on the blended lit pass"),
++    "sw4_3d_player_icon_transparent": ("l_sm_b0c0n0", "BO1 player icon shader on the blended lit pass"),
++    # BO1 canopies light from the grid texture (modelLightingSampler); T6's
++    # canopy passes use grid SH constants instead, so take the lit model pass
++    "sm_treecanopy": ("l_sm_t0c0", "BO1 canopy drawn on the alpha-tested lit model pass"),
++    "sm_treecanopy_sway": ("l_sm_t0c0", "BO1 canopy drawn on the alpha-tested lit model pass"),
++    # BO1 lit sets without the shadow-map tag: the same layer on T6's lit_sm pass
++    "l_r0c0n0s0sc0x0": ("l_sm_r0c0n0s0", "BO1 lit (no shadow map) drawn as lit_sm"),
++    "l_r0c0n0s0_eyeball_hero": ("l_sm_r0c0n0s0", "BO1 hero eyeball drawn as lit_sm"),
 +    "sw4_3d_unlit_scroll": ("unlit", "BO1 scrolling unlit shader drawn static"),
 +    "sw4_3d_animated_unlit": ("unlit", "BO1 animated unlit shader drawn static"),
 +    "sw4_3d_animated_unlit_normals": ("unlit", "BO1 animated unlit shader drawn static"),
  }
  
  
-@@ -339,12 +349,24 @@ def as_reference(image: str) -> str:
+@@ -339,12 +363,24 @@ def as_reference(image: str) -> str:
      return image
  
  
@@ -3116,6 +3518,25 @@ index a32c77e..9deb3e5 100644
      used = set()
      textures = []
      for slot in donor.get("textures", []):
+@@ -393,7 +429,8 @@ def build_material(t4: dict, donor: dict, notes: list[str]) -> dict:
+             if 'cullFace' in state:
+                 state['cullFace'] = 'none'
+     source = parse(t4.get('techniqueSet', ''))
+-    if source.family == 'world' and source.unlit_kind in ('unlit', 'unlit_blend', 'unlit_distfalloff', 'unlit_falloff_add'):
++    if source.family == 'world' and source.unlit_kind in ('unlit', 'unlit_blend', 'unlit_distfalloff', 'unlit_falloff_add',
++                                                          'unlitdecalblend_add', 'unlitdecalblend'):
+         entries = t4.get('stateBitsEntry', [])
+         index = entries[4] if len(entries) > 4 else -1
+         states = t4.get('stateBits', [])
+@@ -424,6 +461,8 @@ def only_casts_shadow(t4: dict) -> bool:
+ def material_techset(t4: dict) -> str:
+     """Unlit shader names alone do not encode a material's custom blending."""
+     name = t4.get('techniqueSet', '')
++    # BO1 calls the opaque unlit set unlit_replace (as T6 does); WaW calls it unlit
++    name = re.sub(r'^(wc|mc)_unlit_replace$', r'\1_unlit', name)
+     parsed = parse(name)
+     entries, states = t4.get('stateBitsEntry', []), t4.get('stateBits', [])
+     index = entries[4] if len(entries) > 4 else -1
 diff --git a/src/waw2bo2/wawassets.py b/src/waw2bo2/wawassets.py
 index d11956f..169e262 100644
 --- a/src/waw2bo2/wawassets.py
@@ -3413,7 +3834,7 @@ index b1537b0..9eb3931 100644
      table = {w: (b if w in runtime or w in replacements or w.lower() in ENGINE_WEAPONS else "")
               for w, b in table.items()}
 diff --git a/tests/test_builddriver.py b/tests/test_builddriver.py
-index 79003dd..113fe4e 100644
+index 79003dd..8ab0ca2 100644
 --- a/tests/test_builddriver.py
 +++ b/tests/test_builddriver.py
 @@ -150,6 +150,79 @@ if __name__ == '__main__':
@@ -3496,52 +3917,6 @@ index 79003dd..113fe4e 100644
  class WorldNameTests(unittest.TestCase):
      def test_map_world_found_inside_mod_ff(self):
          with tempfile.TemporaryDirectory() as tmp:
-@@ -168,3 +241,45 @@ class WorldNameTests(unittest.TestCase):
-                 (maps / f'{name}.d3dbsp.gfx.bin').write_bytes(b'')
-             with self.assertRaisesRegex(RuntimeError, 'several map worlds'):
-                 builddriver.world_name(Path(tmp), 'mod')
-+
-+
-+class ShaderCheckReuseTests(unittest.TestCase):
-+    """WAW2BO2_FAST_LINK step 6 reuses build-mod's dump only for the same bytes."""
-+
-+    def _mod(self, root):
-+        import time
-+        mod = root / 'mod_build'
-+        (mod / 'shader_out').mkdir(parents=True)
-+        (mod / 'out').mkdir()
-+        (mod / 'shader_check/materials').mkdir(parents=True)
-+        (mod / 'shader_out/mod.ff').write_bytes(b'linked zone')
-+        (mod / 'out/mod.ff').write_bytes(b'linked zone')
-+        (mod / 'shader_activation.json').write_text(json.dumps({'output': str(mod / 'out/mod.ff')}))
-+        later = time.time() + 5
-+        (mod / 'shader_check.log').write_text('')
-+        os.utime(mod / 'shader_check.log', (later, later))
-+        return mod
-+
-+    def test_reuses_dump_of_identical_zone(self):
-+        with tempfile.TemporaryDirectory() as tmp:
-+            mod = self._mod(Path(tmp))
-+            self.assertEqual(builddriver.shader_check_dump(mod, mod / 'out/mod.ff'), mod / 'shader_check')
-+
-+    def test_changed_zone_is_dumped_again(self):
-+        with tempfile.TemporaryDirectory() as tmp:
-+            mod = self._mod(Path(tmp))
-+            (mod / 'out/mod.ff').write_bytes(b'linker zone')   # same size, other bytes
-+            self.assertIsNone(builddriver.shader_check_dump(mod, mod / 'out/mod.ff'))
-+
-+    def test_no_shader_activation_or_other_zone(self):
-+        with tempfile.TemporaryDirectory() as tmp:
-+            mod = self._mod(Path(tmp))
-+            self.assertIsNone(builddriver.shader_check_dump(mod, Path(tmp) / 'zm_map.ff'))
-+            (mod / 'shader_activation.json').unlink()
-+            self.assertIsNone(builddriver.shader_check_dump(mod, mod / 'out/mod.ff'))
-+
-+    def test_stale_check_is_not_reused(self):
-+        with tempfile.TemporaryDirectory() as tmp:
-+            mod = self._mod(Path(tmp))
-+            os.utime(mod / 'shader_check.log', (1, 1))
-+            self.assertIsNone(builddriver.shader_check_dump(mod, mod / 'out/mod.ff'))
 diff --git a/tests/test_launcher.py b/tests/test_launcher.py
 index f3d2c11..9b866e0 100644
 --- a/tests/test_launcher.py
@@ -3648,10 +4023,10 @@ index f3d2c11..9b866e0 100644
          settings = self.settings()
          self.assertFalse([c for c in preflight(settings) if c.required and not c.ready])
 diff --git a/tests/test_lit_adapters.py b/tests/test_lit_adapters.py
-index d11c4f8..1e1384a 100644
+index d11c4f8..b3e7bce 100644
 --- a/tests/test_lit_adapters.py
 +++ b/tests/test_lit_adapters.py
-@@ -89,6 +89,34 @@ add oC0, r0, r1
+@@ -89,6 +89,46 @@ add oC0, r0, r1
          self.assertIn('0.6666666666666666', hlsl)
          shaders.compile_hlsl(hlsl, 'ps_5_0')
  
@@ -3683,9 +4058,96 @@ index d11c4f8..1e1384a 100644
 +                self.assertAlmostEqual(x, words[2 * i] / 65535, places=6)
 +                self.assertAlmostEqual(y, words[2 * i + 1] / 65535, places=6)
 +
++    def test_vpos_reads_sv_position_at_d3d9_pixel_coordinates(self):
++        ps = 'ps_3_0\ndcl_texcoord v0\ndcl vPos.xy\nmul r0.xy, vPos, c0\nadd oC0, v0, r0.xyxy\n'
++        _, ir = shaders.translate(ps)
++        self.assertEqual(ir['inputs']['v1'], ('SV_Position', 4))
++        contract = {'inputs': {'v0': {'semantic': 'TEXCOORD0', 'width': 4}, 'v1': {'semantic': 'SV_Position', 'width': 4}},
++                    'outputs': {'oC0': {'semantic': 'SV_Target0', 'width': 4}},
++                    'constants': {'c0': {'buffer': 0, 'index': 0}}, 'samplers': {},
++                    'input_signature': [{'semantic': 'SV_Position', 'width': 4}, {'semantic': 'TEXCOORD0', 'width': 4}]}
++        hlsl, _ = shaders.translate(ps, contract)
++        self.assertIn('v1 = float4(input.link0.xy - 0.5, 0.0, 0.0);', hlsl)
++        shaders.compile_hlsl(hlsl, 'ps_5_0')
++
      def test_point_load_reads_texels_without_sampler_state(self):
          ps = 'ps_3_0\ndcl_texcoord v0\ndcl_2d s5\ntexldl r0, v0, s5\nmov oC0, r0\n'
          contract = {'inputs': {'v0': {'semantic': 'TEXCOORD0', 'width': 4}},
+@@ -249,6 +289,74 @@ class LocalLightTests(unittest.TestCase):
+             self.assertIsNone(runtime.light_falloff_placement(lights, [root]))
+ 
+ 
++class Bo1LinearTests(unittest.TestCase):
++    """BO1 programs are linear like T6: by-name light rows, dlight gating, compares."""
++    FIELDS = {**LocalLightTests.FIELDS, 'lightAttenuation': (0, 1296, 16), 'lightSpotMatrix3': (0, 1392, 16),
++              'glightReds': (0, 1024, 16), 'dlightDiffuse': (0, 1088, 16), 'dlightPosition': (0, 1072, 16),
++              'dlightSpotShadowmapPixelAdjust': (0, 1488, 16)}
++
++    def native(self):
++        return {'perPrimArgCount': 0, 'perObjArgCount': 0, 'stableArgCount': 0, 'args': []}
++
++    def test_per_light_rows_bind_by_name_and_become_pass_arguments(self):
++        native = self.native()
++        self.assertEqual(runtime.t5_constant('lightSpecular', self.FIELDS, native, 0),
++                         ({'buffer': 0, 'index': 78}, 'lightSpecular: T6 lightDiffuse'))
++        self.assertEqual(runtime.t5_constant('lightSpotMatrix3', self.FIELDS, native, 0), ({'buffer': 0, 'index': 87}, None))
++        self.assertEqual(runtime.t5_constant('lightAttenuation', self.FIELDS, native, 0)[0], {'buffer': 0, 'index': 81})
++        self.assertEqual([(a['location'], a['u']['value']) for a in native['args']],
++                         [(1248, 0x01000001), (1296, 0x01000004), (1392, 0x0100000A)])
++        # global PerScene rows (dlight position) take the generic by-name binding
++        self.assertIsNone(runtime.t5_constant('dlightPosition', self.FIELDS, native, 0))
++
++    def test_dynamic_lights_are_gated_by_the_t6_mask(self):
++        native = self.native()
++        diffuse, _ = runtime.t5_constant('dlightSpecular', self.FIELDS, native, 0)
++        self.assertEqual(diffuse['expr'], '(asuint(t6_cb3[11].x) != 0 ? t6_cb0[68] : float4(0.0, 0.0, 0.0, 0.0))')
++        self.assertIn([3, 11], diffuse['uses'])
++        reds, _ = runtime.t5_constant('glightReds', self.FIELDS, native, 0)
++        self.assertIn('t6_cb3[11].y', reds['expr'])
++        attenuation, _ = runtime.t5_constant('dlightAttenuation', self.FIELDS, native, 0)
++        self.assertEqual(attenuation, {'expr': 'float4(1.0, 0.0, 0.0, 0.0)', 'uses': []})
++        adjust, _ = runtime.t5_constant('dlightSpotShadowmapPixelAdjust', self.FIELDS, native, 0)
++        self.assertEqual(adjust['expr'], '(t6_cb0[93].xyxy * float4(1.0, 1.0, 1.0, -1.0))')
++        self.assertEqual(native['args'][-1]['u']['value'], 0x0100003D)
++        # the gated expressions compile against a declared cb3
++        ps = 'ps_3_0\ndcl_texcoord v0\nmul oC0, v0, c21\n'
++        contract = {'inputs': {'v0': {'semantic': 'TEXCOORD0', 'width': 4}},
++                    'outputs': {'oC0': {'semantic': 'SV_Target0', 'width': 4}},
++                    'constants': {'c21': diffuse}, 'samplers': {}}
++        hlsl, _ = shaders.translate(ps, contract)
++        self.assertIn('register(b3)', hlsl)
++        shaders.compile_hlsl(hlsl, 'ps_5_0')
++
++    def test_bo1_material_constants_use_the_t6_name_hash(self):
++        # dumped mc_sw4_3d_char_skin pass arguments (Kino mtl_c_ger_richtofen_head)
++        bo1 = {'_game': 't5', 'constants': [{'name': 'Reflection_Amount', 'literal': [0.1, 0, 0, 1]}]}
++        self.assertEqual(runtime.material_literal(bo1, 211931156), [0.1, 0.0, 0.0, 1.0])
++        waw = {'constants': [{'name': 'Reflection_Amount', 'literal': [0.1, 0, 0, 1]}]}
++        self.assertIsNone(runtime.material_literal(waw, 211931156))
++        self.assertEqual(runtime.material_literal(waw, runtime.waw_hash('Reflection_Amount')), [0.1, 0.0, 0.0, 1.0])
++
++    def test_cloak_tangent_input_is_recognised_by_its_unit_vector_decode(self):
++        # BO1 mc_cod7modelcloak_ck vertex program (Kino mtl_c_gen_arm_clean_zm)
++        vs = ('vs_3_0\ndef c12, 0.00787401572, 0.00392156886, -1, 0.752941191\ndcl_texcoord1 v3\n'
++              'mad r0, v3, c12.xxxy, c12.zzzw\nmov o0, r0\n')
++        self.assertTrue(runtime.unit_vector_input(vs, 'v3'))
++        self.assertFalse(runtime.unit_vector_input(vs.replace('mov o0, r0', 'mov o1, v3'), 'v3'))
++        self.assertFalse(runtime.unit_vector_input(vs.replace('0.752941191', '1'), 'v3'))
++
++    def test_hardware_shadow_fetch_becomes_a_comparison_sample(self):
++        ps = 'ps_3_0\ndcl_texcoord v0\ndcl_2d s2\ntexldp r0, v0, s2\ntexldl r1, v0, s2\nadd oC0, r0, r1\n'
++        contract = {'inputs': {'v0': {'semantic': 'TEXCOORD0', 'width': 4}},
++                    'outputs': {'oC0': {'semantic': 'SV_Target0', 'width': 4}}, 'constants': {},
++                    'samplers': {'s2': {'texture': 10, 'sampler': 10, 'compare': True}}}
++        hlsl, _ = shaders.translate(ps, contract)
++        self.assertIn('SamplerComparisonState samp_s2 : register(s10)', hlsl)
++        self.assertEqual(hlsl.count('SampleCmpLevelZero'), 2)
++        shaders.compile_hlsl(hlsl, 'ps_5_0')
++
++
+ class LitSlotTests(unittest.TestCase):
+     def test_dynamic_light_slots_extend_reachable_lit_slots(self):
+         for slot, base in runtime.DLIGHT_BASE_SLOTS.items():
 diff --git a/tests/test_modzone.py b/tests/test_modzone.py
 index 49b710b..262f75c 100644
 --- a/tests/test_modzone.py
@@ -3789,10 +4251,10 @@ index 49b710b..262f75c 100644
      unittest.main()
  
 diff --git a/tests/test_shaderruntime.py b/tests/test_shaderruntime.py
-index d17a525..3e28ecf 100644
+index d17a525..ab4ab9c 100644
 --- a/tests/test_shaderruntime.py
 +++ b/tests/test_shaderruntime.py
-@@ -389,3 +389,63 @@ class HashedMaterialTextureTests(unittest.TestCase):
+@@ -389,3 +389,65 @@ class HashedMaterialTextureTests(unittest.TestCase):
          self.assertEqual(output['textures'], [texture])
          self.assertEqual(native['stableArgCount'], 1)
          self.assertIsNone(runtime.add_material_texture(native, output, source, 123, ''))
@@ -3802,14 +4264,16 @@ index d17a525..3e28ecf 100644
 +    def test_waw_table(self):
 +        present = lambda i: True
 +        got = {slot: runtime.source_slot(present, 'wc_l_sm_r0c0', slot, 59) for slot in runtime.SLOTS}
-+        self.assertEqual(got, {0: 0, 1: 2, 2: 4, 3: 5, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16, 13: 18, 14: 20})
++        self.assertEqual(got, {0: 0, 1: 2, 2: 4, 3: 5, 4: 8, 5: 10, 6: 12, 7: 14, 8: 16, 13: 18, 14: 20,
++                               15: None, 16: None, 17: None, 18: None, 19: None, 24: None, 25: None})
 +
 +    def test_bo1_table(self):
 +        # T5 MaterialTechniqueType: LIT 10, LIT_SUN 11, LIT_SUN_SHADOW 12, LIT_SPOT 13,
-+        # LIT_SPOT_SHADOW 14, LIT_OMNI 15, LIT_OMNI_SHADOW 16
++        # LIT_SPOT_SHADOW 14, LIT_OMNI 15, LIT_OMNI_SHADOW 16, LIT_*_DLIGHT_GLIGHT 31-37
 +        present = lambda i: True
 +        got = {slot: runtime.source_slot(present, 'wc_l_sm_r0c0', slot, 130) for slot in runtime.SLOTS}
-+        self.assertEqual(got, {0: 0, 1: 2, 2: 4, 3: 5, 4: 10, 5: 11, 6: 12, 7: 13, 8: 14, 13: 15, 14: 16})
++        self.assertEqual(got, {0: 0, 1: 2, 2: 4, 3: 5, 4: 10, 5: 11, 6: 12, 7: 13, 8: 14, 13: 15, 14: 16,
++                               15: 31, 16: 32, 17: 33, 18: 34, 19: 35, 24: 36, 25: 37})
 +
 +    def test_bo1_self_lit_alias_is_lit(self):
 +        # BO1 unlit variant drawn only through LIT (10) feeds T6 unlit/emissive
@@ -3856,6 +4320,93 @@ index d17a525..3e28ecf 100644
 +        self.assertIsNone(runtime.unaligned_expr(CTAB, 'extraCamParam', 0, 2256, 4))  # aligned
 +        self.assertIsNone(runtime.unaligned_expr(CTAB, 'extraCamParam', 1, 2260, 4))  # not PerScene
 +        self.assertIsNone(runtime.unaligned_expr(CTAB, 'sunFogDir', 0, 2264, 12))      # crosses the row
+diff --git a/tests/test_shaders.py b/tests/test_shaders.py
+index 1c1de99..b4b8d74 100644
+--- a/tests/test_shaders.py
++++ b/tests/test_shaders.py
+@@ -110,6 +110,24 @@ class ShaderTests(unittest.TestCase):
+         if os.name == 'nt':
+             shaders.compile_hlsl(hlsl, 'ps_5_0')
+ 
++    @unittest.skipUnless(os.name == 'nt', 'native D3D compiler requires Windows')
++    def test_address_register_reads_a_bound_constant_array(self):
++        # BO1 canopy sway: variantWindSpring[16] indexed by floor(15 * vertex colour)
++        source = '\n'.join(['vs_3_0', 'def c11, 15, 0, 0, 0', 'dcl_position v0', 'dcl_color v2',
++                            'dcl_position o0', 'mul r0.y, c11.x, v2.x', 'mova a0.w, r0.y',
++                            'add r0.xyz, v0, c40[a0.w].yzww', 'mov o0, r0'])
++        contract = {'inputs': {'v0': {'semantic': 'POSITION0'}, 'v2': {'semantic': 'COLOR0'}},
++                    'outputs': {'o0': {'semantic': 'SV_Position'}},
++                    'constants': {'c40': {'buffer': 0, 'index': 2, 'count': 16}}}
++        hlsl, _ = shaders.translate(source, contract)
++        self.assertIn('int4 value = int4(floor(', hlsl)
++        self.assertIn('t6_cb0[2 + clamp(a0.w, 0, 15)]', hlsl)
++        self.assertIn('float4 t6_cb0[18]', hlsl)
++        self.assertEqual(shaders.compile_hlsl(hlsl, 'vs_5_0')[:4], b'DXBC')
++        del contract['constants']['c40']['count']
++        with self.assertRaisesRegex(shaders.ShaderError, 'bound array'):
++            shaders.translate(source, contract)
++
+     @unittest.skipUnless(os.name == 'nt', 'native D3D compiler requires Windows')
+     def test_actual_vertex_bytecode_roundtrip(self):
+         original = shaders.compile_hlsl('''float4 main(float4 position : POSITION) : POSITION {
+@@ -143,10 +161,12 @@ mov oC0, r0
+ 
+     @unittest.skipUnless(os.name == 'nt', 'native D3D compiler requires Windows')
+     def test_unsupported_translation_does_not_emit_bytecode(self):
+-        original = shaders.compile_hlsl('''float4 values[32];
++        original = shaders.compile_hlsl('''int count;
+             float4 main(float4 position : POSITION) : POSITION {
+-                return values[(int)position.x];
+-            }''', 'vs_3_0')
++                float4 r = position;
++                [loop] for (int i = 0; i < count; i++) r = r * position;
++                return r;
++            }''', 'vs_3_0')  # a uniform repeat count (rep i0) is not supported
+         with tempfile.TemporaryDirectory() as tmp:
+             source = Path(tmp)/'input.cso'
+             source.write_bytes(original)
+diff --git a/tests/test_techsets.py b/tests/test_techsets.py
+index a2eab51..0888119 100644
+--- a/tests/test_techsets.py
++++ b/tests/test_techsets.py
+@@ -32,6 +32,37 @@ class HudTechniqueTests(unittest.TestCase):
+         self.assertEqual(techsets.match('wc_unlit_blend', ['wpc_unlit_blend_2840z6q0']).target,
+                          'wpc_unlit_blend_2840z6q0')
+ 
++    def test_bo1_unlit_replace_and_decal_blends_get_unlit_donors(self):
++        donors = ['mc_unlit_replace_3j970129', 'mc_unlit_add_ww82zw88', 'wpc_unlit_replace_4688792e',
++                  'wpc_unlit_blend_2840z6q0']
++        def target(name, state=None):
++            t4 = {'techniqueSet': name, 'stateBitsEntry': [0] * 5, 'stateBits': [state or {}]}
++            return techsets.match(techsets.material_techset(t4), donors).target
++        self.assertEqual(target('mc_unlit_replace'), 'mc_unlit_replace_3j970129')
++        self.assertEqual(target('wc_unlit_replace'), 'wpc_unlit_replace_4688792e')
++        self.assertEqual(target('wc_unlit_replace', {'blendOpRgb': 'add', 'dstBlendRgb': 'one'}),
++                         'wpc_unlit_blend_2840z6q0')
++        self.assertEqual(target('wc_unlitdecalblend_add'), 'wpc_unlit_blend_2840z6q0')
++        self.assertEqual(target('wc_unlitdecalblend_multiply'), 'wpc_unlit_blend_2840z6q0')
++        self.assertEqual(target('mc_unlitdecalblend_add'), 'mc_unlit_add_ww82zw88')
++        self.assertEqual(techsets.match('mc_sm_treecanopy_sway', ['mc_treecanopy_sm_68zw237j',
++                                                                  'mc_lit_sm_t0c0_90wz6fe2']).target,
++                         'mc_lit_sm_t0c0_90wz6fe2')
++        self.assertEqual(techsets.match('mc_l_r0c0n0s0sc0x0', ['mc_lit_sm_r0c0n0s0_7426e277']).target,
++                         'mc_lit_sm_r0c0n0s0_7426e277')
++        # BO1 programs that read the tangent need a donor that streams it
++        tangent = ['mc_lit_sm_r0c0_77e21qq8', 'mc_lit_sm_r0c0n0_2z223015', 'mc_lit_sm_b0c0n0_10449597']
++        self.assertEqual(techsets.match('mc_sw4_3d_rotate', tangent).target, 'mc_lit_sm_r0c0n0_2z223015')
++        self.assertEqual(techsets.match('mc_sw4_3d_clan_tag_transparent', tangent).target, 'mc_lit_sm_b0c0n0_10449597')
++        # the world decal keeps its own multiply blend over the donor's
++        multiply = {'srcBlendRgb': 'destColor', 'dstBlendRgb': 'zero', 'blendOpRgb': 'add', 'colorWriteRgb': True}
++        donor = {'techniqueSet': 'wpc_unlit_blend_2840z6q0', 'textures': [],
++                 'stateBits': [{'srcBlendRgb': 'srcAlpha', 'dstBlendRgb': 'invSrcAlpha', 'colorWriteRgb': True}]}
++        out = techsets.build_material({'techniqueSet': 'wc_unlitdecalblend_multiply', 'stateBitsEntry': [0] * 5,
++                                       'stateBits': [multiply]}, donor, [])
++        self.assertEqual(out['stateBits'][0]['srcBlendRgb'], 'destColor')
++        self.assertEqual(out['stateBits'][0]['dstBlendRgb'], 'zero')
++
+     def test_donor_thermal_variant_is_not_inherited(self):
+         donor = {"techniqueSet": "mc_lit_sm_r0c0_x", "thermalMaterial": "mc/mtl_t6_wpn_zmb_raygun2_1_thermal",
+                  "textures": [{"name": "colorMap", "semantic": "color", "image": "stock"}]}
 diff --git a/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp b/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp
 index 3809886..b0bf6a4 100644
 --- a/vendor/OpenAssetToolsT6/src/ObjLoading/Game/T6/BSP/Linker/GfxWorldLinker.cpp

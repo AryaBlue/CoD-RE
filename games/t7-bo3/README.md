@@ -12,3 +12,8 @@ Steam build (appid 311210).
   from disk rather than held in memory.
 - [tools/xpak/](tools/xpak) — a small offline, read-only `.xpak` reader/extractor
   (image entries → DDS) implementing that format.
+- [notes/t7_fastfile_format.md](notes/t7_fastfile_format.md) — the BO3 PC fastfile
+  (`TAff0000` v`0x251`) zlib block-chain container and the inline `GfxImage` layout
+  (resident UI art), recovered from first principles.
+- [tools/zone/](tools/zone) — offline, read-only decoders for that format: fastfile
+  decompressor, inline `GfxImage` → PNG extractor, and an embedded-TTF scanner.

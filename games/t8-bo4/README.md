@@ -15,6 +15,8 @@ Reverse-engineering notes and offline tooling for Call of Duty: Black Ops 4 (T8 
 No game data of any kind: no fastfiles, xpaks, decompressed zones, extracted placements, collision brushes, name dictionaries, vertex/index buffers, images, models, sounds or navmeshes. No AES keys. No Oodle or other game binaries. No verbatim third-party source. This folder is the research write-up and our own tooling only; you point the tools at your own legally-owned BO4 install.
 
 ## Contents
+- [`PORTING_METHOD.md`](PORTING_METHOD.md): the end-to-end, repeatable recipe for porting a BO4 map to BO3 (Mod Tools), worked out on Blood of the Dead. Start here.
+- `port/`: the build-stage tools the method uses (placement matching, entity list, spawns, textures, winding/z-fight fixes, collision budgeting and decimation, collmaps, the solid-but-invisible fill, lava/sea, zones and gameplay, and the import/map/build scripts).
 - `notes/` — the format write-ups.
 - `tools/` — offline, read-only Python/shell: the CASC reader + extractor and its test, the xpak reader, the clipMap and GfxWorld/placement extractors, the Havok tagfile + navmesh reader, the name-hash/dictionary builder, and the render-world emitter + validator. Some scripts need paths set to your own install, and the emitter targets the external B2W / BO1MapConverter (not included).
 

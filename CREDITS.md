@@ -8,6 +8,8 @@ The Call of Duty reverse-engineering in this repository builds on prior communit
 - **COD Engine Research wiki (codresearch.dev).** The BO3 `clipMap_t` / collision-map layout was the published reference we used as the hand-RE hypothesis for the (undocumented) BO4 `clipMap_t`. https://codresearch.dev
 - **OpenAssetTools (Laupetin/rattp lineage).** Used locally for T6 struct reference while bringing the T8 world structs across; **not redistributed here** (the verbatim OAT T6 header is deliberately excluded). https://github.com/Laupetin/OpenAssetTools
 - **B2W / BO1MapConverter.** The downstream render-world + collision pipeline our T8 emitter targets descends from the B2W converter/linker lineage. https://github.com/Ticass/B2W
+- **C2M (SHEILAN / vugi99, descended from Scobalula's Husky).** Used to export the BO4 world mesh and the material -> texture JSON that the porting method builds from. https://github.com/vugi99/C2M
+- **Treyarch BO3 Mod Tools.** The build stages target the official cod2map / linker / gdtdb toolchain and copy stock prefabs and settings from the user's own install at runtime; none of it is included here.
 - **Oodle (RAD Game Tools / Epic Games).** xpak and fastfile payloads are Oodle-compressed; our tools call the game's own `oo2core` DLL on the user's disk. The Oodle library is **not** included or redistributed.
 
 ## Licensing & compliance

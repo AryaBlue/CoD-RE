@@ -34,6 +34,7 @@ ZM Workshop's Perks tab: it decompiles the script from your own game files.
 | `machine` | Model for its machines (default: the map's Juggernog machine). |
 | `bottle` | Drinking animation weapon (default `zombie_perk_bottle_jugg`). |
 | `machines` | Where machines stand, per map: `{ zm_transit = { "x y z yaw" } }`. The tool's **Place machine here** fills this in. |
+| `specialties` | Engine perks switched on while the perk is owned, e.g. `{ "specialty_fastreload", "specialty_fastads" }`. One the player also has from a stock machine is left alone when this perk goes. |
 | `tick_every` | Seconds between `on_tick` calls (default 0.5). |
 
 ## Your own icon
@@ -108,6 +109,7 @@ Call methods with `:`, e.g. `player:give_points(500)`.
 | `damage(n, attacker)`, `kill(attacker)` | Both |
 | `has_perk(id)`, `give_perk(id)`, `take_perk(id)` | Players; `id` is a custom perk id or a stock specialty such as `"specialty_armorvest"` |
 | `shellshock(kind, seconds)` | Players |
+| `set_engine_perk(specialty, on)` | Players: a raw engine perk on or off, without a stock perk's HUD or rules |
 
 You can store your own values on players and zombies: `player.vampire_kills = 0`.
 `perk` inside a function is this perk's table (`perk.name`, `perk.cost`).
@@ -137,27 +139,29 @@ Differences from standard Lua:
 ## How it runs
 
 `runtime/zm_workshop_perks.gsc` is the support library. ZM Workshop bundles it with every compiled perk into one
-script in Plutonium's `scripts\zm` folder. Each custom perk becomes a real BO2 perk: it borrows an engine perk slot
-Zombies never uses and registers with `_zm_perks`. So the perk limit, losing perks when you go down, and the tool's
-give/take all work. HUD icons are drawn by the runtime in a row above the stock icons; set the dvar
-`zmw_perk_hud "x y size gap"` to move them.
+script in Plutonium's `scripts\zm` folder. Custom perks are tracked by the runtime itself rather than with engine
+perk slots, so there is no limit on how many you have. They still count towards the map's perk limit, are lost
+when you go down (Who's Who keeps them, as it does stock perks), and work with the tool's give/take. Use
+`specialties` for engine effects. HUD icons are drawn by the runtime in rows above the stock icons; set the dvar
+`zmw_perk_hud "x y size gap per_row"` to move them.
 
-Up to 7 custom perks can be loaded at once: each needs an engine perk slot that Zombies never touches, and BO2
-has 7 of those. Extra perks are skipped with a message.
+### Loading into a running match
 
-## Commands from the tool
+New compiled GSC can't be added to a match that's already going, so **Build + install** does two things: it builds
+the script for the next map start, and it sends every perk that changed since the last build straight into the
+running match as bytecode (`lua2gsc --live`), which the runtime interprets. The log says when a perk is live. Players
+who already have the perk get the old version's `on_take` and then the new version's `on_give`, so start-up state
+is set again. At the next map start the compiled copy takes over.
 
-The runtime also takes one-shot commands through the dvar `zmw_perk_cmd` (ZM Workshop's Perks and Player tabs send them):
-`"<serial> <action> [arg] [all]"`, run once each time the serial changes. The player is the host, or every player when
-the last word is `all`.
+Limits of a live load:
 
-| Action | Does |
-| --- | --- |
-| `give <id>`, `take <id>` | A custom perk id or a stock specialty (`specialty_armorvest`). |
-| `allperks`, `noperks` | Every perk the map sells plus every custom perk, or all of them taken. |
-| `points <n>`, `takepoints <n>` | Score. |
-| `ammo`, `revive`, `heal` | Refill every weapon, get up from last stand, full health. |
-| `place <id>` | A machine 64 units in front of the host; prints `ZMW_PERK_PLACED <id> <map> <x> <y> <z> <yaw>` to the console log. |
-| `list` | Prints the loaded custom perks. |
+- A brand-new icon or machine model shows from the next map start (the engine only loads art while the map loads);
+  until then the perk uses the Juggernog icon and machine.
+- Fields you invent on players and zombies (`player.x`) are kept separately for a live perk, so they start empty.
+- One push is limited to about 15 KB of bytecode (several typical perks). Bigger changes apply from the next map
+  start.
+- Live perks are interpreted, so they are slower than compiled ones, which is fine for trying changes.
 
-Building `lua2gsc` itself: `cl /EHsc /std:c++17 lua2gsc.cpp`. Tests: `python tests/run_tests.py lua2gsc.exe gsc-tool.exe`. `python tests/check_refs.py runtime/zm_workshop_perks.gsc <dir>` checks that every stock function the runtime calls exists, against your own decompiled `patch_zm` / `zm_*_patch` scripts (OAT Unlinker `--include-assets script`, then `gsc-tool -m decomp -g t6 -s pc`).
+Building `lua2gsc` itself: `cl /EHsc /std:c++17 lua2gsc.cpp`. Tests: `python tests/run_tests.py lua2gsc.exe gsc-tool.exe`.
+`lua2gsc --live perk.lua` prints a perk's bytecode; `tests/livevm.cpp` runs it the way the runtime does and
+`tests/live/lua` runs the same perk in real Lua (LÖVE), and the two outputs must match.

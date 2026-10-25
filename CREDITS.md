@@ -12,5 +12,11 @@ The Call of Duty reverse-engineering in this repository builds on prior communit
 - **Treyarch BO3 Mod Tools.** The build stages target the official cod2map / linker / gdtdb toolchain and copy stock prefabs and settings from the user's own install at runtime; none of it is included here.
 - **Oodle (RAD Game Tools / Epic Games).** xpak and fastfile payloads are Oodle-compressed; our tools call the game's own `oo2core` DLL on the user's disk. The Oodle library is **not** included or redistributed.
 
+## BO2 / T6 Lua perks (`games/t6-bo2/perks/`)
+- **xensik — gsc-tool.** The T6 GSC compiler/decompiler the perk builds and tests run through (`-m comp -g t6 -s pc`); the stock scripts the link checker reads are decompiled with it from the user's own game files. Not included here. https://github.com/xensik/gsc-tool
+- **Plutonium.** The T6 client whose `scripts\zm` loading the runtime is written for. https://plutonium.pw
+- **LÖVE (LuaJIT).** Runs the live-bytecode test's real-Lua side (`tests/live/lua`). https://love2d.org
+- **ate47 — bo3-source.** Decompiled stock BO3 scripts, the reference for what BO3 perk mods call when we bring their ideas to BO2. https://github.com/ate47/bo3-source
+
 ## Licensing & compliance
 Our OAT- and B2W-derived patches elsewhere in this repo are GPL-3.0, matching their upstreams. The BO4/T8 tooling is clean-room: it contains no copied third-party source. No AES keys, no proprietary binaries (Oodle, game executables, linker/exporter tools, Greyhound `.wni` data) and no extracted or decompressed game content are included in this repository — the tools operate only on files the user already owns.

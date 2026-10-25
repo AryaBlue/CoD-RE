@@ -379,7 +379,7 @@ static const std::map<std::string, std::pair<int, int>>& Methods() {
         {"current_weapon", {0, 0}}, {"give_weapon", {1, 1}}, {"take_weapon", {1, 1}}, {"refill_ammo", {0, 0}},
         {"set_speed", {1, 1}}, {"print", {1, 1}}, {"print_bold", {1, 1}}, {"play_sound", {1, 1}}, {"is_sprinting", {0, 0}},
         {"is_on_ground", {0, 0}}, {"stance", {0, 0}}, {"set_ignored", {1, 1}}, {"damage", {1, 2}}, {"kill", {0, 1}},
-        {"has_perk", {1, 1}}, {"give_perk", {1, 1}}, {"take_perk", {1, 1}}, {"shellshock", {2, 2}}};
+        {"has_perk", {1, 1}}, {"give_perk", {1, 1}}, {"take_perk", {1, 1}}, {"shellshock", {2, 2}}, {"set_engine_perk", {2, 2}}};
     return m;
 }
 // handler function name -> field of the runtime's handler struct, and how many parameters the runtime passes
@@ -392,6 +392,15 @@ static const std::map<std::string, std::pair<const char*, int>>& Handlers() {
 }
 
 static std::string Lower(std::string s) { for (char& c : s) c = (char)tolower((unsigned char)c); return s; }
+// a record/entity field as GSC writes it: lowercase, and not a GSC word (t.level, t.size would mean something else)
+static std::string FieldName(const std::string& n) {
+    static const std::set<std::string> reserved = {"level", "self", "game", "anim", "size", "true", "false", "undefined", "if", "else",
+        "while", "for", "foreach", "in", "do", "switch", "case", "default", "break", "continue", "return", "wait", "waittill",
+        "waittillmatch", "waittillframeend", "notify", "endon", "thread", "childthread", "isdefined", "istrue", "assert", "breakpoint",
+        "prof_begin", "prof_end", "waitrealtime"};
+    std::string l = Lower(n);
+    return reserved.count(l) ? "f_" + l : l;
+}
 static std::string Quote(const std::string& s) {
     std::string o = "\"";
     for (char c : s) {
@@ -499,7 +508,7 @@ std::string Gen::Index(const ExprP& e, std::vector<std::string>& pre) {
     std::string obj = Val(e->a, pre);
     const ExprP& key = e->b;
     // a.name is a field of a record ({ name = ... }) or entity (player.kills); a["name"] is a key of a list/map
-    if (e->dot) return obj + "." + Lower(key->s);
+    if (e->dot) return obj + "." + FieldName(key->s);
     if (key->k == Expr::Str) return obj + "[" + Quote(key->s) + "]";
     if (key->k == Expr::Num && key->isInt) return obj + "[" + std::to_string((long long)key->num - 1) + "]";
     return obj + "[zmw_idx( " + Val(key, pre) + " )]";
@@ -609,7 +618,7 @@ std::string Gen::Val(const ExprP& e, std::vector<std::string>& pre) {
         int pos = 0;
         for (auto& f : e->fields) {
             std::string v = Val(f.value, pre);
-            if (!f.name.empty()) pre.push_back(record ? t + "." + Lower(f.name) + " = " + v + ";" : t + "[" + Quote(f.name) + "] = " + v + ";");
+            if (!f.name.empty()) pre.push_back(record ? t + "." + FieldName(f.name) + " = " + v + ";" : t + "[" + Quote(f.name) + "] = " + v + ";");
             else if (f.key) {
                 if (f.key->k == Expr::Num && f.key->isInt) pre.push_back(t + "[" + std::to_string((long long)f.key->num - 1) + "] = " + v + ";");
                 else pre.push_back(t + "[zmw_idx( " + Val(f.key, pre) + " )] = " + v + ";");
@@ -903,6 +912,14 @@ Result Gen::Run(const Block& chunk) {
                     ++r.machines;
                 }
             }
+        } else if (n == "specialties") {
+            if (fld.value->k != Expr::Table) Fail(fld.value->line, "specialties = { \"specialty_fastreload\", ... }");
+            Emit("info.specialties = [];");
+            int k = 0;
+            for (auto& x : fld.value->fields) {
+                if (!x.name.empty() || x.key || x.value->k != Expr::Str) Fail(fld.value->line, "each specialty is a string such as \"specialty_fastreload\"");
+                Emit("info.specialties[" + std::to_string(k++) + "] = " + Quote(x.value->s) + ";");
+            }
         } else if (n == "tick_every") {
             if (fld.value->k != Expr::Num) Fail(fld.value->line, "tick_every is a number of seconds");
             tickEvery = fld.value->num;
@@ -914,7 +931,7 @@ Result Gen::Run(const Block& chunk) {
         } else if (n == "cost") {
             r.cost = ConstVal(fld.value, "cost");
             Emit("info.cost = " + r.cost + ";");
-        } else Fail(fld.value->line, "unknown perk field '" + n + "' (name, description, cost, hint, icon, color, machine, bottle, machines, tick_every)");
+        } else Fail(fld.value->line, "unknown perk field '" + n + "' (name, description, cost, hint, icon, color, machine, bottle, machines, specialties, tick_every)");
     }
     std::vector<std::string> pre;
     for (auto& s : globals) {
@@ -945,6 +962,370 @@ Result Gen::Run(const Block& chunk) {
     return r;
 }
 
+// ---------------------------------------------------------------- live bytecode
+// The same perk as flat register bytecode, run by zmwi_run in the runtime so a perk can be loaded into a match that
+// is already going (new GSC can't be linked into a running script VM). Flat code, not a tree, because GSC limits how
+// deep calls nest. The text is space-separated tokens, made only of [A-Za-z0-9_.%-] so it survives a console `set`:
+//   ZMWI 1 <id>
+//   I <field> <const>  C <r> <g> <b>  M <map> <n> <spot>...  S <n> <specialty>...   perk table
+//   F <nparams> <nregs> <ninstr> <instr>...                                         function 0 sets the globals
+//   H <handler> <function>   E
+// consts: i<int> n<float> s<escaped> u(nil); escapes are %XX. Instructions and their operands:
+//   K d c  MV d s  GG d name  GS name s  FN d f  PK d  GF d o name  SF o name s  GI d o k  SI o k s  NL d  NR d
+//   ADD SUB MUL DIV IDIV MOD POW LT GT LE GE EQ NE CAT d a b   NOT NEG LEN d a   J t  JF a t  JT a t
+//   CA d name n args  CM d name o n args  CF d f n args  CV d fr n args  TH f n args  W a  R a  R0
+// GI/SI shift whole-number keys down by one (Lua lists start at 1); GF/SF are record or entity fields.
+static std::string Esc(const std::string& s) {
+    std::string o; char b[4];
+    for (unsigned char c : s) {
+        if (isalnum(c) || c == '_' || c == '.' || c == '-') o += (char)c;
+        else { snprintf(b, sizeof b, "%%%02X", c); o += b; }
+    }
+    return o;
+}
+
+class Live {
+public:
+    Live(const std::string& id) : id(id) {}
+    std::string Run(const Block& chunk);
+private:
+    struct Fn { int params = 0, regs = 0; std::vector<std::vector<std::string>> code; };
+    struct LV { int kind = 4; int reg = -1, obj = -1, key = -1; std::string name; std::shared_ptr<LV> parent; };   // 0 local 1 global 2 field 3 index 4 value
+    using LVP = std::shared_ptr<LV>;
+    std::string id;
+    std::map<std::string, FuncP> functions;
+    std::map<std::string, int> fnIndex;
+    std::vector<Fn> fns;
+    std::vector<std::pair<int, FuncP>> todo;          // anonymous functions still to write
+    int cur = 0;                                      // index of the function being written (fns may grow meanwhile)
+    std::vector<std::map<std::string, int>> scopes;
+    std::vector<std::vector<size_t>> breaks;          // per loop: J instructions to point at its end
+
+    Fn& F() { return fns[cur]; }
+    static std::string R(int r) { return std::to_string(r); }
+    int Reg() { return F().regs++; }
+    size_t Emit(std::vector<std::string> ins) { F().code.push_back(std::move(ins)); return F().code.size() - 1; }
+    size_t Pc() { return F().code.size(); }
+    void Patch(size_t at, size_t slot) { F().code[at][slot] = std::to_string(Pc()); }
+    static std::string Const(const ExprP& e) {
+        switch (e->k) {
+        case Expr::Nil: return "u";
+        case Expr::True: return "i1";
+        case Expr::False: return "i0";
+        case Expr::Num: return (e->isInt ? "i" : "n") + NumText(e->num, e->isInt);
+        case Expr::Str: return "s" + Esc(e->s);
+        case Expr::Un: if (e->s == "-" && e->a->k == Expr::Num) return (e->a->isInt ? "i-" : "n-") + NumText(e->a->num, e->a->isInt); break;
+        default: break;
+        }
+        return "";
+    }
+    int K(const std::string& c) { int d = Reg(); Emit({"K", R(d), c}); return d; }
+    int Local(const std::string& n) {
+        for (size_t s = scopes.size(); s-- > 0;) { auto it = scopes[s].find(n); if (it != scopes[s].end()) return it->second; }
+        return -1;
+    }
+    int Declare(const std::string& n) { int r = Reg(); scopes.back()[n] = r; return r; }
+    int Copy(int r) { int d = Reg(); Emit({"MV", R(d), R(r)}); return d; }
+    int Val(const ExprP& e);
+    size_t Jump(const ExprP& e, bool ifTrue) { int c = Val(e); return Emit({ifTrue ? "JT" : "JF", R(c), ""}); }
+    std::vector<std::string> Args(const std::vector<ExprP>& args) { std::vector<std::string> v; for (auto& a : args) v.push_back(R(Val(a))); return v; }
+    int Call(const ExprP& e);
+    LVP Path(const ExprP& e);
+    int Read(const LVP& lv);
+    void Write(const LVP& lv, int v);
+    void Block_(const Block& b) { scopes.push_back({}); for (auto& s : b) Stat_(s); scopes.pop_back(); }
+    void Stat_(const StatP& s);
+    void Loop(size_t top, size_t out) {               // close a loop: jump back, point its exits here
+        Emit({"J", std::to_string(top)});
+        Patch(out, 2);
+        for (size_t j : breaks.back()) Patch(j, 1);
+        breaks.pop_back();
+    }
+    int NewFn(const FuncP& fn) { fns.push_back({}); todo.push_back({(int)fns.size() - 1, fn}); return (int)fns.size() - 1; }
+    void Body(int index, const FuncP& fn);
+};
+
+int Live::Call(const ExprP& e) {
+    int d = Reg();
+    if (e->k == Expr::Method) {
+        int o = Val(e->a);
+        std::vector<std::string> ins{"CM", R(d), Esc(e->s), R(o), std::to_string(e->args.size())};
+        for (auto& a : Args(e->args)) ins.push_back(a);
+        Emit(ins); return d;
+    }
+    const ExprP& callee = e->a;
+    std::vector<std::string> ins;
+    if (callee->k == Expr::Name && Local(callee->s) < 0) {
+        const std::string& n = callee->s;
+        if (functions.count(n)) ins = {"CF", R(d), std::to_string(fnIndex[n])};
+        else if (n == "wait") { Emit({"W", R(Val(e->args[0]))}); return d; }
+        else if (n == "thread") {
+            std::vector<ExprP> rest(e->args.begin() + 1, e->args.end());
+            std::vector<std::string> t{"TH", std::to_string(fnIndex[e->args[0]->s]), std::to_string(rest.size())};
+            for (auto& a : Args(rest)) t.push_back(a);
+            Emit(t); return d;
+        } else ins = {"CA", R(d), Esc(n)};
+    } else if (callee->k == Expr::Index && callee->a->k == Expr::Name && callee->b->k == Expr::Str && Local(callee->a->s) < 0 &&
+               (callee->a->s == "math" || callee->a->s == "string" || callee->a->s == "table")) {
+        std::string full = callee->a->s + "." + callee->b->s;
+        if (full == "table.insert") {                      // t[#t + 1] = v, written back to wherever t lives
+            LVP lv = Path(e->args[0]);
+            int t = Read(lv), v = Val(e->args[1]), n = Reg(), one = K("i1");
+            Emit({"LEN", R(n), R(t)}); Emit({"ADD", R(n), R(n), R(one)}); Emit({"SI", R(t), R(n), R(v)});
+            Write(lv, t); return d;
+        }
+        if (full == "table.remove") {
+            LVP lv = Path(e->args[0]);
+            int t = Read(lv), i = Val(e->args[1]);
+            Emit({"CA", R(d), "__remove", "2", R(t), R(i)});
+            Write(lv, d); return d;
+        }
+        ins = {"CA", R(d), Esc(full)};
+    } else ins = {"CV", R(d), R(Val(callee))};
+    ins.push_back(std::to_string(e->args.size()));
+    for (auto& a : Args(e->args)) ins.push_back(a);
+    Emit(ins);
+    return d;
+}
+
+Live::LVP Live::Path(const ExprP& e) {
+    auto lv = std::make_shared<LV>();
+    if (e->k == Expr::Name && Local(e->s) >= 0) { lv->kind = 0; lv->reg = Local(e->s); }
+    else if (e->k == Expr::Name && !functions.count(e->s) && e->s != "perk") { lv->kind = 1; lv->name = Lower(e->s); }
+    else if (e->k == Expr::Index) {
+        if (e->a->k == Expr::Name || e->a->k == Expr::Index) { lv->parent = Path(e->a); lv->obj = Read(lv->parent); }
+        else lv->obj = Val(e->a);
+        if (e->dot) { lv->kind = 2; lv->name = Lower(e->b->s); }
+        else { lv->kind = 3; lv->key = Val(e->b); }
+    } else lv->reg = Val(e);
+    return lv;
+}
+int Live::Read(const LVP& lv) {
+    int d;
+    switch (lv->kind) {
+    case 0: case 4: return lv->reg;
+    case 1: d = Reg(); Emit({"GG", R(d), Esc(lv->name)}); return d;
+    case 2: d = Reg(); Emit({"GF", R(d), R(lv->obj), Esc(lv->name)}); return d;
+    default: d = Reg(); Emit({"GI", R(d), R(lv->obj), R(lv->key)}); return d;
+    }
+}
+// arrays are values in GSC: after changing one held in a register, store it back up the path it came from
+void Live::Write(const LVP& lv, int v) {
+    switch (lv->kind) {
+    case 0: if (lv->reg != v) Emit({"MV", R(lv->reg), R(v)}); return;
+    case 1: Emit({"GS", Esc(lv->name), R(v)}); return;
+    case 2: Emit({"SF", R(lv->obj), Esc(lv->name), R(v)}); break;
+    case 3: Emit({"SI", R(lv->obj), R(lv->key), R(v)}); break;
+    default: return;
+    }
+    if (lv->parent) Write(lv->parent, lv->obj);
+}
+
+int Live::Val(const ExprP& e) {
+    std::string c = Const(e);
+    if (!c.empty()) return K(c);
+    switch (e->k) {
+    case Expr::Paren: return Val(e->a);
+    case Expr::Name: {
+        int l = Local(e->s);
+        if (l >= 0) return l;
+        int d = Reg();
+        if (functions.count(e->s)) Emit({"FN", R(d), std::to_string(fnIndex[e->s])});
+        else if (e->s == "perk") Emit({"PK", R(d)});
+        else Emit({"GG", R(d), Esc(Lower(e->s))});
+        return d;
+    }
+    case Expr::Index: return Read(Path(e));
+    case Expr::Call: case Expr::Method: return Call(e);
+    case Expr::Function: { int d = Reg(); Emit({"FN", R(d), std::to_string(NewFn(e->fn))}); return d; }
+    case Expr::Table: {
+        bool record = !e->fields.empty();
+        for (auto& fl : e->fields) record = record && !fl.name.empty();
+        int d = Reg(), pos = 0;
+        Emit({record ? "NR" : "NL", R(d)});
+        for (auto& fl : e->fields) {
+            int v = Val(fl.value);
+            if (!fl.name.empty()) {
+                if (record) Emit({"SF", R(d), Esc(Lower(fl.name)), R(v)});
+                else Emit({"SI", R(d), R(K("s" + Esc(fl.name))), R(v)});
+            } else if (fl.key) Emit({"SI", R(d), R(Val(fl.key)), R(v)});
+            else Emit({"SI", R(d), R(K("i" + std::to_string(++pos))), R(v)});
+        }
+        return d;
+    }
+    case Expr::Un: {
+        int a = Val(e->a), d = Reg();
+        Emit({e->s == "not" ? "NOT" : e->s == "#" ? "LEN" : "NEG", R(d), R(a)});
+        return d;
+    }
+    case Expr::Bin: {
+        const std::string& op = e->s;
+        if (op == "and" || op == "or") {                  // d = a; if a decides it, skip b
+            int d = Copy(Val(e->a));
+            size_t j = Emit({op == "and" ? "JF" : "JT", R(d), ""});
+            int b = Val(e->b);
+            Emit({"MV", R(d), R(b)});
+            Patch(j, 2);
+            return d;
+        }
+        static const std::map<std::string, const char*> ops = {{"+", "ADD"}, {"-", "SUB"}, {"*", "MUL"}, {"/", "DIV"}, {"//", "IDIV"},
+            {"%", "MOD"}, {"^", "POW"}, {"<", "LT"}, {">", "GT"}, {"<=", "LE"}, {">=", "GE"}, {"==", "EQ"}, {"~=", "NE"}, {"..", "CAT"}};
+        int a = Val(e->a), b = Val(e->b), d = Reg();
+        Emit({ops.at(op), R(d), R(a), R(b)});
+        return d;
+    }
+    default: break;
+    }
+    throw Error(e->line, "unsupported expression");
+}
+
+void Live::Stat_(const StatP& s) {
+    switch (s->k) {
+    case Stat::Local: {
+        std::vector<int> vals;
+        for (size_t i = 0; i < s->names.size(); ++i) vals.push_back(i < s->exprs.size() ? Val(s->exprs[i]) : K("u"));
+        for (size_t i = 0; i < s->names.size(); ++i) { int r = Declare(s->names[i]); Emit({"MV", R(r), R(vals[i])}); }
+        break;
+    }
+    case Stat::Assign: {
+        if (s->targets.size() == 1) { int v = Val(s->exprs[0]); Write(Path(s->targets[0]), v); break; }
+        std::vector<int> vals;
+        for (auto& x : s->exprs) vals.push_back(Copy(Val(x)));
+        for (size_t i = 0; i < s->targets.size(); ++i) Write(Path(s->targets[i]), vals[i]);
+        break;
+    }
+    case Stat::CallS: Call(s->call); break;
+    case Stat::Do: Block_(s->blocks[0]); break;
+    case Stat::While: {
+        size_t top = Pc(), out = Jump(s->call, false);
+        breaks.push_back({}); Block_(s->blocks[0]);
+        Loop(top, out);
+        break;
+    }
+    case Stat::Repeat: {
+        size_t top = Pc();
+        breaks.push_back({});
+        scopes.push_back({});                              // `until` sees the body's locals
+        for (auto& x : s->blocks[0]) Stat_(x);
+        size_t again = Jump(s->call, false);
+        scopes.pop_back();
+        F().code[again][2] = std::to_string(top);
+        for (size_t j : breaks.back()) Patch(j, 1);
+        breaks.pop_back();
+        break;
+    }
+    case Stat::If: {
+        std::vector<size_t> ends;
+        for (size_t i = 0; i < s->exprs.size(); ++i) {
+            size_t next = Jump(s->exprs[i], false);
+            Block_(s->blocks[i]);
+            if (i + 1 < s->blocks.size()) ends.push_back(Emit({"J", ""}));
+            Patch(next, 2);
+        }
+        if (s->blocks.size() > s->exprs.size()) Block_(s->blocks.back());
+        for (size_t j : ends) Patch(j, 1);
+        break;
+    }
+    case Stat::NumFor: {
+        int start = Val(s->exprs[0]), stop = Copy(Val(s->exprs[1]));
+        bool down = s->exprs.size() > 2 && s->exprs[2]->k == Expr::Un;
+        int step = K(s->exprs.size() > 2 ? Const(s->exprs[2]) : "i1");
+        scopes.push_back({});
+        int v = Declare(s->names[0]), c = Reg();
+        Emit({"MV", R(v), R(start)});
+        size_t top = Pc();
+        Emit({down ? "GE" : "LE", R(c), R(v), R(stop)});
+        size_t out = Emit({"JF", R(c), ""});
+        breaks.push_back({}); Block_(s->blocks[0]);
+        Emit({"ADD", R(v), R(v), R(step)});
+        Loop(top, out);
+        scopes.pop_back();
+        break;
+    }
+    case Stat::GenFor: {
+        bool ip = s->exprs[0]->a->s == "ipairs";
+        int t = Copy(Val(s->exprs[0]->args[0])), list = t;
+        if (!ip) { list = Reg(); Emit({"CA", R(list), "__keys", "1", R(t)}); }
+        int i = K("i0"), one = K("i1"), n = Reg(), c = Reg();
+        size_t top = Pc();
+        Emit({"LEN", R(n), R(list)}); Emit({"LT", R(c), R(i), R(n)});
+        size_t out = Emit({"JF", R(c), ""});
+        scopes.push_back({});
+        int k = Declare(s->names[0]);
+        Emit({"ADD", R(k), R(i), R(one)});
+        if (!ip) { int raw = Reg(); Emit({"GI", R(raw), R(list), R(k)}); Emit({"CA", R(k), "__keyout", "1", R(raw)}); }
+        if (s->names.size() > 1) { int v = Declare(s->names[1]); Emit({"GI", R(v), R(t), R(k)}); }
+        breaks.push_back({}); Block_(s->blocks[0]);
+        Emit({"ADD", R(i), R(i), R(one)});
+        Loop(top, out);
+        scopes.pop_back();
+        break;
+    }
+    case Stat::Return:
+        if (s->exprs.empty()) Emit({"R0"}); else Emit({"R", R(Val(s->exprs[0]))});
+        break;
+    case Stat::Break: breaks.back().push_back(Emit({"J", ""})); break;
+    default: throw Error(s->line, "unsupported statement");
+    }
+}
+
+void Live::Body(int index, const FuncP& fn) {
+    int saved = cur; auto savedScopes = scopes; auto savedBreaks = breaks;
+    cur = index; scopes = {{}}; breaks.clear();
+    for (auto& p : fn->params) Declare(p);
+    F().params = (int)fn->params.size();
+    for (auto& s : fn->body) Stat_(s);
+    Emit({"R0"});
+    cur = saved; scopes = savedScopes; breaks = savedBreaks;
+}
+
+std::string Live::Run(const Block& chunk) {
+    ExprP perkTable;
+    auto init = std::make_shared<Func>();                 // function 0: the globals' first values
+    fns.push_back({});
+    for (auto& s : chunk) {
+        if (s->k == Stat::FunctionS || s->k == Stat::LocalFunction) functions[s->names[0]] = s->fn;
+        else if (s->k == Stat::Assign && s->targets.size() == 1 && s->targets[0]->k == Expr::Name && s->targets[0]->s == "perk") perkTable = s->exprs[0];
+        else if (s->k == Stat::Local) {                    // a top-level local is a perk global too, as in the compiled perk
+            for (size_t i = 0; i < s->names.size(); ++i) {
+                auto a = std::make_shared<Stat>(); a->k = Stat::Assign; a->line = s->line;
+                auto n = std::make_shared<Expr>(); n->k = Expr::Name; n->s = s->names[i];
+                ExprP v = i < s->exprs.size() ? s->exprs[i] : std::make_shared<Expr>();
+                if (i >= s->exprs.size()) v->k = Expr::Nil;
+                a->targets = {n}; a->exprs = {v};
+                init->body.push_back(a);
+            }
+        } else init->body.push_back(s);
+    }
+    for (auto& kv : functions) { fnIndex[kv.first] = (int)fns.size(); fns.push_back({}); }
+    Body(0, init);
+    for (auto& kv : functions) Body(fnIndex[kv.first], kv.second);
+    while (!todo.empty()) { auto t = todo.back(); todo.pop_back(); Body(t.first, t.second); }
+
+    std::string o = "ZMWI 1 " + Esc(id);
+    for (auto& fld : perkTable->fields) {
+        const std::string& n = fld.name;
+        if (n == "color") {
+            o += " C";
+            for (auto& x : fld.value->fields) { std::string c = Const(x.value); o += " " + (c[0] == 'i' ? "n" + c.substr(1) : c); }
+        } else if (n == "machines") {
+            for (auto& m : fld.value->fields) {
+                o += " M " + Esc(m.name) + " " + std::to_string(m.value->fields.size());
+                for (auto& spot : m.value->fields) o += " s" + Esc(spot.value->s);
+            }
+        } else if (n == "specialties") {
+            o += " S " + std::to_string(fld.value->fields.size());
+            for (auto& x : fld.value->fields) o += " s" + Esc(x.value->s);
+        } else o += " I " + n + " " + Const(fld.value);
+    }
+    for (auto& fn : fns) {
+        o += " F " + std::to_string(fn.params) + " " + std::to_string(fn.regs) + " " + std::to_string(fn.code.size());
+        for (auto& ins : fn.code) for (auto& t : ins) o += " " + t;
+    }
+    for (auto& [lua, hf] : Handlers()) if (functions.count(lua)) o += " H " + std::string(hf.first) + " " + std::to_string(fnIndex[lua]);
+    return o + " E";
+}
+
 }  // namespace detail
 
 // id: the perk's id ([a-z0-9_], used in GSC names and by the tool's give/take commands)
@@ -964,6 +1345,22 @@ inline Result Compile(const std::string& source, const std::string& rawId) {
     }
     r.id = r.name = id;
     return r;
+}
+
+// The perk as live bytecode (see detail::Live), or "" with error set. Compile() checks it first, so a perk can be
+// loaded live exactly when it builds.
+inline std::string CompileLive(const std::string& source, const std::string& rawId, std::string* error = nullptr) {
+    Result r = Compile(source, rawId);
+    if (!r.ok) { if (error) *error = r.error; return ""; }
+    try {
+        detail::Lexer lx(source);
+        detail::Parser ps(lx.Run());
+        detail::Live g(r.id);
+        return g.Run(ps.Chunk());
+    } catch (const detail::Error& e) {
+        if (error) *error = "line " + std::to_string(e.line) + ": " + e.what();
+    }
+    return "";
 }
 
 // The whole script for Plutonium: runtime, every compiled perk, and the function that registers them.

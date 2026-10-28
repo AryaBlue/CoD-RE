@@ -18,5 +18,20 @@ The Call of Duty reverse-engineering in this repository builds on prior communit
 - **LÖVE (LuaJIT).** Runs the live-bytecode test's real-Lua side (`tests/live/lua`). https://love2d.org
 - **ate47 — bo3-source.** Decompiled stock BO3 scripts, the reference for what BO3 perk mods call when we bring their ideas to BO2. https://github.com/ate47/bo3-source
 
+## E115 research notes, T4 / T5 / T6 (`games/*/notes/e115/`, `shared/notes/e115/`)
+These notes came out of E115, our from-scratch engine that loads the user's own WaW, BO1 and BO2 installs. They quote no game script; where they lean on a tool or someone else's research, it is listed here.
+- **OpenAssetTools (Laupetin, GPL-3.0).** Our zone dumper (`e115_zonedump`) is built on our vendored OAT fork. The notes rely on OAT's T4/T5/T6 struct headers and ZoneCode, zone loading, the Unlinker (rawfile scripts, string/stat tables, weapon infostrings, `--list` zone listings), the XAnim reader, the vertex/normal/image decode paths and the T6 sound loader. Nothing from OAT is copied into the notes. https://github.com/Laupetin/OpenAssetTools
+- **xensik — gsc-tool (GPL-3.0).** Decompiled the stock BO2 (T6) zombies and MP scripts from the user's own fastfiles so the notes could cite file and function and paraphrase the logic. It was also the opcode/alignment reference in the scripting note. https://github.com/xensik/gsc-tool
+- **ate47 — atian-cod-tools (ACTS).** Its T6 opcode map and GSC VM headers were a reference for the scripting note. The other-games note cites it for T7 GSC decompile/compile. https://github.com/ate47/atian-cod-tools
+- **COD Engine Research wiki (codresearch.dev).** Its "Sound Asset" and "SABS & SABL Files" pages were the struct and checksum reference for the audio note. https://codresearch.dev
+- **B2W / BO1MapConverter (Ticass/B2W lineage).** Its light-grid, lightmap, entity and hull decodes are cited (marked "[V by b2w]") in the lighting and world notes. https://github.com/Ticass/B2W
+- **OpenBLOPS.** Its `R_DecodeLightGridColors` reconstruction is referenced second-hand, through B2W, in the lighting note.
+- **Scobalula — Greyhound,** and **C2M (vugi99).** Named in the other-games note as the source of the BO4 rip and of the T7 GfxMap offsets. https://github.com/Scobalula/Greyhound · https://github.com/vugi99/C2M
+- **Plutonium.** We read its `t4sp`/`t4mp`/`t6mp`/`t6zm` client executables statically, by disassembly only, never patched, for addresses, dvar defaults and trace masks. The WaW zones were read from the user's Plutonium install. https://plutonium.pw
+- **Capstone.** Disassembled `t6zm.exe` and `BlackOps.exe`. https://www.capstone-engine.org
+- **Microsoft D3DCompiler / fxc (`D3DDisassemble`).** Disassembled shader bytecode for the sky, camo, reticle, hero-lighting, water, colour-detail and lighting notes.
+- **Treyarch BO1 Mod Tools.** We compared against the user's own `raw/` script copies and the `mtl_water` material template; none of them is included.
+- **Libraries named in the zonedump-formats and audio notes:** nlohmann/json (https://github.com/nlohmann/json), miniaudio (https://miniaud.io), stb (https://github.com/nothings/stb), Khronos glTF-Sample-Assets Sponza (https://github.com/KhronosGroup/glTF-Sample-Assets), plus FFmpeg's xWMA demuxer and dr_flac, which are mentioned only as references.
+
 ## Licensing & compliance
 Our OAT- and B2W-derived patches elsewhere in this repo are GPL-3.0, matching their upstreams. The BO4/T8 tooling is clean-room: it contains no copied third-party source. No AES keys, no proprietary binaries (Oodle, game executables, linker/exporter tools, Greyhound `.wni` data) and no extracted or decompressed game content are included in this repository — the tools operate only on files the user already owns.

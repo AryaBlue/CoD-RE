@@ -47,6 +47,7 @@ code is not published here.
 | Note | Topic |
 | --- | --- |
 | [bo1_bots.md](../../../games/t5-bo1/notes/e115/bo1_bots.md) | BO1 MP combat-training bots |
+| [bo1_sound_volume_groups.md](../../../games/t5-bo1/notes/e115/bo1_sound_volume_groups.md) | BO1 sound alias volume groups |
 | [fx_t5_layout.md](../../../games/t5-bo1/notes/e115/fx_t5_layout.md) | BO1 FxEffectDef layout |
 | [t5_weapon_colour_detail.md](../../../games/t5-bo1/notes/e115/t5_weapon_colour_detail.md) | BO1 weapon colour / detail maps |
 | [zombies_t5_pentagon.md](../../../games/t5-bo1/notes/e115/zombies_t5_pentagon.md) | Five (pentagon) |
@@ -60,13 +61,24 @@ code is not published here.
 | [fx_t6_layout.md](../../../games/t6-bo2/notes/e115/fx_t6_layout.md) | BO2 FxEffectDef layout |
 | [sky_t6.md](../../../games/t6-bo2/notes/e115/sky_t6.md) | BO2 skies |
 | [t6_actor_team_round_count.md](../../../games/t6-bo2/notes/e115/t6_actor_team_round_count.md) | BO2 actor teams and the zombie round count (Origins robots) |
+| [t6_bot_goals.md](../../../games/t6-bo2/notes/e115/t6_bot_goals.md) | BO2 MP bot goals and per-mode bot logic |
 | [t6_hero_lighting.md](../../../games/t6-bo2/notes/e115/t6_hero_lighting.md) | BO2 hero (viewmodel/character) lighting |
 | [t6_pathnode_links.md](../../../games/t6-bo2/notes/e115/t6_pathnode_links.md) | BO2 pathnode links |
 | [t6_reticle_lens.md](../../../games/t6-bo2/notes/e115/t6_reticle_lens.md) | BO2 sight reticles and lenses |
+| [t6_spread_kick.md](../../../games/t6-bo2/notes/e115/t6_spread_kick.md) | BO2 MP weapon spread, view kick and gun kick |
+| [t6_vm_builtin_gaps.md](../../../games/t6-bo2/notes/e115/t6_vm_builtin_gaps.md) | T6 zm script built-ins the VM had to add, by area ([player half](../../../games/t6-bo2/notes/e115/t6_vm_builtin_gaps_player.md)) |
+| [t6_zm_anims_falls_wallbuys.md](../../../games/t6-bo2/notes/e115/t6_zm_anims_falls_wallbuys.md) | zombie anim clips, fall damage, wall-buy hidden bones |
 | [t6_vehicles.md](../../../games/t6-bo2/notes/e115/t6_vehicles.md) | BO2 vehicles |
 | [t6_weapon_camo.md](../../../games/t6-bo2/notes/e115/t6_weapon_camo.md) | BO2 weapon camo |
 | [zbarrier_t6.md](../../../games/t6-bo2/notes/e115/zbarrier_t6.md) | BO2 zbarrier (boards / box / perk machine pieces) |
 | [zombies_t6_struct_spawns.md](../../../games/t6-bo2/notes/e115/zombies_t6_struct_spawns.md) | BO2 zombies struct-based spawns |
+
+### MW2 / IW4 — [`games/iw4-mw2/`](../../../games/iw4-mw2/)
+
+| Note | Topic |
+| --- | --- |
+| [iw4_iwi_v8.md](../../../games/iw4-mw2/notes/e115/iw4_iwi_v8.md) | IWI version 8 image header and formats |
+| [iw4_x64_and_world.md](../../../games/iw4-mw2/notes/e115/iw4_x64_and_world.md) | the 2026 64-bit update, loading zones, clipmap brushes |
 
 ### Cross-game — this folder
 
@@ -76,6 +88,7 @@ code is not published here.
 | [assets_t4_t5_t6.md](assets_t4_t5_t6.md) | asset formats across the three games |
 | [audio.md](audio.md) | sound aliases, banks and playback |
 | [collision_contents.md](collision_contents.md) | collision contents flags (proposal for our exporter) |
+| [glass.md](glass.md) | breakable glass in T4/T5/T6 |
 | [killstreaks.md](killstreaks.md) | WaW / BO1 / BO2 MP killstreaks |
 | [lighting_inputs.md](lighting_inputs.md) | light grid, primary lights, probes, static-model lighting |
 | [mp_frontend_t4_t5.md](mp_frontend_t4_t5.md) | WaW / BO1 MP front end: create-a-class, default classes, emblems |
@@ -84,6 +97,7 @@ code is not published here.
 | [other_games.md](other_games.md) | other CoD titles: what E115 could add next |
 | [perk_effects.md](perk_effects.md) | T5 / T6 zombies perk effects |
 | [scripting_t4_t5_t6.md](scripting_t4_t5_t6.md) | GSC/CSC scripting across the three games |
+| [t6_gsc_vm_semantics.md](t6_gsc_vm_semantics.md) | T6 bytecode facts and VM rules read from the exe (errors carry on, notify order, bool casts, RNG) |
 | [server_frame.md](server_frame.md) | the T5 / T6 server frame |
 | [t4_t5_water.md](t4_t5_water.md) | WaW / BO1 water |
 | [world_t4_t5_t6.md](world_t4_t5_t6.md) | GfxWorld / clipMap world data |

@@ -20,9 +20,9 @@ Sources:
 
 | | T4 | T5 | T6 |
 |---|---|---|---|
-| time limit | 10 min [V TDM doc §1] | 10 min [V TDM doc §8] | 10 min [I] |
-| TDM score limit | 500 (50 kills) [V `tdm.gsc:63-66`] | 7500 (75 kills) [V `tdm.gsc:63-67`] | 7500 [I] |
-| FFA score limit | 1000 (200 kills) [V `dm.gsc:54-57`] | 1000 (20 kills) [V `dm.gsc:54-55`] | 30 kills in playlists [I] |
+| time limit | 10 min [V TDM doc §1] | 10 min [V TDM doc §8] | 10 min [V `gamesettings_tdm.cfg`, `_dm.cfg`] |
+| TDM score limit | 500 (50 kills) [V `tdm.gsc:63-66`] | 7500 (75 kills) [V `tdm.gsc:63-67`] | 75 kills (`teamScorePerKill` 1), held as 7500 [V `gamesettings_tdm.cfg`] |
+| FFA score limit | 1000 (200 kills) [V `dm.gsc:54-57`] | 1000 (20 kills) [V `dm.gsc:54-55`] | 30 kills (`pointstowin`), held as 3000 [V `gamesettings_dm.cfg`] |
 | kill, TDM / FFA | 10 / 5 [V `_rank.gsc:24-33`, `dm.gsc:103-110`] | 100 / 50 [V `_rank.gsc:29`, `:50`, `dm.gsc:125`] | 100 / 100 [V `scoreinfo.csv` row `kill`, tdm/dm score columns] |
 | headshot bonus | none (XP only) [V] | not checked | 0 in tdm and dm [V `scoreinfo.csv` row `headshot`] |
 | assists 75/50/25 %, TDM | 8 / 6 / 4 | 80 / 60 / 40 | 50 / 25 / 25 [V `scoreinfo.csv` rows `assist_75/50/25`]; FFA 0 |
@@ -36,6 +36,23 @@ Sources:
 - Reforged pick, already made in the TDM doc §1: BO1's ×100 scale, TDM 7500, FFA 1000. BO2's TDM kill = 100 matches it.
   [I] For one Reforged ruleset: BO2's assist 50/25/25 and the 50-point tactical assists can be a per-profile score table
   over the same events.
+
+### T6 gametype settings [V]
+
+BO2's limits and timings are data, not script: `patch_mp` ships `mp/gamesettings_default.cfg` and one `mp/gamesettings_<gt>.cfg` per gametype. `zonedump --rawfiles mp/gamesettings <dir>` dumps them. The gametype file overrides the default, and the scripts read the values with `getgametypesetting`. The Reforged rows now follow them; `test_mp_rules` reads them back from `$E115_TEST_LOCAL/gamesettings/t6`.
+
+| mode | from the cfgs |
+|---|---|
+| default | prematch 15 s, preround 5 s, max health 100, `playerRespawnDelay` 0, `waverespawndelay` 0 |
+| tdm | 10 min, 75 kills |
+| dm | 10 min, 30 kills |
+| dom | two 5 min halves (`roundlimit` 2). At halftime the sides switch (default `roundswitch` 1) and the flags go neutral, but the score carries over (default `roundscorecarry` 1). The limit is 200 and a capture takes 10 s |
+| sd | 2 min rounds, 4 round wins, swap sides every 3, 1 life, plant and defuse 5 s, bomb 45 s |
+| ctf | 5 min rounds × 2. Two round wins take the match, and 3 captures take a round (`roundscorecarry` 0). Instant touch return (`defuseTime` 0), 30 s idle return, respawn 7.5 s. The 1-1 overtime is played as BO1's sudden death; T6 plays two time-to-beat rounds [I] |
+| hq | 15 min, 250, capture or destroy 20 s, 60 s lifetime. A new radio shows for 30 s before it can be taken (`objectiveSpawnTime`). `kothMode` 0: the enemy destroys a held radio rather than taking it over. Holders wait for the radio to go (`playerObjectiveHeldRespawnDelay` 60, `delayPlayer` 0); `hq.gsc` respawns them when it goes, and a 3 s gap follows |
+| koth (hardpoint) | 10 min, 250, claimed at once, 60 s a zone in order, no reveal wait, a point a second; `koth.gsc` leaves 1 s between zones |
+
+WaW and BO1 have no such files: their numbers are in plain-text `.gsc` and were already [V].
 
 ## 2. Spawn selection
 

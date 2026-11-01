@@ -33,5 +33,14 @@ These notes came out of E115, our from-scratch engine that loads the user's own 
 - **Treyarch BO1 Mod Tools.** We compared against the user's own `raw/` script copies and the `mtl_water` material template; none of them is included.
 - **Libraries named in the zonedump-formats and audio notes:** nlohmann/json (https://github.com/nlohmann/json), miniaudio (https://miniaud.io), stb (https://github.com/nothings/stb), Khronos glTF-Sample-Assets Sponza (https://github.com/KhronosGroup/glTF-Sample-Assets), plus FFmpeg's xWMA demuxer and dr_flac, which are mentioned only as references.
 
+## E115 notes added November 2026 (T6 script VM, MW2 / IW4, bots, spread, glass)
+- **iw4x-x64/oat (William Roy, GPL-3.0)** and **iw4x-x64/assets.** The 64-bit IW4MS zone loading that our OpenAssetTools build uses was ported from this fork, and its x64 asset definitions were the reference for the IW4 notes. We link to it instead of republishing it. https://github.com/iw4x-x64/oat · https://github.com/iw4x-x64/assets
+- **iw4x / iw4x-client.** Read-only reference for how the community loads MW2 zones and images. https://github.com/iw4x/iw4x-client
+- **Laupetin — OpenAssetTools (GPL-3.0).** The IWI loader layout (`IwiTypes.h`, `IwiLoader.cpp`) cross-checked the IWI version 8 note, and its IW4 structs back the clipmap note. https://github.com/Laupetin/OpenAssetTools
+- **plutoniummod/t6-scripts** (hand-fixed, recompilable BO2 GSC; formerly JezuzLizard's Recompilable-gscs-for-BO2-zombies-and-multiplayer). Read-only reference for what the stock T6 zombies scripts do when we filled in missing built-ins. Nothing from it is copied. https://github.com/plutoniummod/t6-scripts
+- **JezuzLizard — Recompilable-gscs.** The same lineage as above, credited for the original work. https://github.com/JezuzLizard
+- **xensik — gsc-tool,** **ate47 — ACTS** and the **codresearch.dev** wiki, as listed above, for the VM semantics note: gsc-tool 1.6.1's disassembly is what our bytecode decoder is checked against.
+- **Plutonium.** `t6zm.exe` and `t6mp.exe` were read statically (the MP exe after removing its SteamStub wrapper into a scratch copy only) for the VM, spread/kick and fall-damage notes.
+
 ## Licensing & compliance
 Our OAT- and B2W-derived patches elsewhere in this repo are GPL-3.0, matching their upstreams. The BO4/T8 tooling is clean-room: it contains no copied third-party source. No AES keys, no proprietary binaries (Oodle, game executables, linker/exporter tools, Greyhound `.wni` data) and no extracted or decompressed game content are included in this repository — the tools operate only on files the user already owns.

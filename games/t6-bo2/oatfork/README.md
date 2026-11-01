@@ -1,36 +1,39 @@
-# oatfork — optimized OpenAssetTools fork (Linker / Unlinker)
+# oatfork: our faster OpenAssetTools fork
 
-Our performance fork of OpenAssetTools, plus a T6 world dumper, on top of the
-waw2bo2 B2W OAT checkout. GPL-3.0, like OpenAssetTools itself. Source only — no
-built binaries go in this repo.
+This is our OpenAssetTools (OAT) fork with a faster Linker and Unlinker, plus a T6 world dumper. It sits on top of
+the waw2bo2 B2W OAT checkout. It is GPL-3.0, like OAT. The repo holds source only. There are no built binaries.
 
-`BASE_COMMIT` is the baseline the changes sit on: the `reference/b2w` OAT tree
-(Ticass/B2W `70bc049`, see `../../converter/b2w-patch/BASE_COMMIT`) with the
-working-tree patches installed 2026-10-19. `changes.patch` is our diff against it.
+`BASE_COMMIT` is the commit the changes sit on: the `reference/b2w` OAT tree (Ticass/B2W `70bc049`, see
+`../../converter/b2w-patch/BASE_COMMIT`) with our working-tree patches from 2026-10-19. `changes.patch` is our diff
+against it. It is a snapshot from 2026-10-20. Later OAT world-dumper work (T6 layer data) is not in it yet.
 
-## What's in `changes.patch`
+## What the patch changes
 
-Speed (outputs proven equivalent by unlink + diff, not by bytes — fork `.ff`
-output is nondeterministic run to run):
+Speed. We checked that outputs are equivalent by unlinking and diffing. They are not byte-identical, because
+`.ff` output from the fork differs from run to run.
 
-- **Parallel XModel JSON parse** — `LoaderXModel` loads model JSON across threads
-  (templates + generated `build/src` copies for IW3/IW4/IW5/T5/T6).
-- **Parallel XChunk deflate** — `XChunkProcessorDeflate` / `OutputProcessorXChunks`
-  compress zone chunks in parallel.
-- **Unlinker `--model-format NONE`** — skip model export when only non-model
-  assets are wanted (`UnlinkerArgs`).
+- XModel JSON parses in parallel (`LoaderXModel`).
+- Zone chunks deflate in parallel (`XChunkProcessorDeflate`, `OutputProcessorXChunks`).
+- The Unlinker has `--model-format NONE`, which skips model export when you only want other assets.
 
-Dumper:
+Dumper. `WorldConverterDumperT6` writes the T6 GfxWorld and ClipMap as `.bin` files:
+`maps/mp/<map>.d3dbsp.gfx.bin` and `maps/mp/<map>.d3dbsp.clip.bin`. We use them to port BO2 multiplayer maps to Zombies.
 
-- **T6 GfxWorld / ClipMap `.bin` dumper** (`WorldConverterDumperT6`, new files
-  under `new/`, wired through `ObjWriterT6` / `ObjWriting.h` / `ZoneCreator` /
-  `AssetCreatorCollection`). Emits `maps/mp/<map>.d3dbsp.{gfx,clip}.bin` for the
-  BO2 MP → Zombies port path.
+## Worked example
 
-## Apply
+Say your OAT checkout is `C:\src\oat` and this repo is `C:\src\CoD-RE`.
 
-    git -C <oatfork-checkout> checkout 14c04d0 && git -C <oatfork-checkout> apply changes.patch
-    # then copy new/ over the checkout and rebuild
+    git -C C:\src\oat checkout 14c04d0
+    git -C C:\src\oat apply C:\src\CoD-RE\games\t6-bo2\oatfork\changes.patch
+    xcopy /E /Y C:\src\CoD-RE\games\t6-bo2\oatfork\new\* C:\src\oat\
 
-Snapshot as of 2026-10-20. Later OAT world-dumper work (T6 layer data) is not
-included here yet.
+Rebuild OAT. Then dump a map from your BO2 install without exporting models (the map name here is only an example):
+
+    Unlinker.exe --model-format NONE --output-folder C:\work\dump C:\Games\BO2\zone\all\mp_nuketown_2020.ff
+
+You should get the `.gfx.bin` and `.clip.bin` files under `C:\work\dump\maps\mp\`.
+
+If it fails:
+- `git apply` errors mean you are not on `14c04d0`. Check it out again and retry.
+- The Unlinker complains about missing assets: the map needs its common zones loaded too. Run `Unlinker.exe --help`
+  to see how your build takes extra zones.

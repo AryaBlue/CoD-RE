@@ -22,6 +22,7 @@ Everything here was read in the code as of 2026-10-26. **[I]** marks anything in
 | `fx/<name>.json` + `images/*.dds` effects | `zonedump --fx` (`tools/zonedump/ExportFx.cpp`) | `src/fx/FxDef.cpp` | muzzle flashes, impacts, blood, glows |
 | `impactfx.json` impact table | `zonedump --impactfx` (same file) | not read yet | which impact effect plays |
 | `zbarriers.json` + `zbarrier_models/*.glb` | `zonedump --zbarriers` (`tools/zonedump/ExportZBarrier.cpp`) | not read yet | t6 window boards, the box |
+| `hud_script/<material>.png` + `hud.txt` | `zonedump --hud script` (`tools/zonedump/ExportPreview.cpp`) | not read yet | the materials t6 scripts name (setshader); `black`/`white` are the engine's `$black`/`$white`, written as 4x4 solids [V: nuked, 24 of 27] |
 | `world.script_models.json` + `script_models/*.glb` | `zonedump --world` (`tools/zonedump/ExportWorld.cpp`) | not read yet | the script_model ents and the models scripts swap them to |
 | `<map>.lighting` | hand-written | `src/lighting/LightingEnvironment.cpp` | lighting overrides |
 | views file | hand-written | `src/app/Options.cpp` | scripted screenshots |
@@ -396,6 +397,9 @@ parts the attachment replaces: `au_an94_acog` hides `tag_sights_front`, `tag_sig
 
 ### Weapon viewmodels (`<exportRoot>/<game>/weapons/<weapon>.glb`)
 
+MP class guns are shared per game instead: `<exportRoot>/<game>/weapons/mp/<arms>/<def>[+<attachments>].glb`,
+made once a game on each arms model, with the map's arms named in `weapons/mp/arms/<map>.txt`.
+
 The game's arms (t4: `viewmodel_usa_marine_arms`) and the weapon's `gunModel` go into one `--xanim` glb. List the
 arms first, then the gun as `<gunModel>@tag_weapon`. The gun shares no bones with the arms, so without `@tag_weapon` its
 root `j_gun` lands at the view origin, muzzle at the camera. Clips and models are found in every loaded zone. The first
@@ -673,6 +677,49 @@ From `src/app/Options.cpp`, `Assets.cpp` and `main.cpp`:
 | `--anim <name>` | an animation `name` in the glb | |
 | `--fx <json> [x y z]`, `--fx-age <s>` | an effect from `zonedump --fx` (its export root is the folder above `fx/`) | looped at x y z (engine metres) or 1 m ahead of the camera. `--fx-age` replays it each frame and holds it that many seconds in, for repeatable screenshots |
 | `<exe>/shaders/*.spv` | SPIR-V from `shaders/*.hlsl` | build output, not content |
+
+## Re-converting: stamps and format bumps
+
+Every convert job writes a stamp of what it ran with: its args (the staging dir as `{out}`), its zones' sizes and
+times, and the format numbers below (`jobStamp` in `games/reforged/core/Convert.cpp`). A job whose stamp no longer
+matches runs again on the next load. A changed rule (models, clips, zones) needs no bump, since it changes the args.
+A fix that changes **what zonedump writes** for the same args does, and exactly one of these:
+
+| change | bump | where |
+|---|---|---|
+| one mode's output (only `--xanim` glbs, only `--rawfiles`, ...) | add or raise that mode in `kFormats`: `{"--xanim", 2}` | `tools/zonedump/main.cpp` |
+| every mode's output (textures, the glb writer, ...) | raise `"*"` in `kFormats` | same |
+| one kind of job on some games or maps (t6 worlds, t4 collision, ...) | `jobFormat(plan, label)` | `games/reforged/core/Convert.cpp` |
+| every job, on the app side (the stamp itself, staging) | `stampFormat` | same |
+
+- Numbers only go up. A job takes the newest of `"*"` and the formats of the modes in its args.
+- zonedump format 1 adds nothing to the stamp, so a converter that says `* 1` redoes nothing made before `--format`
+  existed.
+- The app runs `e115_zonedump --format` once per exe (path + write time). An exe that can't answer is out of date: the
+  convert panel says to rebuild it and converts nothing, but loads go on with what's already exported.
+- A bump redoes the job on every map that has it, so prefer the narrowest row. A t6-only fix to a mode is a
+  `jobFormat` on t6 plans, not a `kFormats` bump.
+- The bump goes in the same commit as the fix, with the zonedump rebuilt (`build/zonedump`, then copied to each
+  `bin/tools`).
+
+### Older builds
+
+Two builds with different planners disagree on stamps, so each redoes what the other made. An old build then
+downgrades content, as when a build without the collision mode filter re-made zm_prison's col.glb.
+
+- `convert_stamps.txt` keeps each job's format next to its stamp as `~format <label> N` (the `jobFormat` above).
+- A build whose `jobFormat` for that label is lower leaves that job alone and logs `made by a newer converter`. The
+  map's other jobs still update as normal, and missing outputs are always made.
+- So a change that older builds mustn't redo needs a `jobFormat` bump, not only new args. A new job label needs
+  nothing, since older builds don't plan it.
+- `~planner N` (`plannerFormatValue`) is the first, whole-dir version of this guard. It stays at 1: a build that only
+  reads it would skip every stale job in a dir above it.
+- **Builds from before planner 1 don't read it, so they can still flip content: rebuild them before loading maps with
+  them.**
+- Collision is also checked against `world.ents` after planning (`collisionEntityMismatch`). Every `*N` node must sit
+  on a block with model `*N`, and every `script_model X` on one with model `X`.
+  - A pair that doesn't fit redoes collision once per collision stamp (`~collision redo`).
+  - If it's still off after that, it's logged as an error and left as it is.
 
 ## Mismatches
 

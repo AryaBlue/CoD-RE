@@ -1,15 +1,16 @@
 """Fill skin: invis_floors.json (walkable clip patches) + gap_skin.json (clip inside unripped models) + brush_skin.json (clip brush faces), all
 places with collision but no shell surface -> double-sided chunks shell_chunks_v3\\bodgfx_016.. (<=60k verts each), textured like the nearest
 shell face of the same orientation. Then import bodisland; --place adds the misc_models + zone lines."""
+from bo4cfg import W, T
 import glob, json, os, re, sys, uuid
 import numpy as np
 from scipy.spatial import cKDTree
 sys.path.insert(0, os.path.dirname(__file__))
 from shell_texfix import load
 
-GEO = r"F:\ClaudeWork\bo3\bod_port\geo"
+GEO = W(r"bo3\bod_port\geo")
 SHELL = GEO + r"\shell_chunks_v3"
-R = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130"
+R = T()
 BASE = R + r"\map_source\zm\zm_alcatraz_bodfull.map.base_bodprops"
 ZONE = R + r"\usermaps\zm_alcatraz_bodfull\zone_source\zm_alcatraz_bodfull.zone"
 FIRST, PER_CHUNK = 16, 19999

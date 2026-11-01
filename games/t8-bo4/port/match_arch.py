@@ -6,6 +6,7 @@
   proxy   - no 1:1 fit, but one model fits after a uniform extra scale k (0.85..1.2) - same shape, size unconfirmed.
 Everything else big is the rip gap: no ripped model has its shape (a Greyhound shopping list, with solved local size).
 Usage (64-bit Python): match_arch.py [--min-size 128]"""
+from bo4cfg import W
 import argparse
 import json
 import re
@@ -16,11 +17,11 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, r"E:\ClaudeWork\bo3\bod_port\geo")
+sys.path.insert(0, W(r"bo3\bod_port\geo"))
 import match_placements as M  # noqa: E402
 from smodel_lib import axis_to_angles, axis_roundtrip_error  # noqa: E402
 
-GEO = Path(r"E:\ClaudeWork\bo3\bod_port\t8_world\geo")
+GEO = Path(W(r"bo3\bod_port\t8_world\geo"))
 CONF = GEO / "bod_props_bounds_confident.json"
 LANDMARK = np.array([-1815.0, 8033.0, 1432.0])  # s_warden_box
 

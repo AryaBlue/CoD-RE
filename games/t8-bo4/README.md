@@ -49,8 +49,9 @@ copied third-party source. You point the tools at your own BO4 install.
 
 ## Worked example: get a map's zone out of BO4
 
-Most scripts keep their paths as constants near the top (they say `PATH/TO/...`). Open the script and set them to
-your own folders first. This example uses `zm_escape` and a BO4 install in `C:\Games\BO4`.
+The scripts in `port` read their folders from two environment variables (see `port\bo4cfg.py`), so nothing is edited by
+hand: `BO4_WORK` is your work folder (default `C:\work`) and `BO3_TOOLS` is the BO3 Mod Tools folder (default is the
+Steam path). The scripts in `tools` keep `PATH/TO/...` constants near the top. This example uses `zm_escape` and a BO4 install in `C:\Games\BO4`.
 
 1. In `tools\casc_bo4.py` set `INSTALL` to `C:\Games\BO4`. In `tools\extract_zone.py` set `OUT` to an empty folder,
    say `C:\work\bo4_zone`.

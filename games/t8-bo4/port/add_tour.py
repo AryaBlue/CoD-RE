@@ -1,8 +1,9 @@
 """Test-only GSC tour: god mode + teleport to each placed gameplay item (two views each) with an on-screen label. --off removes it."""
+from bo4cfg import W, T
 import json, math, re, sys
 
-GSC = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130\usermaps\zm_alcatraz_bodfull\scripts\zm\zm_alcatraz_bodfull.gsc"
-TOUR = r"F:\ClaudeWork\bo3\bod_port\geo\tools\tour_stops.json"
+GSC = T(r"usermaps\zm_alcatraz_bodfull\scripts\zm\zm_alcatraz_bodfull.gsc")
+TOUR = W(r"bo3\bod_port\geo\tools\tour_stops.json")
 HOLD = 4
 
 def main():

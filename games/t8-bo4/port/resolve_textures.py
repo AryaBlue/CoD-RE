@@ -1,11 +1,12 @@
 """Resolve C2M export_mat_info (real format: Textures is a dict keyed by map type) to shell colour PNGs.
 material -> Textures.colorMap.Name -> exported_images/<name>.TGA -> _images/<mat>/<mat>_c.png (placeholders only)."""
+from bo4cfg import W
 import json, os, re, sys
 from PIL import Image
 
-MJ  = r"F:\ClaudeWork\c2m\app2\exported_maps\black_ops_4\zm_escape\zm_escape_materials.json"
-TGA = r"F:\ClaudeWork\c2m\app2\exported_images\black_ops_4"
-OUT = r"F:\ClaudeWork\bo3\bod_port\geo\shell_chunks_spawn\_images"
+MJ  = W(r"c2m\app2\exported_maps\black_ops_4\zm_escape\zm_escape_materials.json")
+TGA = W(r"c2m\app2\exported_images\black_ops_4")
+OUT = W(r"bo3\bod_port\geo\shell_chunks_spawn\_images")
 COLOUR = ("colorMap", "colourMap", "color", "diffuseMap", "albedo")
 WRITE = "--write" in sys.argv
 

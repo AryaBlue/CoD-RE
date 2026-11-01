@@ -2,13 +2,14 @@
 Floors (|nz| >= 0.5) face up with one material; steeper tris are emitted two-sided (the soup's winding is mixed).
 XME front face = counter-clockwise (cross(b-a, c-a) along the normal), checked against Greyhound rip models.
 Usage: soup_to_obj.py clip.json out.obj materials.json [--floor zm_al_concrete_bare] [--wall dirt_rocky04]"""
+from bo4cfg import W
 import argparse
 import json
 from pathlib import Path
 
 import numpy as np
 
-IMAGES = Path(r"E:\ClaudeWork\bo3\bod_port\geo\chunks_textured\_images")  # MotD base textures (real names)
+IMAGES = Path(W(r"bo3\bod_port\geo\chunks_textured\_images"))  # MotD base textures (real names)
 UV_SCALE = 256.0
 
 

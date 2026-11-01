@@ -1,10 +1,11 @@
 """Cross-chunk z-fight fix: coplanar faces of different materials (from any chunk) in the same local cell get stacked layers.
 Local dominant material (by area) stays put; each other material is lifted rank*STEP along its normal."""
+from bo4cfg import W
 import glob, math, os, re, shutil, sys
 from collections import defaultdict
 
-SRC = r"F:/ClaudeWork/bo3/bod_port/geo/shell_chunks_clean"
-DST = r"F:/ClaudeWork/bo3/bod_port/geo/shell_chunks_zfix2"
+SRC = W(r"bo3/bod_port/geo/shell_chunks_clean")
+DST = W(r"bo3/bod_port/geo/shell_chunks_zfix2")
 STEP, MAXRANK, CELL = 0.4, 6, 256.0
 VERT_RE = re.compile(r'^VERT (\d+)\s*\nOFFSET ([-\d.eE]+),\s*([-\d.eE]+),\s*([-\d.eE]+)', re.M)
 

@@ -1,16 +1,17 @@
 """BoD (T8 zm_escape) terrain collision tri-soup -> clip.json {tris, tri_contents} in world (== MotD) coordinates.
 Verts: float3[223601] @0x1D92462C; indices: u32[1057185] @0x1DBB4888 (352,395 tris, global, contiguous).
 Usage (64-bit Python): clip_tris_t8.py [out.json] [--outside-footprint] [--box X0 Y0 X1 Y1]"""
+from bo4cfg import W
 import argparse
 import json
 from pathlib import Path
 
 import numpy as np
 
-ZONE = Path(r"E:\ClaudeWork\bo3\bod_port\t8_world\decomp\zm_escape.ff.dec")
+ZONE = Path(W(r"bo3\bod_port\t8_world\decomp\zm_escape.ff.dec"))
 VERTS, NUM_VERTS = 0x1D92462C, 223601
 INDICES, NUM_INDICES = 0x1DBB4888, 1057185
-OUT = Path(r"E:\ClaudeWork\bo3\bod_port\t8_world\clip\bod_terrain_clip.json")
+OUT = Path(W(r"bo3\bod_port\t8_world\clip\bod_terrain_clip.json"))
 SHELL_FOOTPRINT = ((-2381, -4224), (4257, 10720))  # 0.5/99.5 percentile of the shell clip brushes (x, y)
 SOLID = 0x1
 

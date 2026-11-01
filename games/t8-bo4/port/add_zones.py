@@ -1,12 +1,13 @@
 """Give zm_alcatraz_bodfull real zones: one info_volume per BoD spawner anchor + walkable spawn points, start zone at the spawn room, adjacency into the map GSC.
 Replaces the template giant start_zone and its spawners. Writes <map>.bak_prezones once."""
+from bo4cfg import W, T
 import json, math, os, re, shutil, sys, uuid
 
-TOOLS = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130"
+TOOLS = T()
 MAP = TOOLS + r"\map_source\zm\zm_alcatraz_bodfull.map"
 GSC = TOOLS + r"\usermaps\zm_alcatraz_bodfull\scripts\zm\zm_alcatraz_bodfull.gsc"
-ENTS = r"F:\ClaudeWork\bo4_recon\entities.json"
-SEEDS = r"F:\ClaudeWork\bo3\bod_port\t8_world\nav\bod_nav_seeds.json"
+ENTS = W(r"bo4_recon\entities.json")
+SEEDS = W(r"bo3\bod_port\t8_world\nav\bod_nav_seeds.json")
 START = (9727.0, 11136.0, 264.0)
 PER_ZONE, MIN_GAP = 4, 140.0
 BOX, CELL, CELLZ, ZW = ((-3584, 4352, -512), (11776, 12928, 2688)), 512.0, 128.0, 3.0

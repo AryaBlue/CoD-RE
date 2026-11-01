@@ -4,6 +4,7 @@ Per record: classify against catalog models (exact / variant / family / bestfit 
 a catalog pick replaces an earlier pick only when it is exact/variant/family/proxy or the same category and material;
 otherwise the earlier pick stays (the catalog has unnamed hashes, so absence is not evidence).
 Usage (64-bit Python): match_catalog.py [--min-size 24]"""
+from bo4cfg import W
 import argparse
 import json
 import sys
@@ -13,12 +14,12 @@ from pathlib import Path
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).parent))
-sys.path.insert(0, r"E:\ClaudeWork\bo3\bod_port\geo")
+sys.path.insert(0, W(r"bo3\bod_port\geo"))
 import match_placements as M  # noqa: E402
 from catalog_check import names as catalog_names, same_kind  # noqa: E402
 from match_arch import placement, stem, LANDMARK  # noqa: E402
 
-GEO = Path(r"E:\ClaudeWork\bo3\bod_port\t8_world\geo")
+GEO = Path(W(r"bo3\bod_port\t8_world\geo"))
 PRIOR = ["bod_props_bounds_confident.json", "bod_props_arch_resolved.json", "bod_props_arch_tiebreak.json", "bod_props_arch_proxy.json"]
 OUT = GEO / "bod_placements_catalog.json"
 SKIP = ("collision_", "nodraw")  # helper meshes, never rendered

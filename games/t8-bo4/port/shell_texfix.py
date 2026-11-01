@@ -1,15 +1,16 @@
 """shell_chunks_zfix2 -> shell_chunks_v3: flip winding, keep the puddle decals (stripping them left holes), flat colours for flow maps,
 reveal map as alpha for overlay blend/decal materials (sampled: faces with another surface just beneath)."""
+from bo4cfg import W
 import glob, json, os, random, re, shutil, sys
 import numpy as np
 from PIL import Image
 sys.path.insert(0, os.path.dirname(__file__))
 from door_probe import ray, VERT_RE
 
-GEO = r"F:\ClaudeWork\bo3\bod_port\geo"
+GEO = W(r"bo3\bod_port\geo")
 SRC, OLD, DST = GEO + r"\shell_chunks_zfix2", GEO + r"\shell_chunks_wind", GEO + r"\shell_chunks_v3"
-MATS = r"F:\ClaudeWork\c2m\app2\exported_maps\black_ops_4\zm_escape\zm_escape_materials.json"
-TGA = r"F:\ClaudeWork\c2m\app2\exported_images\black_ops_4"
+MATS = W(r"c2m\app2\exported_maps\black_ops_4\zm_escape\zm_escape_materials.json")
+TGA = W(r"c2m\app2\exported_images\black_ops_4")
 FLAT = {"t8_water_puddle_muddy": (58, 54, 44), "t8_zm_esc_lava_flow": (200, 80, 25), "t8_zm_esc_lava_river_01_flow": (200, 80, 25),
         "t8_water_ocean_mp_seaside": (38, 56, 64), "t8_decal_grunge_drip_water_flowing_02": (70, 70, 68), "mtl_p8_esc_cellblock_d_pillar_leak": (96, 96, 94),
         "t7_decal_water_ground_running_dirt": (52, 50, 46), "t8_decal_grunge_puddle_01": (52, 50, 46), "t8_decal_grunge_puddle_mud_01": (52, 48, 40),

@@ -1,7 +1,8 @@
 """Sea plane round the island: BO4's ocean is a water system, not shell geometry, so it never came across. Run after add_zones (it rewrites the map)."""
+from bo4cfg import T
 import re, sys, uuid
 
-MAP = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130\map_source\zm\zm_alcatraz_bodfull.map"
+MAP = T(r"map_source\zm\zm_alcatraz_bodfull.map")
 SEA_Z, TILE = -100.0, 4096
 X0, X1, Y0, Y1 = -32768, 45056, -4096, 40960
 MAT = "t7_water_sector_flow"

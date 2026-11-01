@@ -1,8 +1,9 @@
 """Measure doorway openings at BoD door spots by raycasting the shell: narrowest opposite-ray pair = door width, perpendicular = passage."""
+from bo4cfg import W
 import glob, json, math, re, sys
 import numpy as np
 
-SHELL = r"F:\ClaudeWork\bo3\bod_port\geo\shell_chunks_zfix2"
+SHELL = W(r"bo3\bod_port\geo\shell_chunks_zfix2")
 VERT_RE = re.compile(r'^VERT (\d+)\s*\nOFFSET ([-\d.eE]+),\s*([-\d.eE]+),\s*([-\d.eE]+)', re.M)
 
 def load_tris():

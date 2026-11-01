@@ -10,9 +10,11 @@ either game belongs in a public repo. This folder has the method and our code on
 ## How to read this
 
 Every scripted step has a command line. The paths in the examples are made up: BO4 in `C:\Games\BO4`, BO3 and the Mod
-Tools in `C:\Games\BO3`, work files in `C:\work`. Most scripts keep their paths as constants at the top
-(`PATH/TO/...`, or a Steam path). Open the script and set them to your own before you run it. Run scripts from
-`games\t8-bo4`.
+Tools in `C:\Games\BO3`, work files in `C:\work`. The `port` scripts take their folders from environment
+variables, set once per shell: `set BO4_WORK=C:\work`, `set BO3_TOOLS=C:\Games\BO3` and, for the deploy step of
+`build_usermap.ps1`, `set BO3_GAME=C:\Games\BO3game` (PowerShell: `$env:BO4_WORK = 'C:\work'`). They default to `C:\work`
+and the usual Steam folders, and `port\bo4cfg.py` shows how each path is built. The `tools` scripts keep
+`PATH/TO/...` constants near the top. Run scripts from `games\t8-bo4`.
 
 ## 0. What the problem looks like
 
@@ -217,7 +219,7 @@ For spawn points, find a clear standing column with `port\spawn_face_finder.py` 
 
 It runs, in order: gdtdb, the cod2map compile (about 60 seconds), light, link (about 6 minutes), then deploy to the game's `usermaps` folder.
 
-- The `$R` path at the top of `build_usermap.ps1` points at the Mod Tools folder. Set it to yours first.
+- `build_usermap.ps1` reads the Mod Tools folder from `BO3_TOOLS` and the game folder (for the deploy copy) from `BO3_GAME`. Set both first.
 - gdtdb exiting with 1 on duplicate stock-named props is expected. The script tolerates it.
 - For a map as big as Blood of the Dead use `-CompileArgs` with `-umbraBackfaceLimit 100 -umbraSmallestOccluder 512`
   (the script adds them by itself for maps named `zm_alcatraz_bod*`). A value of `100000` crashed UmbraConvert.

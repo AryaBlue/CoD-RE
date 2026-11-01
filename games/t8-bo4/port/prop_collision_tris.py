@@ -1,5 +1,6 @@
 """World-space collision tris from the LOD0 render meshes of SOLID placed props (BoD's collision static models), as clip.json.
 Usage (64-bit Python): prop_collision_tris.py props.json out.json [--prefix p8_zm_esc_bridge_] [--min-nz 0.5]"""
+from bo4cfg import W
 import argparse
 import json
 import re
@@ -7,7 +8,7 @@ from pathlib import Path
 
 import numpy as np
 
-RIP = Path(r"E:\ClaudeWork\bo3\greyhound\app\exported_files\black_ops_4\xmodels")
+RIP = Path(W(r"bo3\greyhound\app\exported_files\black_ops_4\xmodels"))
 OFFSET = re.compile(r"^OFFSET (\S+), (\S+), (\S+)", re.M)
 TRI_VERTS = re.compile(r"^TRI [^\n]*\nVERT (\d+)[\s\S]*?\nVERT (\d+)[\s\S]*?\nVERT (\d+)", re.M)
 

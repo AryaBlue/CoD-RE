@@ -1,7 +1,8 @@
 """Dev HUD: the player's X Y Z and yaw top-left, so screenshots carry a position. Run after add_zones (it rewrites the GSC). --off removes it."""
+from bo4cfg import T
 import re, sys
 
-GSC = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130\usermaps\zm_alcatraz_bodfull\scripts\zm\zm_alcatraz_bodfull.gsc"
+GSC = T(r"usermaps\zm_alcatraz_bodfull\scripts\zm\zm_alcatraz_bodfull.gsc")
 
 FN = """
 // BODHUD BEGIN

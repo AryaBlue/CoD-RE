@@ -13,13 +13,14 @@ planes it makes from tris. Run on a decimated clip.json to read the new budget.
 
 Usage: python plane_count.py <clip.json> [...] [--neps 0.001] [--deps 0.01] [--cap 131072]
 """
+from bo4cfg import W
 import argparse
 import json
 import math
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(r"F:\ClaudeWork\bo3\bo3_modtools_test")))
+sys.path.insert(0, str(Path(W(r"bo3\bo3_modtools_test"))))
 import clip_brushes as cb  # emit filter + prism plane math, the single source of truth
 
 

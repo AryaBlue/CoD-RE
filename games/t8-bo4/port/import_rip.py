@@ -1,6 +1,7 @@
 """Bring a Greyhound BO3-format rip into the Mod Tools: copy under model_export/<tag>, convert every
 xmodel_export to xmodel_bin (export2bin pattern mode), and rewrite the rip's GDTs to point at the bins
 with tools-relative paths, writing them to source_data/<tag>_*.gdt."""
+from bo4cfg import T
 import argparse
 import json
 import re
@@ -8,7 +9,7 @@ import shutil
 import subprocess
 from pathlib import Path
 
-TOOLS = Path(r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130")
+TOOLS = Path(T())
 EXPORT2BIN = TOOLS / "bin" / "export2bin.exe"
 BS = chr(92)
 

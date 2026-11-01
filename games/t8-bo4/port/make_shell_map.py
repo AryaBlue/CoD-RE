@@ -1,6 +1,7 @@
 """Make a BO3 usermap that places imported world-coordinate chunk xmodels as misc_models (the E1 shell):
 clones the zm_cltest usermap, keeps its gameplay entities but moves spawns to the given start and fits
 the zone/Umbra/sun/fps volumes to the chunks' bounds."""
+from bo4cfg import T
 import argparse
 import json
 import re
@@ -10,7 +11,7 @@ from pathlib import Path
 
 import clip_brushes
 
-TOOLS = Path(r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130")
+TOOLS = Path(T())
 TEMPLATE = "zm_cltest"
 TEMPLATE_START = (0.0, -448.0, 40.0)
 ATMOS_SKY = "skybox_default_night"  # matches make_atmos.py's BOD_SUN

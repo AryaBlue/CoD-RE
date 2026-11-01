@@ -1,14 +1,15 @@
 """Invisible floors/stairs: walkable BoD clip surfaces (worldspawn clip patches) with no visible shell or prop surface on them -> geo\\invis_floors.json."""
+from bo4cfg import W, T
 import json, re, sys, collections
 import numpy as np
 sys.path.insert(0, __import__("os").path.dirname(__file__))
 from door_probe import ray
 from floor_gaps import tris
 
-MAP = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130\map_source\zm\zm_alcatraz_bodfull.map"
-CAT = r"F:\ClaudeWork\bo3\bod_port\t8_world\geo\bod_placements_catalog.json"
-BOUNDS = r"F:\ClaudeWork\bo4_recon\rip_bounds.json"
-OUT = r"F:\ClaudeWork\bo3\bod_port\geo\invis_floors.json"
+MAP = T(r"map_source\zm\zm_alcatraz_bodfull.map")
+CAT = W(r"bo3\bod_port\t8_world\geo\bod_placements_catalog.json")
+BOUNDS = W(r"bo4_recon\rip_bounds.json")
+OUT = W(r"bo3\bod_port\geo\invis_floors.json")
 BOX = ((-3584, 4352, -512), (11776, 12928, 2688))
 BIN, TOL, PAD = 128.0, 8.0, 4.0
 

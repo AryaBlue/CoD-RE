@@ -1,12 +1,13 @@
 """Place BO3 stock gameplay (mystery box, PaP, wallbuys, perks, power switch) at BoD's own positions in zm_alcatraz_bodfull.map.
 Idempotent: strips earlier "// entity bodplay" entries before appending."""
+from bo4cfg import W, T
 import json, math, re, sys, uuid
 
-TOOLS = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130"
+TOOLS = T()
 MAP = TOOLS + r"\map_source\zm\zm_alcatraz_bodfull.map"
 GIANT_BOX = TOOLS + r"\map_source\_prefabs\zm\zm_giant\script\zm_giant_magicboxes.map"
-ENTS = r"F:\ClaudeWork\bo4_recon\entities.json"
-TOUR = r"F:\ClaudeWork\bo3\bod_port\geo\tools\tour_stops.json"
+ENTS = W(r"bo4_recon\entities.json")
+TOUR = W(r"bo3\bod_port\geo\tools\tour_stops.json")
 PF = "_prefabs/zm/zm_core/"
 START_BOX = (7481, 10709)
 PAP = ((8272, 8617, 392), 230)  # powerhouse; the street spot sits behind cell bars

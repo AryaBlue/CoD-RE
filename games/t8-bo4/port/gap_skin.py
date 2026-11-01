@@ -1,5 +1,6 @@
 """Unripped BoD models (bod_rip_gap.json: size + position only) still have their collision in the clip map: skin every clip tri inside a gap
 record's box that has no shell surface on it -> geo\\gap_skin.json (make_fill merges it with invis_floors.json)."""
+from bo4cfg import W
 import json, sys, collections
 import numpy as np
 sys.path.insert(0, __import__("os").path.dirname(__file__))
@@ -7,8 +8,8 @@ from door_probe import ray
 from floor_gaps import tris
 from invis_floors import clip_tris, binned, BOX, BIN
 
-GAP = r"F:\ClaudeWork\bo3\bod_port\t8_world\geo\bod_rip_gap.json"
-OUT = r"F:\ClaudeWork\bo3\bod_port\geo\gap_skin.json"
+GAP = W(r"bo3\bod_port\t8_world\geo\bod_rip_gap.json")
+OUT = W(r"bo3\bod_port\geo\gap_skin.json")
 PAD, TOL, MAX_AREA = 8.0, 6.0, 2e4
 
 def main():

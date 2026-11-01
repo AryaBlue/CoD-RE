@@ -1,9 +1,10 @@
 """Parse BO4 zm_escape entity spawnVars (ACTS SpawnVarKeyValue 0x20 layout) from the .dec into entities.json."""
+from bo4cfg import W
 import json, mmap, re, struct, sys
 from collections import Counter
 
-DEC = r"F:\ClaudeWork\bo3\bod_port\t8_world\decomp\zm_escape.ff.dec"
-OUT = r"F:\ClaudeWork\bo4_recon\entities.json"
+DEC = W(r"bo3\bod_port\t8_world\decomp\zm_escape.ff.dec")
+OUT = W(r"bo4_recon\entities.json")
 INLINE = 0xFFFFFFFFFFFFFFFF
 STRING, VECTOR, XHASH, FLOAT, INT = 2, 3, 4, 5, 6
 # key-string anchor: "origin" key ptr 0x713d169 sits at .dec 0x13c0b35c
@@ -15,7 +16,7 @@ def cstr(o, cap=256):
     e = mm.find(b"\0", o, o + cap)
     return mm[o:e].decode("latin-1") if e != -1 else None
 
-POOL = r"F:\ClaudeWork\bo4_recon\strpool_map.json"
+POOL = W(r"bo4_recon\strpool_map.json")
 KNOWN = {0xd0513d9: "script_struct"}
 try:
     # far pointers resolved by strpool.py local-delta voting; drop short/junk strings

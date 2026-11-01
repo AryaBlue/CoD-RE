@@ -8,6 +8,7 @@
   - failure paths: empty input, degenerate plane, >45-side brush, tris pass-through + contents preserved.
 Usage: python check_decimate.py [<in.json> <out.json>]   (defaults to bod_clip.json -> a temp decimation)
 """
+from bo4cfg import W
 import json
 import math
 import random
@@ -18,7 +19,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
-sys.path.insert(0, str(Path(r"F:\ClaudeWork\bo3\bo3_modtools_test")))
+sys.path.insert(0, str(Path(W(r"bo3\bo3_modtools_test"))))
 import plane_count as pc
 import clip_brushes as cb
 
@@ -186,7 +187,7 @@ def main():
     if len(sys.argv) >= 3:
         inp, out_path = sys.argv[1], sys.argv[2]
     else:
-        inp = r"F:\ClaudeWork\bo3\bod_port\t8_world\clip\bod_clip.json"
+        inp = W(r"bo3\bod_port\t8_world\clip\bod_clip.json")
         out_path = str(Path(tempfile.mkdtemp()) / "dec.json")
         subprocess.run([sys.executable, str(HERE / "decimate_clip.py"), inp, out_path], check=True)
     out = json.loads(Path(out_path).read_text())

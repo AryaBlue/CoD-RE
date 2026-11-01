@@ -1,11 +1,12 @@
 """BoD script_models (teleporters, generators, panels, lights...) as static misc_models in .map.base_bodprops + zone lines.
 Doors and chalk outlines are left out (doors would block routes; we place our own wallbuys)."""
+from bo4cfg import W, T
 import json, re, sys, uuid
 
-R = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130"
+R = T()
 BASE = R + r"\map_source\zm\zm_alcatraz_bodfull.map.base_bodprops"
 ZONE = R + r"\usermaps\zm_alcatraz_bodfull\zone_source\zm_alcatraz_bodfull.zone"
-SM = r"F:\ClaudeWork\bo3\bod_port\t8_world\geo\bod_script_models.json"
+SM = W(r"bo3\bod_port\t8_world\geo\bod_script_models.json")
 GDTS = [R + r"\source_data\bod_props.gdt", R + r"\source_data\bod_props2.gdt"]
 LEAVE = re.compile(r"chalk|door")
 

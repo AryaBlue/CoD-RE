@@ -1,10 +1,11 @@
 """BO3 sun (ssi) + world fog (fsi) GDT entries for a usermap, cloned from stock entries with overrides.
 Default preset: Blood of the Dead's stormy Aether look, approximated by eye."""
+from bo4cfg import T
 import argparse
 import re
 from pathlib import Path
 
-TOOLS = Path(r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130")
+TOOLS = Path(T())
 
 BOD_SUN = {  # dim cold green-blue moonlight; pitch as stock night, exposure a little darker than zm_factory
     "colorSRGB": "0.46 0.62 0.6 1", "ev": "5", "evcmp": "2", "evmin": "2.5", "evmax": "3.5", "stops": "-1.5",

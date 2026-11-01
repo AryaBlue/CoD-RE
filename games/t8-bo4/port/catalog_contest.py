@@ -1,5 +1,6 @@
 """Flag catalog-restricted NEW picks that a non-catalog ripped model fits at least as well (possible false positives);
 writes contested=true onto bod_placements_catalog.json and reports spawn coverage. Usage (64-bit Python): catalog_contest.py"""
+from bo4cfg import W
 import json
 import sys
 from collections import Counter
@@ -10,7 +11,7 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 import match_placements as M  # noqa: E402
 
-GEO = Path(r"E:\ClaudeWork\bo3\bod_port\t8_world\geo")
+GEO = Path(W(r"bo3\bod_port\t8_world\geo"))
 PATH = GEO / "bod_placements_catalog.json"
 
 

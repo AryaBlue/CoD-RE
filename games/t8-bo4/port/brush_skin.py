@@ -1,6 +1,7 @@
 """Stairs/rubble/rock collision lives in worldspawn CLIP BRUSHES (invis_floors only read patches). Polygonise every full-clip brush, cut faces
 into small tris, keep the pieces with no shell surface on them -> geo\\brush_skin.json (make_fill merges it).
 clip_player/clip_ai are deliberate invisible walls, so they're left out."""
+from bo4cfg import W
 import itertools, json, re, sys, collections
 import numpy as np
 sys.path.insert(0, __import__("os").path.dirname(__file__))
@@ -8,7 +9,7 @@ from door_probe import ray
 from floor_gaps import tris
 from invis_floors import binned, BOX, BIN, MAP
 
-OUT = r"F:\ClaudeWork\bo3\bod_port\geo\brush_skin.json"
+OUT = W(r"bo3\bod_port\geo\brush_skin.json")
 MATS = {"clip"}
 TOL, PIECE, MAX_FACE = 6.0, 3000.0, 4e6
 
@@ -56,7 +57,7 @@ CELL = 64.0
 def shell():
     import glob
     from shell_texfix import load
-    G = r"F:\ClaudeWork\bo3\bod_port\geo\shell_chunks_v3"
+    G = W(r"bo3\bod_port\geo\shell_chunks_v3")
     return np.array([t for p in sorted(glob.glob(G + r"\bodgfx_0*_LOD0.XMODEL_EXPORT")) if int(p[-22:-19]) < 16 for _, t in load(p)])  # no fill chunks
 
 def grid(S):

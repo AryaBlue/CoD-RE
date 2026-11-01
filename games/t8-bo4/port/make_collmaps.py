@@ -1,14 +1,15 @@
 """Player collision for BoD props: BulletCollisionLOD only stops bullets; players need a CollisionMap. Voxelise each solid-ish prop's LOD0 mesh,
 merge voxels into boxes, write share\\raw\\collmaps\\<model>.map (clip brushes), set CollisionMap + scaleCollMap in the prop GDTs, and add
 use_collmap to their placements in .map.base_bodprops."""
+from bo4cfg import W, T
 import glob, os, re, sys, uuid
 import numpy as np
 
-R = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130"
+R = T()
 CM = R + r"\share\raw\collmaps"
 GDTS = [R + r"\source_data\bod_props.gdt", R + r"\source_data\bod_props2.gdt"]
 BASE = R + r"\map_source\zm\zm_alcatraz_bodfull.map.base_bodprops"
-RIP = r"F:\ClaudeWork\bo3\greyhound\app\exported_files\black_ops_4\xmodels"
+RIP = W(r"bo3\greyhound\app\exported_files\black_ops_4\xmodels")
 SOLID = re.compile(r"cell_door|cell_gate|cell_brick_wall|gate|fence|railing|rail_|bars|stair|barricade|bed_|table|desk|locker|generator|teleporter|apc|truck")
 SKIP = re.compile(r"decal|fx|paper|book|bottle|can_|wire|chain|cable|light|lamp|foliage|vine|grass|sign|poster|skylight|ceiling|grate|debris|rubble|trash|food|cup|plate|trim|_top|bottom")
 VOX, MAXBOX, MINSIZE = 16.0, 8, 24.0

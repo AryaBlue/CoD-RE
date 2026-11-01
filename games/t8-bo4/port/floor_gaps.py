@@ -1,13 +1,14 @@
 """Missing floors: unnamed BoD placements shaped like slabs, validated by floor-resting props that float (nothing beneath in the shell)."""
+from bo4cfg import W
 import glob, json, re, sys
 import numpy as np
 sys.path.insert(0, __import__("os").path.dirname(__file__))
 from door_probe import ray, VERT_RE
 
-SHELL = r"F:\ClaudeWork\bo3\bod_port\geo\shell_chunks_v3"
-GAP = r"F:\ClaudeWork\bo3\bod_port\t8_world\geo\bod_rip_gap.json"
-CAT = r"F:\ClaudeWork\bo3\bod_port\t8_world\geo\bod_placements_catalog.json"
-OUT = r"F:\ClaudeWork\bo3\bod_port\geo\floor_slabs.json"
+SHELL = W(r"bo3\bod_port\geo\shell_chunks_v3")
+GAP = W(r"bo3\bod_port\t8_world\geo\bod_rip_gap.json")
+CAT = W(r"bo3\bod_port\t8_world\geo\bod_placements_catalog.json")
+OUT = W(r"bo3\bod_port\geo\floor_slabs.json")
 FLOORISH = re.compile(r"paper|chair|rubble|debris|bed|crate|table|trash|bottle|pallet|box|bucket|mattress|toilet|desk|cabinet|barrel")
 CORE = ((-3600, 4300, -600), (11800, 13000, 2700))
 

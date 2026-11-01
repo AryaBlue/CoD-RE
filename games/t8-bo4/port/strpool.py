@@ -1,4 +1,5 @@
 """Resolve far string pointers in the BoD entity list by local-delta voting: a candidate delta scores by how many nearby pointers it also lands on clean string starts."""
+from bo4cfg import W
 import bisect, json, re, struct
 from collections import Counter
 import entitylist as E
@@ -40,11 +41,11 @@ if __name__ == "__main__":
     ptrs = collect()
     m = solve(Counter({v: c for v, c in ptrs.items() if v >= 0x7200000}))
     m.update(solve(Counter({v: c for v, c in ptrs.items() if v < 0x7200000}), E.DELTA))
-    try: prev = json.load(open(r"F:\ClaudeWork\bo4_recon\strpool_map.json"))
+    try: prev = json.load(open(W(r"bo4_recon\strpool_map.json")))
     except FileNotFoundError: prev = {}
     hits = sum(ptrs[v] for v in m)
     print(f"unique ptrs {len(ptrs)} resolved {len(m)}; references covered {hits}/{sum(ptrs.values())}")
     prev.update({f"{v:x}": E.cstr(P) for v, (P, _, _) in m.items()})
-    json.dump(prev, open(r"F:\ClaudeWork\bo4_recon\strpool_map.json", "w"), indent=0)
+    json.dump(prev, open(W(r"bo4_recon\strpool_map.json"), "w"), indent=0)
     for v in (0xd0513d9, 0xd024ab7, 0xd0eae4d, 0xd111411, 0xd11ba71, 0xd01a8c7, 0xd024ac4, 0xd01a8da, 0xd0fb8b9, 0xd044fbb):
         print(hex(v), repr(E.cstr(m[v][0])) if v in m else None, m[v][1:] if v in m else "")

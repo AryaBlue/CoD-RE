@@ -1,7 +1,8 @@
+from bo4cfg import W
 import json, sys, numpy as np
 from collections import Counter, defaultdict
-sys.path.insert(0, r"E:\ClaudeWork\bo4_recon"); import match_placements as M
-G = r"E:\ClaudeWork\bo3\bod_port\t8_world\geo\\"
+sys.path.insert(0, W(r"bo4_recon")); import match_placements as M
+G = W(r"bo3\bod_port\t8_world\geo") + chr(92) * 2
 R = M.records(); amn, amx = R["absmin"].astype(float), R["absmax"].astype(float); c = (amn+amx)/2; ext = amx-amn
 foot = np.clip(ext[:,0],1,None)*np.clip(ext[:,1],1,None); arch = ext.max(1) >= 128
 conf = {p["record"] for p in json.load(open(G+"bod_props_bounds_confident.json"))}

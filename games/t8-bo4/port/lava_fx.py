@@ -1,11 +1,12 @@
 """Lava: BO4 draws it from the emissive map (colour is black, flow map drives motion). Use the emissive as the colour PNG, and after the
 bodisland import switch those materials to BO3 lit_emissive_scroll so it glows and drifts. Usage: lava_fx.py png | gdt"""
+from bo4cfg import W, T
 import os, re, sys
 from PIL import Image
 
-SHELL = r"F:\ClaudeWork\bo3\bod_port\geo\shell_chunks_v3\_images"
-TGA = r"F:\ClaudeWork\c2m\app2\exported_images\black_ops_4"
-GDT = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130\source_data\bodisland.gdt"
+SHELL = W(r"bo3\bod_port\geo\shell_chunks_v3\_images")
+TGA = W(r"c2m\app2\exported_images\black_ops_4")
+GDT = T(r"source_data\bodisland.gdt")
 LAVA = {"t8_zm_esc_lava_flow": ("i_t8_zm_esc_lava_flow_e", 0.03, 0.05), "t8_zm_esc_lava_river_01_flow": ("i_t8_zm_esc_lava_river_01_e", 0.04, 0.02),
         "t8_zm_esc_lava_vertical_flow": ("i_t8_zm_esc_lava_vertical_flow_e", 0.0, -0.08)}
 GLOW = "3"

@@ -1,11 +1,12 @@
 """Replace the MotD prop misc_models in bodfull with BoD's own catalogue placements -> <map>.base_bodprops (add_zones reads it)."""
+from bo4cfg import W, T
 import json, re, sys, uuid
 
-R = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130"
+R = T()
 SRC = R + r"\map_source\zm\zm_alcatraz_bodfull.map.bak_prezones"
 DST = R + r"\map_source\zm\zm_alcatraz_bodfull.map.base_bodprops"
 ZONE = R + r"\usermaps\zm_alcatraz_bodfull\zone_source\zm_alcatraz_bodfull.zone"
-CAT = r"F:\ClaudeWork\bo3\bod_port\t8_world\geo\bod_placements_catalog.json"
+CAT = W(r"bo3\bod_port\t8_world\geo\bod_placements_catalog.json")
 GDTS = [R + r"\source_data\bod_props.gdt", R + r"\source_data\bod_props2.gdt"]
 STOCK = {"p7_debris_concrete_rubble_sm_10"}
 

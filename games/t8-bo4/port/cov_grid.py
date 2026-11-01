@@ -1,6 +1,7 @@
+from bo4cfg import W
 import json, numpy as np, collections
-DEC = r"E:\ClaudeWork\bo3\bod_port\t8_world\decomp\zm_escape.ff.dec"
-CONF = r"E:\ClaudeWork\bo3\bod_port\t8_world\geo\bod_props_bounds_confident.json"
+DEC = W(r"bo3\bod_port\t8_world\decomp\zm_escape.ff.dec")
+CONF = W(r"bo3\bod_port\t8_world\geo\bod_props_bounds_confident.json")
 ARRAY, COUNT = 0x1D3898E4, 42559
 REC = np.dtype([("origin", "<3f4"), ("inv", "<9f4"), ("absmin", "<3f4"), ("absmax", "<3f4"), ("rest", "V24")])
 with open(DEC, "rb") as f:
@@ -49,7 +50,7 @@ for y in ys:
 gaps = sorted(cells.items(), key=lambda kv: -(kv[1][4] - kv[1][5]))[:10]
 print("\nTOP GAPS by unresolved arch footprint (cell origin, records, resolved, arch unresolved, unresolved area k-u2):")
 for k, v in gaps: print(f"  ({k[0]*G},{k[1]*G})  tot {v[0]} res {v[1]} archUnres {v[2]-v[3]} area {(v[4]-v[5])/1e3:.0f}k  res%area {frac(v):.0%}")
-pf = json.load(open(r"E:\ClaudeWork\bo3\bod_port\t8_world\stage3_gfxworld\placements_full.json"))["records"]
+pf = json.load(open(W(r"bo3\bod_port\t8_world\stage3_gfxworld\placements_full.json")))["records"]
 h = np.array([p.get("name_hash") or "?" for p in pf]); print("\nrecords in pf", len(pf))
 m = (cell[:, 0] == 0) & (cell[:, 1] == 2)
 big = np.nonzero(m & ~res)[0]; big = big[np.argsort(-foot[big])][:3]

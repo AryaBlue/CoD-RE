@@ -2,10 +2,11 @@
 Test a standing column at each candidate floor point against render TRIANGLES: a triangle blocks
 if the point (x,y) is inside its 2D projection AND its interpolated Z sits in the body column.
 Candidates = nav seeds (guaranteed-walkable floor) near the original spawn. Pick the nearest clear one."""
+from bo4cfg import W
 import json, math
 
-OBJ  = r"F:\ClaudeWork\c2m\app2\exported_maps\black_ops_4\zm_escape\zm_escape.obj"
-SEEDS = r"F:\ClaudeWork\bo3\bod_port\t8_world\nav\bod_nav_seeds.json"
+OBJ  = W(r"c2m\app2\exported_maps\black_ops_4\zm_escape\zm_escape.obj")
+SEEDS = W(r"bo3\bod_port\t8_world\nav\bod_nav_seeds.json")
 ORIG = (886.0, 10570.0, 1376.0)
 NEAR = 1e9              # consider all seeds; sort by distance to orig, pick nearest clear
 BODY = (12.0, 76.0)     # standing column: floor+12 .. floor+76 (player ~70u tall)

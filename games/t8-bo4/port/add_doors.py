@@ -1,9 +1,10 @@
 """Buyable debris at BoD door spots: trigger_use zombie_debris + clip brushmodel + rubble script_models sized from door_probe.py.
 Idempotent: strips earlier "// entity boddoor" entries."""
+from bo4cfg import T
 import re, sys, uuid
 
-MAP = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130\map_source\zm\zm_alcatraz_bodfull.map"
-ZONE = r"F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130\usermaps\zm_alcatraz_bodfull\zone_source\zm_alcatraz_bodfull.zone"
+MAP = T(r"map_source\zm\zm_alcatraz_bodfull.map")
+ZONE = T(r"usermaps\zm_alcatraz_bodfull\zone_source\zm_alcatraz_bodfull.zone")
 RUBBLE = "p7_debris_concrete_rubble_lg_03_no_metal"
 # name, centre xy, floor z, width (across X), height, cost
 DOORS = [("cellblock", (2066, 9977), 1338, 264, 342, 750),

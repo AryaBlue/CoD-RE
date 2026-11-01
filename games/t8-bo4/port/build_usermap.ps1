@@ -1,7 +1,7 @@
 # BO3 Mod Tools usermap build without the Launcher: compile -> light -> link (mirrors modlauncher.exe's commands)
 param([Parameter(Mandatory)][string]$Map, [ValidateSet('low','medium','high')][string]$Light = 'low', [switch]$SkipLight, [switch]$SkipCompile, [string[]]$CompileArgs = @())
 $ErrorActionPreference = 'Stop'
-$R = 'F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III 455130\'
+$R = if ($env:BO3_TOOLS) { $env:BO3_TOOLS.TrimEnd('\') + '\' } else { 'C:\Program Files (x86)\Steam\steamapps\common\Call of Duty Black Ops III 455130\' }
 $env:TA_GAME_PATH = $R; $env:TA_TOOLS_PATH = $R; $env:TA_LOCAL_ASSET_CACHE = $R + 'share\assetconvert'
 $logs = Join-Path $PSScriptRoot "logs\$Map"; New-Item -ItemType Directory -Force $logs | Out-Null
 $mapFile = "$($R)map_source\$($Map.Substring(0,2))\$Map.map"
@@ -45,7 +45,7 @@ if (-not $SkipLight) {
 Step 'link' 'linker_modtools.exe' @('-language','english','-modsource',$Map)
 Get-ChildItem "$($R)usermaps\$Map\zone" -Filter *.ff | Select-Object Name, Length, LastWriteTime
 # the Mod Tools (455130) are a separate install here; the game only reads usermaps\ under its own root
-$game = 'F:\SteamLibrary\steamapps\common\Call of Duty Black Ops III\'
+$game = if ($env:BO3_GAME) { $env:BO3_GAME.TrimEnd('\') + '\' } else { 'C:\Program Files (x86)\Steam\steamapps\common\Call of Duty Black Ops III\' }
 if (-not (Get-Process BlackOps3 -ErrorAction SilentlyContinue)) {
     robocopy "$($R)usermaps\$Map\zone" "$($game)usermaps\$Map\zone" /E /NJH /NJS /NP /NFL /NDL | Out-Null
     if ($LASTEXITCODE -ge 8) { "deploy FAILED (robocopy $LASTEXITCODE)"; exit 1 }

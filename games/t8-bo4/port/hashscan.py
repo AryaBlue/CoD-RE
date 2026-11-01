@@ -1,6 +1,7 @@
 """Scan zm_escape.ff.dec for 8-byte T8 name hashes at any alignment; returns {hash: [offsets]}."""
+from bo4cfg import W
 import numpy as np
-DEC = r"F:\ClaudeWork\bo3\bod_port\t8_world\decomp\zm_escape.ff.dec"
+DEC = W(r"bo3\bod_port\t8_world\decomp\zm_escape.ff.dec")
 def scan(hashes, path=DEC, cap=64):
     want = np.array(sorted(set(hashes)), dtype=np.uint64)
     raw = np.fromfile(path, dtype=np.uint8)

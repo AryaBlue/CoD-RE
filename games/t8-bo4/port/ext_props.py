@@ -1,10 +1,11 @@
 """Subset BoD placements to match clip_tris_t8.py terrain cuts (same footprint/box test on origin XY).
 Usage: ext_props.py out.json models.txt [--outside-footprint] [--box X0 Y0 X1 Y1] [--off-shell] [--src placements.json]"""
+from bo4cfg import W
 import argparse, collections, json, os
 from pathlib import Path
 
-GEO = Path(r"E:\ClaudeWork\bo3\bod_port\t8_world\geo")
-RIP = Path(r"E:\ClaudeWork\bo3\greyhound\app\exported_files\black_ops_4\xmodels")
+GEO = Path(W(r"bo3\bod_port\t8_world\geo"))
+RIP = Path(W(r"bo3\greyhound\app\exported_files\black_ops_4\xmodels"))
 SHELL_FOOTPRINT = ((-2381, -4224), (4257, 10720))  # keep identical to clip_tris_t8.py
 
 ap = argparse.ArgumentParser()
@@ -19,7 +20,7 @@ args = ap.parse_args()
 
 def shell_cells(g=256):
     cells = set()
-    for b in json.loads(Path(r"E:\ClaudeWork\bo3\bod_port\geo\clip_world.json").read_text())["brushes"]:
+    for b in json.loads(Path(W(r"bo3\bod_port\geo\clip_world.json")).read_text())["brushes"]:
         p = b["planes"][:6]
         x0, x1, y0, y1 = -p[0][3], p[1][3], -p[2][3], p[3][3]
         if x1 < x0 or y1 < y0 or min(x1 - x0, y1 - y0) > 4096:  # skip the buried 22k cube

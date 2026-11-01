@@ -3,6 +3,7 @@ scenery) and fix names in two gated passes; writes *_catcheck.json beside each i
   sibling - a listed variant/family sibling is catalogued, same object category, in the rip;
   edit    - a catalogued, ripped, same-category name within edit distance 3 whose bounds ALSO fit the record.
 Usage (64-bit Python): catalog_check.py [--catalog bod_render_catalog_xpak.json] [--max-ed 3]"""
+from bo4cfg import W
 import argparse
 import json
 import sys
@@ -15,8 +16,8 @@ import numpy as np
 sys.path.insert(0, str(Path(__file__).parent))
 import match_placements as M  # noqa: E402
 
-GEO = Path(r"E:\ClaudeWork\bo3\bod_port\t8_world\geo")
-RIP = Path(r"E:\ClaudeWork\bo3\greyhound\app\exported_files\black_ops_4\xmodels")
+GEO = Path(W(r"bo3\bod_port\t8_world\geo"))
+RIP = Path(W(r"bo3\greyhound\app\exported_files\black_ops_4\xmodels"))
 FILES = ["bod_props_bounds_confident.json", "bod_props_arch_resolved.json", "bod_props_arch_tiebreak.json", "bod_props_arch_proxy.json"]
 
 

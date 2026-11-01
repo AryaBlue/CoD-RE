@@ -1,4 +1,4 @@
-"""Shared paths for the port scripts. Set BO4_WORK (work folder, subfolders as in the old layout: bo3bod_port, bo4_recon, c2m) and BO3_TOOLS (Mod Tools folder) as environment variables."""
+"""Shared paths for the port scripts. Set BO4_WORK (work folder, subfolders as in the old layout: bo3/bod_port, bo4_recon, c2m) and BO3_TOOLS (Mod Tools folder) as environment variables."""
 import os
 
 WORK = os.environ.get("BO4_WORK", r"C:\work")

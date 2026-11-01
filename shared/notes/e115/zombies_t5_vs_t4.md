@@ -1,5 +1,24 @@
 # T5 vs T4 zombies: the framework differences
 
+<!-- toc -->
+## Contents
+
+- [BO1 vs WaW `_zombiemode`: what a per-game profile must cover](#bo1-vs-waw-_zombiemode-what-a-per-game-profile-must-cover)
+  - [1. Rounds: counts, health, speed, timing](#1-rounds-counts-health-speed-timing)
+  - [2. Spawners, zone manager, risers](#2-spawners-zone-manager-risers)
+  - [3. Windows / barricades](#3-windows--barricades)
+  - [4. Doors and debris](#4-doors-and-debris)
+  - [5. Wall buys](#5-wall-buys)
+  - [6. Mystery box](#6-mystery-box)
+  - [7. Perks](#7-perks)
+  - [8. Points](#8-points)
+  - [9. Last stand](#9-last-stand)
+  - [10. Power-ups](#10-power-ups)
+  - [11. Dogs](#11-dogs)
+  - [12. Other core changes](#12-other-core-changes)
+  - [Couldn't verify](#couldnt-verify)
+<!-- /toc -->
+
 What BO1's `_zombiemode` changes against WaW's (Der Riese's framework is the baseline), for the per-game profile.
 
 Tags:

@@ -1,5 +1,41 @@
 # T4 / T5 / T6 model, material and image structs: a cross-game reference
 
+<!-- toc -->
+## Contents
+
+- [Conventions](#conventions)
+- [1. XModel](#1-xmodel)
+  - [1.1 Fields](#11-fields)
+  - [1.2 XModelLodInfo](#12-xmodellodinfo)
+  - [1.3 Collision bits (not needed for rendering)](#13-collision-bits-not-needed-for-rendering)
+- [2. XSurface](#2-xsurface)
+  - [2.1 Fields](#21-fields)
+  - [2.2 Vertex ordering inside a surface](#22-vertex-ordering-inside-a-surface)
+  - [2.3 Triangle indices](#23-triangle-indices)
+- [3. GfxPackedVertex and how to decode it](#3-gfxpackedvertex-and-how-to-decode-it)
+  - [3.1 Layout: identical in all three games](#31-layout-identical-in-all-three-games)
+  - [3.2 Which decode each game uses](#32-which-decode-each-game-uses)
+  - [3.3 Formulas (`PACK` = `OAT/Common/Utils/Pack.cpp`)](#33-formulas-pack--oatcommonutilspackcpp)
+- [4. Bones and skinning](#4-bones-and-skinning)
+  - [4.1 Skeleton arrays](#41-skeleton-arrays)
+  - [4.2 Bone references are byte offsets into a DObjSkelMat array](#42-bone-references-are-byte-offsets-into-a-dobjskelmat-array)
+  - [4.3 Rigid vertex lists (`XRigidVertList`, 12 B, the same in all games)](#43-rigid-vertex-lists-xrigidvertlist-12-b-the-same-in-all-games)
+  - [4.4 vertsBlend layout (u16 stream, consumed in order) (`XMC:471-550`) **[V]**](#44-vertsblend-layout-u16-stream-consumed-in-order-xmc471-550-v)
+  - [4.5 Limits worth knowing](#45-limits-worth-knowing)
+- [5. Material](#5-material)
+  - [5.1 Material and MaterialInfo](#51-material-and-materialinfo)
+  - [5.2 MaterialTextureDef (16 B in all games)](#52-materialtexturedef-16-b-in-all-games)
+  - [5.3 Semantic values](#53-semantic-values)
+  - [5.4 Picking colour, normal and specular maps (OAT's heuristic, `XMC:54-173`) **[V]**](#54-picking-colour-normal-and-specular-maps-oats-heuristic-xmc54-173-v)
+  - [5.5 Technique set and state bits](#55-technique-set-and-state-bits)
+- [6. GfxImage](#6-gfximage)
+  - [6.1 Fields](#61-fields)
+  - [6.2 GfxImageLoadDef: the in-zone pixel blob](#62-gfximageloaddef-the-in-zone-pixel-blob)
+  - [6.3 Where the pixels live and how OAT finds them](#63-where-the-pixels-live-and-how-oat-finds-them)
+- [7. Cross-game cheat sheet](#7-cross-game-cheat-sheet)
+- [8. Open questions to settle against real assets](#8-open-questions-to-settle-against-real-assets)
+<!-- /toc -->
+
 What E115 needs to read from OAT's in-memory zone structs to draw a static or skinned XModel with its materials, for
 WaW (T4), BO1 (T5) and BO2 (T6). Researched 2026-10-26.
 

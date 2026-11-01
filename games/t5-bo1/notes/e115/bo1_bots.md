@@ -1,5 +1,18 @@
 # BO1 Combat Training bots: how the brain works
 
+<!-- toc -->
+## Contents
+
+- [1. Spawning and setup [V] (`_bot.gsc`)](#1-spawning-and-setup-v-_botgsc)
+- [2. The frame [V] (`0x4dffc7-0x4e0111`, once per bot per server frame, 50 ms)](#2-the-frame-v-0x4dffc7-0x4e0111-once-per-bot-per-server-frame-50-ms)
+- [3. Target choice [V] (`0x871ba0` → `0x871970`)](#3-target-choice-v-0x871ba0--0x871970)
+- [4. Movement [V] (script goals; engine pathing)](#4-movement-v-script-goals-engine-pathing)
+- [5. Aim and fire [V]](#5-aim-and-fire-v)
+- [6. Grenades [V] (`0x8727d0`; needs `sv_botAllowGrenades`, and the offhand idle)](#6-grenades-v-0x8727d0-needs-sv_botallowgrenades-and-the-offhand-idle)
+- [For one Reforged ruleset [I: design pick]](#for-one-reforged-ruleset-i-design-pick)
+- [Open](#open)
+<!-- /toc -->
+
 How BO1 bots pick targets, move, aim, shoot and throw grenades. This is the reference for Reforged's offline MP bots
 (M4).
 

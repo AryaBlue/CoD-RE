@@ -1,5 +1,37 @@
 # Lighting inputs in WaW / BO1 / BO2 zones
 
+<!-- toc -->
+## Contents
+
+- [Counts per map [M]](#counts-per-map-m)
+- [1. Primary lights](#1-primary-lights)
+  - [Where they live](#where-they-live)
+  - [`ComPrimaryLight` offsets (`T4H:2058`, `T5H:2446`, `T6H:3439`)](#comprimarylight-offsets-t4h2058-t5h2446-t6h3439)
+  - [What the values look like [M]](#what-the-values-look-like-m)
+  - [The sun, compared](#the-sun-compared)
+  - [`GfxLight` offsets (`T4H:2327`, `T5H:2732`, `T6H:3629`)](#gfxlight-offsets-t4h2327-t5h2732-t6h3629)
+- [2. Light grid (lights static models, characters, dynamic entities)](#2-light-grid-lights-static-models-characters-dynamic-entities)
+  - [`GfxLightGrid`](#gfxlightgrid)
+  - [Spatial index](#spatial-index)
+  - [Payload: 56 directional samples per set [V by b2w]](#payload-56-directional-samples-per-set-v-by-b2w)
+- [3. Static models](#3-static-models)
+  - [`GfxStaticModelDrawInst` lighting fields](#gfxstaticmodeldrawinst-lighting-fields)
+  - [`GfxStaticModelInst`](#gfxstaticmodelinst)
+  - [T6 baked vertex lightmap colours](#t6-baked-vertex-lightmap-colours)
+- [4. Reflection probes](#4-reflection-probes)
+- [5. Vertex colour](#5-vertex-colour)
+- [6. BO2 directional third (zonedump `Lightmap.cpp`)](#6-bo2-directional-third-zonedump-lightmapcpp)
+- [7. Vertex colour semantics per techset (why `--vertex-colour` turns surfaces magenta)](#7-vertex-colour-semantics-per-techset-why---vertex-colour-turns-surfaces-magenta)
+  - [The two families](#the-two-families)
+  - [Rule for zonedump (per material, from the techset name)](#rule-for-zonedump-per-material-from-the-techset-name)
+  - [The magenta surfaces in the grid](#the-magenta-surfaces-in-the-grid)
+- [8. Sun shadow maps (prep for cascaded shadow maps)](#8-sun-shadow-maps-prep-for-cascaded-shadow-maps)
+  - [What the shaders do [V]](#what-the-shaders-do-v)
+  - [Where the parameters live [M]](#where-the-parameters-live-m)
+  - [For E115's CSM](#for-e115s-csm)
+- [Open items](#open-items)
+<!-- /toc -->
+
 What a map zone carries for lighting things other than lightmapped world surfaces: the light grid, the primary
 lights, reflection probes, per-static-model lighting and vertex colour. Lightmaps themselves are in
 [world_t4_t5_t6.md §3.1](world_t4_t5_t6.md) and E115's own lightmaps doc (not published here).

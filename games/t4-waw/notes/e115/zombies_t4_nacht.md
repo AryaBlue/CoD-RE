@@ -1,5 +1,29 @@
 # Zombies: T4 Nacht der Untoten
 
+<!-- toc -->
+## Contents
+
+- [patch.ff overrides (read this first) [V]](#patchff-overrides-read-this-first-v)
+- [Rules checklist (the engine's zm lib) [V]](#rules-checklist-the-engines-zm-lib-v)
+- [How tunables are set [V]](#how-tunables-are-set-v)
+- [Round loop [V]](#round-loop-v)
+  - [Zombie count per round [V]](#zombie-count-per-round-v)
+  - [Spawn rules [V]](#spawn-rules-v)
+  - [Which spawners are active, per zone [V]](#which-spawners-are-active-per-zone-v)
+  - [Zombie health [V]](#zombie-health-v)
+  - [Walk/run/sprint mix [V]](#walkrunsprint-mix-v)
+- [Points [V]](#points-v)
+- [Barriers (windows) [V]](#barriers-windows-v)
+- [Doors and debris [V]](#doors-and-debris-v)
+- [Power-ups [V]](#power-ups-v)
+- [Player [V]](#player-v)
+- [Wall weapons and cabinet [V]](#wall-weapons-and-cabinet-v)
+- [Mystery box [V]](#mystery-box-v)
+- [Zombie AI [V]](#zombie-ai-v)
+- [Nacht entities [V]](#nacht-entities-v)
+- [Pathnodes dropped to the floor at load [V]](#pathnodes-dropped-to-the-floor-at-load-v)
+<!-- /toc -->
+
 Rules for M2 (the Nacht game loop), read from WaW's own zombie scripts and the Nacht entity string. The M2 items come
 first, then box, AI, ents, and the pathnode drop that a contributor asked about.
 

@@ -1,5 +1,23 @@
 # T4 Nacht: weapon and zombie effects and sounds
 
+<!-- toc -->
+## Contents
+
+- [1. Weapon effects](#1-weapon-effects)
+  - [Fields per weapon [V] (raw weapon files)](#fields-per-weapon-v-raw-weapon-files)
+  - [Tracers [V] (dvars in `t4sp.exe` `0x660540-0x660662`)](#tracers-v-dvars-in-t4spexe-0x660540-0x660662)
+  - [Impacts: the `impactfx` table [V structure; I mapping]](#impacts-the-impactfx-table-v-structure-i-mapping)
+  - [Blood and gibs on zombies [V] (scripts)](#blood-and-gibs-on-zombies-v-scripts)
+- [2. Weapon sounds](#2-weapon-sounds)
+  - [Fields [V] (raw weapon files; `_plr` = the first-person version, the plain alias = what others hear)](#fields-v-raw-weapon-files-_plr--the-first-person-version-the-plain-alias--what-others-hear)
+  - [Viewmodel notetrack sounds [V] (XAnim notify lists from the inflated zones; times in seconds)](#viewmodel-notetrack-sounds-v-xanim-notify-lists-from-the-inflated-zones-times-in-seconds)
+- [3. The FX asset format, for an FX player [V] (OAT `T4_Assets.h:3990-4160`)](#3-the-fx-asset-format-for-an-fx-player-v-oat-t4_assetsh3990-4160)
+  - [How the sprites are evaluated and drawn [V] (`t4sp.exe`)](#how-the-sprites-are-evaluated-and-drawn-v-t4spexe)
+- [4. Zombie, board, window and round sounds](#4-zombie-board-window-and-round-sounds)
+- [5. Music and ambience [V] (`clientscripts/nazi_zombie_prototype_amb.csc:1-45`, `clientscripts/_music.csc`)](#5-music-and-ambience-v-clientscriptsnazi_zombie_prototype_ambcsc1-45-clientscripts_musiccsc)
+- [Open](#open)
+<!-- /toc -->
+
 The FX and sound side of Nacht's shoot-and-kill loop. This doc covers what isn't already elsewhere:
 - **Zombie vocals, boards, windows, doors, round stingers, power-ups and box sounds** are in
   `zombies_t4_nacht_sounds.md`. Only cross-references here.

@@ -1,5 +1,27 @@
 # BO4 / T8 (zm_escape) Structure References
 
+<!-- toc -->
+## Contents
+
+- [KEY ORIENTING FACT — how BO4 stores map collision vs AI nav (read this first)](#key-orienting-fact--how-bo4-stores-map-collision-vs-ai-nav-read-this-first)
+- [1. BO4/T8 XModel — surface + streamed vertex/index layout  ⭐ MOST ACTIONABLE](#1-bo4t8-xmodel--surface--streamed-vertexindex-layout---most-actionable)
+  - [1a. Model → LOD → Surface chain](#1a-model--lod--surface-chain)
+  - [1b. Streamed mesh blob — the on-disk/xpak byte layout (THE important bit)](#1b-streamed-mesh-blob--the-on-diskxpak-byte-layout-the-important-bit)
+- [2. BO4/T8 `.xpak` container (stream package)  ⭐ ACTIONABLE](#2-bo4t8-xpak-container-stream-package---actionable)
+  - [Header (`BO3XPakHeader`, used for BO4 v0xB; `#pragma pack(1)`)](#header-bo3xpakheader-used-for-bo4-v0xb-pragma-pack1)
+  - [Hash/entry table (`BO3XPakHashEntry` at `HashOffset`, `HashCount` entries, 24 bytes each)](#hashentry-table-bo3xpakhashentry-at-hashoffset-hashcount-entries-24-bytes-each)
+  - [Index records (at `IndexOffset`, `IndexCount` entries) — metadata only](#index-records-at-indexoffset-indexcount-entries--metadata-only)
+  - [Data-object block format (`DecompressPackageObject`) — how a streamed object is stored](#data-object-block-format-decompresspackageobject--how-a-streamed-object-is-stored)
+- [3. BO4/T8 GfxWorld / render geometry  (PARTIAL)](#3-bo4t8-gfxworld--render-geometry--partial)
+- [4. BO4/T8 clipMap_t / collision  (GAP — no open-source extractor)](#4-bo4t8-clipmap_t--collision--gap--no-open-source-extractor)
+- [5. BO4/T8 fastfile (`.ff`) container + asset pool enum](#5-bo4t8-fastfile-ff-container--asset-pool-enum)
+  - [`.ff` container](#ff-container)
+  - [Asset pool enum (`XAssetType : byte`) — relevant ids (full list in the file)](#asset-pool-enum-xassettype--byte--relevant-ids-full-list-in-the-file)
+- [6. BO4/T8 Havok collision + AI navmesh  (GAP — confirmed Havok, no open extractor)](#6-bo4t8-havok-collision--ai-navmesh--gap--confirmed-havok-no-open-extractor)
+- [GAPS — what still needs raw-byte RE (no usable published layout found)](#gaps--what-still-needs-raw-byte-re-no-usable-published-layout-found)
+- [Local copies of mined source](#local-copies-of-mined-source)
+<!-- /toc -->
+
 Research deliverable for the offline BO4 GfxWorld + collision extractor. Goal: adapt a
 known/published layout rather than reverse from zero.
 

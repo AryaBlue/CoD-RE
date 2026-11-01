@@ -1,5 +1,18 @@
 # T4 / T5 / T6 skeletal animation: XModel skeletons and XAnimParts
 
+<!-- toc -->
+## Contents
+
+- [Conventions](#conventions)
+- [1. Skeleton (XModel)](#1-skeleton-xmodel)
+- [2. XAnimParts layout](#2-xanimparts-layout)
+- [3. Decoding](#3-decoding)
+- [4. Asset types and additive anims](#4-asset-types-and-additive-anims)
+- [5. Binding anims to models](#5-binding-anims-to-models)
+- [6. zonedump usage](#6-zonedump-usage)
+- [7. Open questions](#7-open-questions)
+<!-- /toc -->
+
 How WaW (T4), BO1 (T5) and BO2 (T6) store skeletons and animations, and how `e115_zonedump` turns them into standard
 glTF skins and animations. Researched 2026-10-26.
 

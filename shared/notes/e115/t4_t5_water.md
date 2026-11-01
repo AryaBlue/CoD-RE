@@ -1,5 +1,18 @@
 # T4 / T5 water (`wc_water`): what the lit water shader does
 
+<!-- toc -->
+## Contents
+
+- [Conventions](#conventions)
+- [Techniques [V]](#techniques-v)
+- [Inputs [V]](#inputs-v)
+- [The maths, per pixel [V unless tagged]](#the-maths-per-pixel-v-unless-tagged)
+- [Values seen [V]](#values-seen-v)
+- [For the RTX worker](#for-the-rtx-worker)
+- [T4 `wc_water_dynamic`: the docks / makin ocean](#t4-wc_water_dynamic-the-docks--makin-ocean)
+- [Open](#open)
+<!-- /toc -->
+
 All 23 T4 maps and T5 `mp_radiation` (`wc/water_default`, `wc/water_mp_rad`) draw their water with the `wc_water`
 techset. E115 draws it as a flat lit stand-in. This note covers what the real shader computes: inputs, Fresnel,
 reflection, refraction, constants, and where each value lives. Researched 2026-10-27.

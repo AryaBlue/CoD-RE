@@ -1,5 +1,26 @@
 # T6 (BO2) - one frame, from the main loop to the pixels on screen
 
+<!-- toc -->
+## Contents
+
+- [The whole frame on one page](#the-whole-frame-on-one-page)
+  - [Is there a render thread?](#is-there-a-render-thread)
+- [1. Main loop -> frame driver](#1-main-loop---frame-driver)
+- [2. Front end: building the frame on the CPU](#2-front-end-building-the-frame-on-the-cpu)
+  - [R_BeginFrame (t6zm 0x00710B10, server 0x00A2F4C0)](#r_beginframe-t6zm-0x00710b10-server-0x00a2f4c0)
+  - [cgame: CL_CGameRendering -> CG_DrawActiveFrame](#cgame-cl_cgamerendering---cg_drawactiveframe)
+  - [R_RenderScene: from scene to sorted draw lists](#r_renderscene-from-scene-to-sorted-draw-lists)
+  - [2D: HUD, menus, text](#2d-hud-menus-text)
+  - [R_EndFrame (t6zm 0x00710BB0, server 0x00A2E4A0)](#r_endframe-t6zm-0x00710bb0-server-0x00a2e4a0)
+- [3. Hand-off: R_IssueRenderCommands (t6zm 0x0070E850, server 0x00A2F1E0)](#3-hand-off-r_issuerendercommands-t6zm-0x0070e850-server-0x00a2f1e0)
+- [4. Back end, 3D: RB_Draw3D](#4-back-end-3d-rb_draw3d)
+  - [RB_StandardDrawCommands: the render passes, in order](#rb_standarddrawcommands-the-render-passes-in-order)
+  - [How one draw list becomes GPU draw calls](#how-one-draw-list-becomes-gpu-draw-calls)
+- [5. Back end, 2D: RB_CallExecuteRenderCommands](#5-back-end-2d-rb_callexecuterendercommands)
+- [6. Present: RB_EndFrame -> RB_SwapBuffers](#6-present-rb_endframe---rb_swapbuffers)
+- [Hook ideas](#hook-ideas)
+<!-- /toc -->
+
 This walks one client frame of Black Ops II (Plutonium `t6zm.exe`) through every function that builds and presents it.
 
 **Sources**

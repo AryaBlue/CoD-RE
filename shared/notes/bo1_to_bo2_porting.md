@@ -1,5 +1,31 @@
 # Porting BO1 (T5) zombie maps to BO2 (T6): research notes
 
+<!-- toc -->
+## Contents
+
+- [1. Where BO1 keeps its data](#1-where-bo1-keeps-its-data)
+  - [What is inside zombie_theater.ff (OAT `--list`)](#what-is-inside-zombie_theaterff-oat---list)
+  - [Kino's entity string (2794 entities)](#kinos-entity-string-2794-entities)
+- [2. Struct-level differences (sizes measured, x86)](#2-struct-level-differences-sizes-measured-x86)
+  - [Models, materials, images](#models-materials-images)
+  - [Map world](#map-world)
+  - [Size notes](#size-notes)
+- [3. Tool support today](#3-tool-support-today)
+- [4. Minimum for "load in and walk around without falling through"](#4-minimum-for-load-in-and-walk-around-without-falling-through)
+  - [4.1 clipmap: the "don't fall through" part (highest priority)](#41-clipmap-the-dont-fall-through-part-highest-priority)
+  - [4.2 gameworldmp](#42-gameworldmp)
+  - [4.3 comworld](#43-comworld)
+  - [4.4 gfxworld: you need to *see* the floor (hardest part)](#44-gfxworld-you-need-to-see-the-floor-hardest-part)
+  - [4.5 mapents](#45-mapents)
+  - [4.6 Loading it](#46-loading-it)
+- [5. Recommended implementation plan](#5-recommended-implementation-plan)
+  - [Open questions to resolve during implementation](#open-questions-to-resolve-during-implementation)
+- [6. Globe entry (already working, for reference)](#6-globe-entry-already-working-for-reference)
+- [7. Scripts (for later milestones)](#7-scripts-for-later-milestones)
+- [BO1 (T5) lightmap pages (2026-10-19)](#bo1-t5-lightmap-pages-2026-10-19)
+- [Clientfields: computed powerup fields (2026-10-19)](#clientfields-computed-powerup-fields-2026-10-19)
+<!-- /toc -->
+
 Target: **Kino der Toten** (`zombie_theater`) as a BO2 Zombies map, `zm_kino`.
 First milestone: load into the map and walk around without falling through the floor. No gameplay scripts.
 

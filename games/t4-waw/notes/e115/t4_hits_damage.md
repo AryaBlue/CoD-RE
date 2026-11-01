@@ -1,5 +1,26 @@
 # T4 shooting: hit boxes, location damage, penetration, spread
 
+<!-- toc -->
+## Contents
+
+- [1. How a bullet finds a hit location](#1-how-a-bullet-finds-a-hit-location)
+  - [The zombie has no collision mesh, only per-bone boxes [V]](#the-zombie-has-no-collision-mesh-only-per-bone-boxes-v)
+  - [The trace [V] (`t4sp.exe`)](#the-trace-v-t4spexe)
+  - [Bone → hit location [V] (`partClassification` of `char_ger_honorgd_body1_1`)](#bone--hit-location-v-partclassification-of-char_ger_honorgd_body1_1)
+  - [Box sizes [V] (bone space, units; only bones with radius ≥ 2, the ones the trace keeps)](#box-sizes-v-bone-space-units-only-bones-with-radius--2-the-ones-the-trace-keeps)
+- [2. Location damage multipliers](#2-location-damage-multipliers)
+  - [The engine rule for damage to an actor [V] (`G_Damage`-like `0x4f5d70`, block `0x4f5f59-0x4f6006`)](#the-engine-rule-for-damage-to-an-actor-v-g_damage-like-0x4f5d70-block-0x4f5f59-0x4f6006)
+  - [Weapon multipliers [V] (raw weapon files)](#weapon-multipliers-v-raw-weapon-files)
+  - [Script overrides [V]](#script-overrides-v)
+- [3. Bullet penetration](#3-bullet-penetration)
+  - [Per-shot flow [V] (`t4sp.exe`)](#per-shot-flow-v-t4spexe)
+  - [Depths [V] (`info/bullet_penetration_sp`; units of material per unit of damage multiplier)](#depths-v-infobullet_penetration_sp-units-of-material-per-unit-of-damage-multiplier)
+  - [Multiple zombies per bullet [V rule, I numbers]](#multiple-zombies-per-bullet-v-rule-i-numbers)
+- [4. Health and points (cross-reference only)](#4-health-and-points-cross-reference-only)
+- [5. Spread: `zombie_colt` and `kar98k` [V fields]](#5-spread-zombie_colt-and-kar98k-v-fields)
+- [Open](#open)
+<!-- /toc -->
+
 Step 3 of Nacht (shooting). This is how a player's bullet finds a zombie, what each hit location is worth, how far a
 bullet goes through things, and the hip/ADS cone for the Nacht start weapons.
 

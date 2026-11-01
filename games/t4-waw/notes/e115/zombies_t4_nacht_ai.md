@@ -1,5 +1,42 @@
 # Zombies: T4 Nacht AI, combat and player movement
 
+<!-- toc -->
+## Contents
+
+- [1. Zombie lifecycle [V]](#1-zombie-lifecycle-v)
+  - [Spawn](#spawn)
+  - [Pick a window](#pick-a-window)
+  - [Walk to it](#walk-to-it)
+  - [Tear boards](#tear-boards)
+  - [Climb in](#climb-in)
+  - [Chase](#chase)
+  - [Attack](#attack)
+  - [Failsafe and death](#failsafe-and-death)
+- [2. Zombie melee damage on the player](#2-zombie-melee-damage-on-the-player)
+- [3. Hits on zombies [V]](#3-hits-on-zombies-v)
+  - [Bullet damage](#bullet-damage)
+  - [Script extras on every hit](#script-extras-on-every-hit)
+  - [Knife](#knife)
+  - [Gibs](#gibs)
+  - [Death](#death)
+- [4. Player health and regen [V]](#4-player-health-and-regen-v)
+  - [Difficulty values](#difficulty-values)
+  - [Regen](#regen)
+- [5. Player movement (T4 SP) [V]](#5-player-movement-t4-sp-v)
+  - [Sprint meter (`0x412550`, `0x412ea0-0x412f37`) [V for the formula, I for the field names]](#sprint-meter-0x412550-0x412ea0-0x412f37-v-for-the-formula-i-for-the-field-names)
+  - [Move speed scale (`PM_CmdScale`, `0x413cd0-0x413eef`) [V for the order, I for the flag names]](#move-speed-scale-pm_cmdscale-0x413cd0-0x413eef-v-for-the-order-i-for-the-flag-names)
+- [6. Pathnodes under debris (script_brushmodels)](#6-pathnodes-under-debris-script_brushmodels)
+- [7. Zombie xanim timings [V]](#7-zombie-xanim-timings-v)
+  - [Move cycles](#move-cycles)
+  - [Tearing boards](#tearing-boards)
+  - [Melee](#melee)
+  - [Window climb](#window-climb)
+  - [Death](#death-1)
+- [Open items for M2](#open-items-for-m2)
+- [Addendum: the round director, solo [V]](#addendum-the-round-director-solo-v)
+- [Addendum: which xanim plays when [V]](#addendum-which-xanim-plays-when-v)
+<!-- /toc -->
+
 How a Nacht zombie behaves from spawn to kill, how hits work in both directions, player health and regen, and the T4 SP
 movement constants. This is the companion to `zombies_t4_nacht.md` (rules) and `zombies_t4_nacht_flow.md` (HUD and
 flow).

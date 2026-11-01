@@ -7,6 +7,15 @@ You will find struct layouts, file-format notes, OpenAssetTools (OAT) patches, s
 converters. The OAT patches are GPL-3.0, like OAT itself. There are no game files here and no dumped assets. You
 run the tools on your own install.
 
+## Start here
+
+- New to the repo? Read the [E115 notes index](shared/notes/e115/README.md) first. It lists every note with a one-line
+  summary and explains the `[V]` `[M]` `[I]` `[U]` marks that say how sure each claim is.
+- Each game folder has its own README: [WaW](games/t4-waw/README.md), [BO1](games/t5-bo1/README.md),
+  [BO2](games/t6-bo2/README.md), [BO3](games/t7-bo3/README.md), [BO4](games/t8-bo4/README.md), [MW2](games/iw4-mw2/README.md).
+- Long notes start with a Contents list. Click a heading to jump.
+- Porting a BO1 map to BO2? Start at [converter/README.md](converter/README.md).
+
 ## Where things are
 
 Each game has a folder under `games/`. Things that cover more than one game are in `shared/` and `converter/`.
@@ -62,3 +71,5 @@ file in the same folder as the patch you are applying, not the one from another 
 `collect.py` copies our own RE output from the working projects. It rebuilds `shared/oat-patches/`,
 `games/t5-bo1/oat-bsp/` and `converter/b2w-patch/`. It leaves `games/t6-bo2/oatfork/` alone, because that one is a
 manual snapshot. It never copies game files. Run `git status` and look at what changed before you commit.
+
+After editing a long note, run `python shared/tools/toc.py` to refresh its Contents list.

@@ -1,5 +1,22 @@
 # T6 GSC bytecode and VM semantics (what E115's script VM does, and where it was checked)
 
+<!-- toc -->
+## Contents
+
+- [T6 format facts the decoder relies on](#t6-format-facts-the-decoder-relies-on)
+- [VM model](#vm-model)
+  - [Verified](#verified)
+  - [Assumed](#assumed)
+- [A thread call's value, and runtime errors (read from t6zm.exe)](#a-thread-calls-value-and-runtime-errors-read-from-t6zmexe)
+- [Notify and the time lists [V]](#notify-and-the-time-lists-v)
+- [The script RNG [V]](#the-script-rng-v)
+- [The error groups](#the-error-groups)
+- [getaiarray [V]](#getaiarray-v)
+- [Earthquakes [V: GScr_Earthquake, CG_StartShakeCamera, CG_UpdateCameraShake, CG_ShakeCamera]](#earthquakes-v-gscr_earthquake-cg_startshakecamera-cg_updatecamerashake-cg_shakecamera)
+- [Bool casts [V: VM_Execute, Scr_CastBool_NonInteger]](#bool-casts-v-vm_execute-scr_castbool_noninteger)
+- [Script model anims [V: GScr_UseAnimTree, GScr_SetAnimInternal, GScr_ClearAnim]](#script-model-anims-v-gscr_useanimtree-gscr_setaniminternal-gscr_clearanim)
+<!-- /toc -->
+
 Distilled from E115's scripting notes, as of 2026-11-01. It covers the T6 bytecode format facts, the VM rules we
 rely on, and the places where the behaviour was read out of `t6zm.exe` (Plutonium's copy, addresses are VAs). No script
 text is quoted: script behaviour is paraphrased with the file and function named, so you can check it against your own

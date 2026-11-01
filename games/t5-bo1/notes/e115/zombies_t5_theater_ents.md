@@ -1,5 +1,27 @@
 # Zombies: Kino der Toten (`zombie_theater`) ent checklist
 
+<!-- toc -->
+## Contents
+
+- [0. Summary](#0-summary)
+- [1. Perk machines (T5)](#1-perk-machines-t5)
+- [2. Pack-a-Punch (T5)](#2-pack-a-punch-t5)
+- [3. Power switch (T5 pattern, KI wiring)](#3-power-switch-t5-pattern-ki-wiring)
+- [4. Electric doors (T5)](#4-electric-doors-t5)
+- [5. Teleporter and projector link (KI)](#5-teleporter-and-projector-link-ki)
+- [6. Mystery box (T5, lights KI)](#6-mystery-box-t5-lights-ki)
+- [7. Traps (T5)](#7-traps-t5)
+- [8. Doors (T5)](#8-doors-t5)
+- [9. Zones (T5 rule, KI adjacency)](#9-zones-t5-rule-ki-adjacency)
+- [10. Spawners and risers (T5)](#10-spawners-and-risers-t5)
+- [11. Dogs (T5)](#11-dogs-t5)
+- [12. Special rounds: quads (KI)](#12-special-rounds-quads-ki)
+- [13. Windows (T5)](#13-windows-t5)
+- [14. Wall buys, Bowie, Claymore (T5)](#14-wall-buys-bowie-claymore-t5)
+- [15. Extras (KI)](#15-extras-ki)
+- [Not read](#not-read)
+<!-- /toc -->
+
 A per-ent checklist for the native route, in the format of `zombies_t4_asylum_ents.md`. It covers what Kino's ents
 hold, with counts, the keys to read, and a profile field for each: an existing one where there is one, otherwise a
 suggestion. T5's general rules (spawners, zones, door types, the box, risers) are in `zombies_t5_vs_t4.md`, which this

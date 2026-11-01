@@ -1,5 +1,31 @@
 # MP: T4 (WaW) Team Deathmatch and Free-for-All
 
+<!-- toc -->
+## Contents
+
+- [1. Rules](#1-rules)
+  - [Limits [V]](#limits-v)
+  - [Points [V]](#points-v)
+  - [Match end [V]](#match-end-v)
+  - [Start of match and respawn [V]](#start-of-match-and-respawn-v)
+  - [For one Reforged ruleset [I: design pick]](#for-one-reforged-ruleset-i-design-pick)
+- [2. Spawn selection](#2-spawn-selection)
+  - [Which system [V]](#which-system-v)
+  - [Legacy path, used before the first hit [V]](#legacy-path-used-before-the-first-hit-v)
+  - [Unified path, used after the first hit [V for script; scoring is engine]](#unified-path-used-after-the-first-hit-v-for-script-scoring-is-engine)
+  - [The engine scorer [V] (static read of `t4mp.exe`)](#the-engine-scorer-v-static-read-of-t4mpexe)
+  - [`isspawnpointvisible(point, angles, team, ignorePlayer)` [V] (`t4mp` `0x521010` → `0x53c320`)](#isspawnpointvisiblepoint-angles-team-ignoreplayer-v-t4mp-0x521010--0x53c320)
+- [3. Health and regen [V] (`_healthoverlay.gsc`)](#3-health-and-regen-v-_healthoverlaygsc)
+- [4. Killstreaks (hardpoints) [V] (`_hardpoints.gsc`)](#4-killstreaks-hardpoints-v-_hardpointsgsc)
+- [5. Bots and testclients [V]](#5-bots-and-testclients-v)
+- [6. HUD](#6-hud)
+- [7. BO1 and BO2 differences](#7-bo1-and-bo2-differences)
+  - [BO1 (T5) [V unless marked], from BO1's `common_mp.ff` and `patch_mp.ff`](#bo1-t5-v-unless-marked-from-bo1s-common_mpff-and-patch_mpff)
+  - [BO2 (T6) [I, not checked against files]](#bo2-t6-i-not-checked-against-files)
+- [8. Answers to the rules-lib open items [V] (`maps/mp/gametypes/*`)](#8-answers-to-the-rules-lib-open-items-v-mapsmpgametypes)
+- [Open items](#open-items)
+<!-- /toc -->
+
 The rules, spawn selection, health, killstreaks, bot support and HUD for WaW multiplayer TDM (`tdm`) and FFA (`dm`).
 At the end there is a short diff for BO1 and BO2. This is groundwork for M4 (offline MP vs bots).
 

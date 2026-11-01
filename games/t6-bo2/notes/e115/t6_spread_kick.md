@@ -1,5 +1,23 @@
 # T6 MP weapon spread, view kick and gun kick (t6mp.exe)
 
+<!-- toc -->
+## Contents
+
+- [1. Where the fields live](#1-where-the-fields-live)
+- [2. Dvars](#2-dvars)
+- [3. Random numbers](#3-random-numbers)
+- [4. Aim spread scale update (every pmove)](#4-aim-spread-scale-update-every-pmove)
+- [5. Fire add (per shot)](#5-fire-add-per-shot)
+- [6. Min/max spread for a weapon](#6-minmax-spread-for-a-weapon)
+- [7. Spread used by a shot, and the shot direction](#7-spread-used-by-a-shot-and-the-shot-direction)
+- [8. Crosshair](#8-crosshair)
+- [9. View kick: per shot](#9-view-kick-per-shot)
+- [10. View kick: decay and recentre](#10-view-kick-decay-and-recentre)
+- [11. Gun (weapon-model) kick](#11-gun-weapon-model-kick)
+- [12. Against the current Reforged code](#12-against-the-current-reforged-code)
+- [Open](#open)
+<!-- /toc -->
+
 Static RE of the Steam `t6mp.exe` (x86, image base 0x400000). The exe is SteamStub 3.1 wrapped (`.text` AES-encrypted,
 signature 0xC0DEC0DF, app 202990). It was decrypted into a scratch copy only; addresses below are VAs in that image and
 are the same as the live game's. Nothing was run. Tags: **[V addr]** is read from code or data at that address,

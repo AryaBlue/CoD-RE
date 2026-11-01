@@ -1,5 +1,21 @@
 # Nacht: weapons, box, economy, damage feedback, grenades, game over
 
+<!-- toc -->
+## Contents
+
+- [0. weapons.json cross-check [V]](#0-weaponsjson-cross-check-v)
+- [1. Weapon handling](#1-weapon-handling)
+  - [Damage model](#damage-model)
+  - [The Nacht weapon set [V] (raw weapon files)](#the-nacht-weapon-set-v-raw-weapon-files)
+- [2. Mystery box [V] (`_zombiemode_weapons.gsc`)](#2-mystery-box-v-_zombiemode_weaponsgsc)
+- [3. Wall buys and ammo [V]](#3-wall-buys-and-ammo-v)
+- [4. Zombie damage to the player and feedback](#4-zombie-damage-to-the-player-and-feedback)
+  - [Zombie hit: 60 per swing [V]](#zombie-hit-60-per-swing-v)
+  - [Red overlay [V] (`_gameskill.gsc`)](#red-overlay-v-_gameskillgsc)
+- [5. Grenades [V]](#5-grenades-v)
+- [6. Game over and last stand (solo) [V]](#6-game-over-and-last-stand-solo-v)
+<!-- /toc -->
+
 The player-facing gameplay gaps for M2's solo Nacht loop. This builds on `zombies_t4_nacht.md` (rules, prices) and
 `zombies_t4_nacht_ai.md` (hits on zombies, player health and regen). Where those docs already answer a point, this one
 points to them.

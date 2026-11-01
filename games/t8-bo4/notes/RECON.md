@@ -1,5 +1,27 @@
 # BO4 (T8) recon — offline, read-only
 
+<!-- toc -->
+## Contents
+
+- [0. TL;DR (read this first)](#0-tldr-read-this-first)
+- [1. Storage format — CASC confirmed](#1-storage-format--casc-confirmed)
+  - [Loose-asset glob (whole tree, depth 8) **[fact]**](#loose-asset-glob-whole-tree-depth-8-fact)
+  - [What the REV / project-bo4 files are (noted, NOT run)](#what-the-rev--project-bo4-files-are-noted-not-run)
+- [2. Toolchain survey (the core of this report)](#2-toolchain-survey-the-core-of-this-report)
+  - [2.1 What's already on this disk **[fact]**](#21-whats-already-on-this-disk-fact)
+  - [2.2 ACTS — the primary offline route (first-hand verified)](#22-acts--the-primary-offline-route-first-hand-verified)
+  - [2.3 GSC / CSC and Lua for BO4 (ACTS + CoDLuaDecompiler) **[fact]**](#23-gsc--csc-and-lua-for-bo4-acts--codluadecompiler-fact)
+  - [2.4 Cordycep / Greyhound / Wraith / HydraX — offline vs attach](#24-cordycep--greyhound--wraith--hydrax--offline-vs-attach)
+  - [2.5 Realistic offline route per asset class](#25-realistic-offline-route-per-asset-class)
+- [3. Asset inventory (best-effort, offline)](#3-asset-inventory-best-effort-offline)
+- [4. RE angle (flag only — not started)](#4-re-angle-flag-only--not-started)
+- [5. How it relates to our existing work](#5-how-it-relates-to-our-existing-work)
+  - [Candidate first projects (ranked by effort ÷ payoff)](#candidate-first-projects-ranked-by-effort--payoff)
+- [6. Not verified (and the probe that settles each)](#6-not-verified-and-the-probe-that-settles-each)
+- [7. Needs your OK before I go further (no-launch / heavy-op gates)](#7-needs-your-ok-before-i-go-further-no-launch--heavy-op-gates)
+- [8. Files & hashes](#8-files--hashes)
+<!-- /toc -->
+
 Prepared by the offline recon worker, 2026-10-21. Target: Black Ops 4 install at
 `E:\SteamLibrary\steamapps\common\bo4_game_files` (142 GB). Everything below is from a
 first-hand read of the install and of the tooling already on this disk, plus the ACTS

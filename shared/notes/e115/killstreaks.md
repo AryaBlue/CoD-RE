@@ -1,5 +1,40 @@
 # Killstreaks: WaW, BO1 and BO2 MP
 
+<!-- toc -->
+## Contents
+
+- [Conventions](#conventions)
+- [Summary](#summary)
+- [World at War (t4)](#world-at-war-t4)
+  - [0. Shared framework (applies to all three)](#0-shared-framework-applies-to-all-three)
+  - [1. Recon plane (`radar_mp`), 3 kills](#1-recon-plane-radar_mp-3-kills)
+  - [2. Artillery strike (`artillery_mp`), 5 kills](#2-artillery-strike-artillery_mp-5-kills)
+  - [3. Attack dogs (`dogs_mp`), 7 kills](#3-attack-dogs-dogs_mp-7-kills)
+  - [4. Stock bot behaviour](#4-stock-bot-behaviour)
+  - [5. Unknowns](#5-unknowns)
+- [Black Ops (t5)](#black-ops-t5)
+  - [0. Shared framework (applies to every streak)](#0-shared-framework-applies-to-every-streak)
+  - [1. Spy Plane (`radar_mp`), most thorough](#1-spy-plane-radar_mp-most-thorough)
+  - [2. Counter-Spy Plane (`counteruav_mp`), most thorough](#2-counter-spy-plane-counteruav_mp-most-thorough)
+  - [3. Care Package (`supply_drop_mp`, weapon `supplydrop_mp`), most thorough](#3-care-package-supply_drop_mp-weapon-supplydrop_mp-most-thorough)
+  - [4. RC-XD (`rcbomb_mp`)](#4-rc-xd-rcbomb_mp)
+  - [5. Mortar Team (`mortar_mp`)](#5-mortar-team-mortar_mp)
+  - [6. Napalm Strike (`napalm_mp`)](#6-napalm-strike-napalm_mp)
+  - [7. Attack Dogs (`dogs_mp`)](#7-attack-dogs-dogs_mp)
+  - [8. Attack Helicopter (`helicopter_comlink_mp`)](#8-attack-helicopter-helicopter_comlink_mp)
+  - [9. Points the engine team should know (summary)](#9-points-the-engine-team-should-know-summary)
+- [Black Ops II (t6)](#black-ops-ii-t6)
+  - [0. Shared system: how scorestreaks are earned, held and used](#0-shared-system-how-scorestreaks-are-earned-held-and-used)
+  - [1. UAV (`radar_mp`)](#1-uav-radar_mp)
+  - [2. Counter-UAV (`counteruav_mp`)](#2-counter-uav-counteruav_mp)
+  - [3. Care Package (`supply_drop_mp`, weapon `supplydrop_mp`; crate-given `inventory_supply_drop_mp` / `inventory_supplydrop_mp`)](#3-care-package-supply_drop_mp-weapon-supplydrop_mp-crate-given-inventory_supply_drop_mp--inventory_supplydrop_mp)
+  - [4. RC-XD (`rcbomb_mp`)](#4-rc-xd-rcbomb_mp-1)
+  - [5. Hunter Killer (`missile_drone_mp`; crate-given `inventory_missile_drone_mp`)](#5-hunter-killer-missile_drone_mp-crate-given-inventory_missile_drone_mp)
+  - [6. Lightning Strike (`planemortar_mp`)](#6-lightning-strike-planemortar_mp)
+  - [7. Sentry Gun (`autoturret_mp`; crate-drop variant `turret_drop_mp`)](#7-sentry-gun-autoturret_mp-crate-drop-variant-turret_drop_mp)
+  - [Unknowns / engine-side ([U])](#unknowns--engine-side-u)
+<!-- /toc -->
+
 This doc covers how the stock games run the common killstreaks, so Reforged's MP can make the selectable ones do something. For each streak it gives:
 - the threshold;
 - what it does, with its numbers;

@@ -1,5 +1,25 @@
 # T5 / T6 zombies perk effects: the data-only perks
 
+<!-- toc -->
+## Contents
+
+- [Conventions](#conventions)
+- [How perks are held (both games)](#how-perks-are-held-both-games)
+- [Costs](#costs)
+- [Stamin-Up](#stamin-up)
+- [Deadshot Daiquiri](#deadshot-daiquiri)
+- [Mule Kick](#mule-kick)
+- [PhD Flopper](#phd-flopper)
+- [Tombstone Soda (T6)](#tombstone-soda-t6)
+- [Who's Who (T6)](#whos-who-t6)
+- [Electric Cherry (T6)](#electric-cherry-t6)
+- [Vulture Aid (T6)](#vulture-aid-t6)
+- [T6 engine](#t6-engine)
+- [Dive to prone (both games)](#dive-to-prone-both-games)
+- [Spec for the profile](#spec-for-the-profile)
+- [Open](#open)
+<!-- /toc -->
+
 What each perk that is `dataOnly` today actually does, split into script (GSC) and engine (exe), with the values, so
 the profile can carry them per game and the zm code can run them with no per-map code. Researched 2026-10-27.
 

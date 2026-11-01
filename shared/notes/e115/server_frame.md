@@ -1,5 +1,37 @@
 # Server frame: T5 / T6
 
+<!-- toc -->
+## Contents
+
+- [T6 layouts used below [V]](#t6-layouts-used-below-v)
+- [1. The frame](#1-the-frame)
+  - [Tick [V]](#tick-v)
+  - [`G_RunFrame` `0x4a5520`, in order](#g_runframe-0x4a5520-in-order)
+  - [`G_RunFrameForEntity` `0x831940` [V]](#g_runframeforentity-0x831940-v)
+  - [`G_RunThink` `0x61ad00` [V]](#g_runthink-0x61ad00-v)
+- [2. Traces](#2-traces)
+  - [Script-side calls [V]](#script-side-calls-v)
+  - [Engine-side call [V]](#engine-side-call-v)
+  - [Boxes are swept as capsules [V]](#boxes-are-swept-as-capsules-v)
+- [3. Triggers](#3-triggers)
+  - [Per-frame touch test: `G_TouchTriggers` `0x62f170` [V]](#per-frame-touch-test-g_touchtriggers-0x62f170-v)
+  - [`trigger_multiple` / `trigger_radius` [V]](#trigger_multiple--trigger_radius-v)
+  - [`trigger_use` and the use key [V]](#trigger_use-and-the-use-key-v)
+- [4. Script movers](#4-script-movers)
+  - [Which entities can move [V]](#which-entities-can-move-v)
+  - [Arguments: `moveto(point, time, [accel], [decel])` [V, `0x502d30`]](#arguments-movetopoint-time-accel-decel-v-0x502d30)
+  - [Move setup: `0x85c320` [V]](#move-setup-0x85c320-v)
+  - [Evaluation: `0x44ce20` [V]](#evaluation-0x44ce20-v)
+  - [Per frame [V]](#per-frame-v)
+- [5. Client: snapshots and interpolation](#5-client-snapshots-and-interpolation)
+  - [`CG_ProcessSnapshots` `0x47e390` [V]](#cg_processsnapshots-0x47e390-v)
+  - [`frameInterpolation` `0x4577b0` [V]](#frameinterpolation-0x4577b0-v)
+  - [Entity positions [V, `0x5d5670`]](#entity-positions-v-0x5d5670)
+- [T5 (spot checks)](#t5-spot-checks)
+- [Engine notes (E2 / E3)](#engine-notes-e2--e3)
+- [Open](#open)
+<!-- /toc -->
+
 Base for the E2 world layer (entities, traces, triggers, movers) and the E3 script service. Covers how the Treyarch
 server runs a frame, what a trace takes and returns, how triggers fire, how script movers move and how the client
 smooths entities between snapshots.

@@ -1,5 +1,27 @@
 # T4 / T5 / T6 scripting: GSC and CSC storage, format and runtime
 
+<!-- toc -->
+## Contents
+
+- [Conventions](#conventions)
+- [1. Storage in fastfiles](#1-storage-in-fastfiles)
+  - [1.1 Asset types and structs](#11-asset-types-and-structs)
+  - [1.2 Which zones hold a zombies map's scripts](#12-which-zones-hold-a-zombies-maps-scripts)
+- [2. Format](#2-format)
+  - [2.1 T4 and T5: source text](#21-t4-and-t5-source-text)
+  - [2.2 T6: compiled bytecode](#22-t6-compiled-bytecode)
+- [3. Is the source recoverable?](#3-is-the-source-recoverable)
+- [4. Runtime model](#4-runtime-model)
+  - [4.1 Threads](#41-threads)
+  - [4.2 Events](#42-events)
+  - [4.3 Values and objects](#43-values-and-objects)
+- [5. Builtins the zombies scripts actually call](#5-builtins-the-zombies-scripts-actually-call)
+- [6. Licensing](#6-licensing)
+- [Implications for E115](#implications-for-e115)
+  - [Smallest first vertical slice](#smallest-first-vertical-slice)
+  - [Main risks](#main-risks)
+<!-- /toc -->
+
 What E115 needs to load and run the zombies GSC (server) and CSC (client) logic of World at War (T4), Black Ops (T5)
 and Black Ops II (T6) without the game executables. Researched 2026-10-26.
 

@@ -1,5 +1,24 @@
 # Porting a Black Ops 4 map to Black Ops 3: the method
 
+<!-- toc -->
+## Contents
+
+- [How to read this](#how-to-read-this)
+- [0. What the problem looks like](#0-what-the-problem-looks-like)
+- [1. What you need](#1-what-you-need)
+- [2. Extract (offline, no memory reading)](#2-extract-offline-no-memory-reading)
+- [3. Rebuild the world mesh (shell chunks)](#3-rebuild-the-world-mesh-shell-chunks)
+- [4. Collision](#4-collision)
+- [5. Props](#5-props)
+- [6. Fill "solid but invisible" (stairs, catwalks, rubble)](#6-fill-solid-but-invisible-stairs-catwalks-rubble)
+- [7. Special surfaces](#7-special-surfaces)
+- [8. Gameplay](#8-gameplay)
+- [9. Build and deploy](#9-build-and-deploy)
+- [10. Testing](#10-testing)
+- [11. Gotchas (each one cost us at least one build)](#11-gotchas-each-one-cost-us-at-least-one-build)
+- [12. Where Blood of the Dead stands](#12-where-blood-of-the-dead-stands)
+<!-- /toc -->
+
 This is the recipe for rebuilding a BO4 (T8) map as a playable BO3 (T7) custom Zombies map with the BO3 Mod Tools.
 We worked it out on Blood of the Dead (`zm_escape`, built as `zm_alcatraz_bodfull`). We ran every step end to end at
 least once. Steps marked *(unverified)* build fine but we have not confirmed them in game.

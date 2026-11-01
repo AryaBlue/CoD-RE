@@ -1,5 +1,25 @@
 # MP rules across T4, T5 and T6 (TDM/FFA vs bots, M4)
 
+<!-- toc -->
+## Contents
+
+- [1. TDM and FFA defaults](#1-tdm-and-ffa-defaults)
+  - [T6 gametype settings [V]](#t6-gametype-settings-v)
+- [2. Spawn selection](#2-spawn-selection)
+- [3. Killstreaks: the 3 defaults](#3-killstreaks-the-3-defaults)
+- [4. Damage model](#4-damage-model)
+  - [Range falloff](#range-falloff)
+  - [Hit-location multipliers](#hit-location-multipliers)
+  - [The headshot rule](#the-headshot-rule)
+  - [Perk scaling, after the engine](#perk-scaling-after-the-engine)
+  - [Other modifiers](#other-modifiers)
+- [5. Bot hooks](#5-bot-hooks)
+- [6. Create-a-Class: attachments and perk slots](#6-create-a-class-attachments-and-perk-slots)
+  - [Attachments](#attachments)
+  - [Perk slots](#perk-slots)
+- [Open](#open)
+<!-- /toc -->
+
 One page per topic, with all three games side by side.
 
 Tags:

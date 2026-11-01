@@ -1,5 +1,29 @@
 # T4 zombies: what Verrückt, Shi No Numa and Der Riese add to Nacht
 
+<!-- toc -->
+## Contents
+
+- [T4 Zombies: perk machines and power (Verrückt, Shi No Numa, Der Riese)](#t4-zombies-perk-machines-and-power-verrückt-shi-no-numa-der-riese)
+  - [1. The perks](#1-the-perks)
+  - [2. Buying a perk](#2-buying-a-perk)
+  - [3. Power switches](#3-power-switches)
+  - [4. Notify and flag names, at a glance](#4-notify-and-flag-names-at-a-glance)
+  - [5. Shared-implementation notes [I]](#5-shared-implementation-notes-i)
+- [T4 Zombies: traps, zipline, zones, teleporters (Verrückt, Shi No Numa, Der Riese)](#t4-zombies-traps-zipline-zones-teleporters-verrückt-shi-no-numa-der-riese)
+  - [1. Electric traps ("zappers")](#1-electric-traps-zappers)
+  - [2. The flogger (pendulum / log trap, Shi No Numa)](#2-the-flogger-pendulum--log-trap-shi-no-numa)
+  - [3. The zipline (Shi No Numa)](#3-the-zipline-shi-no-numa)
+  - [4. Bridges and zone management](#4-bridges-and-zone-management)
+  - [5. Der Riese teleporters](#5-der-riese-teleporters)
+  - [6. Verrückt split start, power doors, and Bouncing Betties](#6-verrückt-split-start-power-doors-and-bouncing-betties)
+  - [Open points](#open-points)
+- [T4 Zombies (later maps): hellhounds, Pack-a-Punch, Wunderwaffe, mystery box](#t4-zombies-later-maps-hellhounds-pack-a-punch-wunderwaffe-mystery-box)
+  - [1. Hellhounds (`_zombiemode_dogs.gsc`, sumpf and factory)](#1-hellhounds-_zombiemode_dogsgsc-sumpf-and-factory)
+  - [2. Pack-a-Punch (Der Riese, `factory maps/_zombiemode_perks.gsc`)](#2-pack-a-punch-der-riese-factory-maps_zombiemode_perksgsc)
+  - [3. Wunderwaffe DG-2 (`_zombiemode_tesla.gsc`, weapons/tesla_gun*)](#3-wunderwaffe-dg-2-_zombiemode_teslagsc-weaponstesla_gun)
+  - [4. Mystery box (per map)](#4-mystery-box-per-map)
+<!-- /toc -->
+
 What each later WaW map adds on top of the shared `_zombiemode`, so each mechanic is built once and reads its map's ents.
 Nacht is the baseline (`zombies_t4_nacht*.md`, `nacht_weapons_economy.md`).
 

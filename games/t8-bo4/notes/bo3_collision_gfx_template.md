@@ -1,5 +1,28 @@
 # BO3 (T7) Collision + GfxWorld Concrete Layouts — Hypothesis Template for BO4 Hand-RE
 
+<!-- toc -->
+## Contents
+
+- [1.0 Parse goal → target JSON](#10-parse-goal--target-json)
+- [1.1 cplane_s   (pack 4)](#11-cplane_s---pack-4)
+- [1.2 cbrushside_t   (pack 2)](#12-cbrushside_t---pack-2)
+- [1.3 cbrush_t   (align 8, total size **0x60** per wiki)](#13-cbrush_t---align-8-total-size-0x60-per-wiki)
+- [1.4 ClipInfo   (the big counted-array container; `clipMap_t` holds one inline + one ptr)](#14-clipinfo---the-big-counted-array-container-clipmap_t-holds-one-inline--one-ptr)
+- [1.5 ClipMaterial   (brush material + surface/content flags)](#15-clipmaterial---brush-material--surfacecontent-flags)
+- [1.6 clipMap_t   (top-level, relevant fields in order)  — WIKI-RE](#16-clipmap_t---top-level-relevant-fields-in-order---wiki-re)
+- [1.7 cLeaf_s / cLeafBrushNode_s / cNode_t / cmodel_t  (BSP + submodels)  — WIKI-RE](#17-cleaf_s--cleafbrushnode_s--cnode_t--cmodel_t--bsp--submodels---wiki-re)
+- [1.8 Collision accel: CollisionPartition / CollisionAabbTree  — WIKI-RE](#18-collision-accel-collisionpartition--collisionaabbtree---wiki-re)
+- [1.9 cStaticModel_s   (collision-side static model placement)  — WIKI-RE](#19-cstaticmodel_s---collision-side-static-model-placement---wiki-re)
+  - [Teammate A — BO4 reversing checklist](#teammate-a--bo4-reversing-checklist)
+- [2.1 GfxMap (= GfxWorld render asset)  — concrete in-memory offsets](#21-gfxmap--gfxworld-render-asset---concrete-in-memory-offsets)
+- [2.2 GfxSurface   (size **0x60 / 96 B**, read at `GfxSurfacesPointer + i*96`)](#22-gfxsurface---size-0x60--96-b-read-at-gfxsurfacespointer--i96)
+- [2.3 World vertex buffers](#23-world-vertex-buffers)
+- [2.4 GfxStaticModel   (render placement instance, size **0x98 / 152 B**)](#24-gfxstaticmodel---render-placement-instance-size-0x98--152-b)
+- [2.5 Material (for surface → image, abridged from Husky)](#25-material-for-surface--image-abridged-from-husky)
+  - [Teammate B — BO4 reversing checklist](#teammate-b--bo4-reversing-checklist)
+- [Cross-check / drift notes](#cross-check--drift-notes)
+<!-- /toc -->
+
 Companion to `t8_struct_refs.md`. This file gives the **exact BO3/T7 struct layouts** so two
 teammates can use them as the starting hypothesis when reversing the BO4/T8 equivalents (same
 engine family — T8 is expected to be a close evolution of T7).

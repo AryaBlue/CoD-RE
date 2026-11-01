@@ -1,5 +1,31 @@
 # T6 (BO2) techniques, vertex formats and shader arguments
 
+<!-- toc -->
+## Contents
+
+- [1. The 36 T6 technique types](#1-the-36-t6-technique-types)
+- [2. How a draw picks its technique](#2-how-a-draw-picks-its-technique)
+  - [Draw method (once, at init)](#draw-method-once-at-init)
+  - [Per frame: lights -> techniques](#per-frame-lights---techniques)
+  - [Draw lists -> base technique](#draw-lists---base-technique)
+  - [Which list a surface goes into](#which-list-a-surface-goes-into)
+  - [At draw time: R_GetTechType](#at-draw-time-r_gettechtype)
+- [3. BO1 / WaW technique -> T6 slot](#3-bo1--waw-technique---t6-slot)
+- [4. Vertex input formats (D3D11 input layouts)](#4-vertex-input-formats-d3d11-input-layouts)
+- [5. Shader constants: BO1 vs T6 fog](#5-shader-constants-bo1-vs-t6-fog)
+  - [Shader argument order](#shader-argument-order)
+- [6. Dynamic lights ("dlight glight" techniques 15-25)](#6-dynamic-lights-dlight-glight-techniques-15-25)
+  - [What the engine fills: `R_SetDLightsConstants` (0x00A17480)](#what-the-engine-fills-r_setdlightsconstants-0x00a17480)
+  - [How a T6 dlight program uses it (stock `wpc_lit_sm_r0c0n0s0`, slot 15)](#how-a-t6-dlight-program-uses-it-stock-wpc_lit_sm_r0c0n0s0-slot-15)
+  - [BO1 dlight programs (T5 techniques 31-37 `*_DLIGHT_GLIGHT`)](#bo1-dlight-programs-t5-techniques-31-37-_dlight_glight)
+  - [BO1 works in linear light, like T6](#bo1-works-in-linear-light-like-t6)
+  - [Per-light code constants (pass argument type 5, value `0x01000000 + id`)](#per-light-code-constants-pass-argument-type-5-value-0x01000000--id)
+  - [Other BO1 program facts found on the way](#other-bo1-program-facts-found-on-the-way)
+- [7. What this changed in the converter (B2W fork)](#7-what-this-changed-in-the-converter-b2w-fork)
+- [Reproducing the tables](#reproducing-the-tables)
+- [Functions (server build)](#functions-server-build)
+<!-- /toc -->
+
 How BO2 picks the technique (shader pass) for each draw, the exact vertex input formats it feeds shaders, and how
 BO1/WaW techniques line up with T6 ones.
 

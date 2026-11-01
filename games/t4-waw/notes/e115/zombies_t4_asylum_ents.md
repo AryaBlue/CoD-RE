@@ -1,5 +1,24 @@
 # Zombies: Verrückt (`nazi_zombie_asylum`) ent checklist for M3
 
+<!-- toc -->
+## Contents
+
+- [0. Summary](#0-summary)
+- [1. Perk machines (T4)](#1-perk-machines-t4)
+- [2. Power switch (T4)](#2-power-switch-t4)
+- [3. Electric doors (T4)](#3-electric-doors-t4)
+  - [All door and debris triggers [M]](#all-door-and-debris-triggers-m)
+- [4. Electric traps (T4)](#4-electric-traps-t4)
+- [5. Split spawn: two start rooms (AS)](#5-split-spawn-two-start-rooms-as)
+- [6. Bouncing Betty buys (T4)](#6-bouncing-betty-buys-t4)
+- [7. Moving box (T4)](#7-moving-box-t4)
+- [8. Zones (AS override)](#8-zones-as-override)
+- [9. Risers (T4)](#9-risers-t4)
+- [10. Windows: bigger than Nacht's (T4, no new field)](#10-windows-bigger-than-nachts-t4-no-new-field)
+- [11. Extras (AS)](#11-extras-as)
+- [12. Perk effects Reforged must implement](#12-perk-effects-reforged-must-implement)
+<!-- /toc -->
+
 A per-ent checklist for the native route. It covers everything Verrückt's ents hold beyond Nacht's set, with counts, the
 keys to read, and a suggested profile field for each. The behaviour behind each item is in `zombies_t4_later_maps.md`,
 which this doc points to instead of repeating.

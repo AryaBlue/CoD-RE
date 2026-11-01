@@ -1,5 +1,27 @@
 # T4 player movement (pmove) from t4sp
 
+<!-- toc -->
+## Contents
+
+- [0. A correction to the AI doc](#0-a-correction-to-the-ai-doc)
+- [1. Accelerate and friction](#1-accelerate-and-friction)
+  - [Dvars [V]](#dvars-v)
+  - [PM_Accelerate (`0x413970`) [V]](#pm_accelerate-0x413970-v)
+  - [Acceleration per move mode [V]](#acceleration-per-move-mode-v)
+  - [PM_Friction (`0x413620`) [V] (our pseudocode of the disassembly)](#pm_friction-0x413620-v-our-pseudocode-of-the-disassembly)
+  - [Why prone works [V for the inputs, I for the arithmetic]](#why-prone-works-v-for-the-inputs-i-for-the-arithmetic)
+- [2. Sprint (`PM_UpdateSprint` `0x413460`) [V]](#2-sprint-pm_updatesprint-0x413460-v)
+  - [Starting a sprint (`0x413591-0x41360c`)](#starting-a-sprint-0x413591-0x41360c)
+  - [While sprinting (`0x4134f1-0x413560`)](#while-sprinting-0x4134f1-0x413560)
+  - [Other sprint rules](#other-sprint-rules)
+- [3. Stick / command scale (`PM_CmdScale` `0x413cd0`) [V]](#3-stick--command-scale-pm_cmdscale-0x413cd0-v)
+- [4. Fall damage (`PM_CrashLand` `0x4152a0`) [V]](#4-fall-damage-pm_crashland-0x4152a0-v)
+- [5. Stances (`PM_CheckDuck` `0x416360`, view height blend `0x415f40`) [V]](#5-stances-pm_checkduck-0x416360-view-height-blend-0x415f40-v)
+  - [Capsule](#capsule)
+  - [Transition timing (`0x415ffe-0x4160ca`)](#transition-timing-0x415ffe-0x4160ca)
+- [Open items](#open-items)
+<!-- /toc -->
+
 This doc closes the [I] gaps in the engine's T4 movement profile: accelerate and friction, sprint, the stick scale, fall damage
 and stance changes. It is a companion to `zombies_t4_nacht_ai.md` §5, which has the dvar table.
 

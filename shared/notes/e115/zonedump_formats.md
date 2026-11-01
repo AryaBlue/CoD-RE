@@ -1,5 +1,43 @@
 # E115 file formats
 
+<!-- toc -->
+## Contents
+
+- [Files](#files)
+- [Conventions](#conventions)
+  - [Spaces and units](#spaces-and-units)
+  - [How extras are parsed](#how-extras-are-parsed)
+- [glb / glTF](#glb--gltf)
+  - [Standard glTF the loader uses](#standard-gltf-the-loader-uses)
+  - [Vertex attributes](#vertex-attributes)
+  - [Material extras](#material-extras)
+  - [Node extras](#node-extras)
+  - [Animation extras](#animation-extras)
+  - [Root extras](#root-extras)
+  - [Layout of zonedump glbs](#layout-of-zonedump-glbs)
+- [Collision glb](#collision-glb)
+- [`.ents` map entities](#ents-map-entities)
+- [`sounds.json`](#soundsjson)
+  - [Read by the engine](#read-by-the-engine)
+  - [Written but not read](#written-but-not-read)
+- [`nav.json` pathnodes](#navjson-pathnodes)
+- [`weapons.json` weapon defs](#weaponsjson-weapon-defs)
+  - [Weapon viewmodels (`<exportRoot>/<game>/weapons/<weapon>.glb`)](#weapon-viewmodels-exportrootgameweaponsweaponglb)
+- [Effects: `fx/<name>.json`](#effects-fxnamejson)
+  - [`impactfx.json`](#impactfxjson)
+- [`world.script_models.json`](#worldscript_modelsjson)
+- [`zbarriers.json` (t6)](#zbarriersjson-t6)
+  - [Engine units (`src/fx`)](#engine-units-srcfx)
+- [`vehicles.json` (t6)](#vehiclesjson-t6)
+- [`.lighting` overrides](#lighting-overrides)
+- [Other app inputs](#other-app-inputs)
+- [Re-converting: stamps and format bumps](#re-converting-stamps-and-format-bumps)
+  - [Older builds](#older-builds)
+- [Mismatches](#mismatches)
+- [Adding a game](#adding-a-game)
+  - [Known exceptions](#known-exceptions)
+<!-- /toc -->
+
 Every file and key the engine reads. The engine never opens game files (the exceptions are listed at the bottom).
 `tools/zonedump` converts zones into these files, and the engine reads only these. The rules are in
 E115's architecture doc and decision D4 (both unpublished).

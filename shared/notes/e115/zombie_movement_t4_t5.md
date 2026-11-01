@@ -1,5 +1,44 @@
 # Zombies: movement and animation, T4 then T5
 
+<!-- toc -->
+## Contents
+
+- [1. Walk, run or sprint](#1-walk-run-or-sprint)
+  - [The rule [V]](#the-rule-v)
+  - [The odds per round [V for the rule, I for the arithmetic]](#the-odds-per-round-v-for-the-rule-i-for-the-arithmetic)
+  - [Per-zombie overrides](#per-zombie-overrides)
+- [2. Move speeds and cycles](#2-move-speeds-and-cycles)
+  - [Where the speed comes from](#where-the-speed-comes-from)
+  - [Nacht cycles](#nacht-cycles)
+  - [Der Riese cycles [V for the tables, M for the speeds]](#der-riese-cycles-v-for-the-tables-m-for-the-speeds)
+- [3. Windows (barriers)](#3-windows-barriers)
+  - [Attack-spot layout [V]](#attack-spot-layout-v)
+  - [Claiming and tearing [V]](#claiming-and-tearing-v)
+  - [Climb-in [V for the rule, M for the timings]](#climb-in-v-for-the-rule-m-for-the-timings)
+- [4. Melee](#4-melee)
+  - [Nacht](#nacht)
+  - [Der Riese [V for the tables and rule, M for the timings]](#der-riese-v-for-the-tables-and-rule-m-for-the-timings)
+- [5. Traversals](#5-traversals)
+  - [How a node maps to an anim [V for the scripts, I for the engine lookup]](#how-a-node-maps-to-an-anim-v-for-the-scripts-i-for-the-engine-lookup)
+  - [What each map uses [V, from the ents]](#what-each-map-uses-v-from-the-ents)
+  - [Der Riese scripts [V for the mapping, M for the timings]](#der-riese-scripts-v-for-the-mapping-m-for-the-timings)
+  - [Risers (Der Riese, not Nacht)](#risers-der-riese-not-nacht)
+- [6. Gibs and the crawler switch](#6-gibs-and-the-crawler-switch)
+  - [The thresholds [V]](#the-thresholds-v)
+  - [Bullets to the legs never make a crawler in T4 [V]](#bullets-to-the-legs-never-make-a-crawler-in-t4-v)
+  - [The switch [V]](#the-switch-v)
+- [1. Walk / run / sprint per round](#1-walk--run--sprint-per-round)
+- [2. Move anims per class](#2-move-anims-per-class)
+- [3. Windows and barriers](#3-windows-and-barriers)
+- [4. Melee](#4-melee-1)
+- [5. Traversals](#5-traversals-1)
+- [6. Gibbing and crawlers](#6-gibbing-and-crawlers)
+- [BO1 xanim timings [M]](#bo1-xanim-timings-m)
+  - [New in BO1](#new-in-bo1)
+  - [Window clips](#window-clips)
+- [Not verified](#not-verified)
+<!-- /toc -->
+
 What drives a zombie's feet: the speed class, the move cycles, windows, melee, traversals and the crawler switch. It's for
 the engine's native zombies and its NavActors. It fills the gaps in [zombies_t4_nacht_ai.md](../../../games/t4-waw/notes/e115/zombies_t4_nacht_ai.md), which already has the
 lifecycle (§1), the gibs (§3) and the per-anim timings (§7 and "which xanim plays when"). Facts that are already there

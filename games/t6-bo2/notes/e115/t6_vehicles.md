@@ -1,5 +1,24 @@
 # T6 vehicles: the TranZit bus
 
+<!-- toc -->
+## Contents
+
+- [Conventions](#conventions)
+- [Short answer](#short-answer)
+- [1. The entity and its spawn](#1-the-entity-and-its-spawn)
+- [2. Vehicle nodes and path following](#2-vehicle-nodes-and-path-following)
+- [3. How players ride it](#3-how-players-ride-it)
+- [4. Collision and the linked parts](#4-collision-and-the-linked-parts)
+- [For E115 (slice 20)](#for-e115-slice-20)
+- [Follow-up: the open items closed (2026-10-27)](#follow-up-the-open-items-closed-2026-10-27)
+  - [1. A node's `script_notify`: nobody sends it [V]](#1-a-nodes-script_notify-nobody-sends-it-v)
+  - [2. Node speed and lookahead [V]](#2-node-speed-and-lookahead-v)
+  - [3. Moving-platform carry and view rotation [V]](#3-moving-platform-carry-and-view-rotation-v)
+  - [4. `info_vehicle_node_rotate` [V: flag and weights; I: meaning]](#4-info_vehicle_node_rotate-v-flag-and-weights-i-meaning)
+  - [5. The `zombie_bus` vehicle def [V: OAT dump of `zm_transit.ff`, vehicles only]](#5-the-zombie_bus-vehicle-def-v-oat-dump-of-zm_transitff-vehicles-only)
+- [Open](#open)
+<!-- /toc -->
+
 The engine side of the TranZit bus, for script slice 20:
 - how the vehicle spawns;
 - how it follows its node path;

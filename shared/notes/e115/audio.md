@@ -1,5 +1,28 @@
 # Sound data: T4 / T5 / T6
 
+<!-- toc -->
+## Contents
+
+- [Summary](#summary)
+- [T4: `snd_alias_t` (`OAT/Common/Game/T4/T4_Assets.h:1749`) [V]](#t4-snd_alias_t-oatcommongamet4t4_assetsh1749-v)
+- [T5: `snd_alias_t` (`OAT/Common/Game/T5/T5_Assets.h:1998`) [V]](#t5-snd_alias_t-oatcommongamet5t5_assetsh1998-v)
+  - [T5 playback: XAudio2, MS-ADPCM and xWMA [V, BlackOps.exe]](#t5-playback-xaudio2-ms-adpcm-and-xwma-v-blackopsexe)
+- [T6: `SndAlias` (`OAT/Common/Game/T6/T6_Assets.h:6355`) [V]](#t6-sndalias-oatcommongamet6t6_assetsh6355-v)
+  - [Hashes [V]](#hashes-v)
+  - [`.sabs` / `.sabl` bank files [V OAT `ObjCommon/ObjContainer/SoundBank/SoundBankTypes.h`, wiki; M]](#sabs--sabl-bank-files-v-oat-objcommonobjcontainersoundbanksoundbanktypesh-wiki-m)
+- [Units and conversions (T6 per `OAT/Common/Game/T6/CommonT6.cpp`; T5 assumed the same) [V; T5 I]](#units-and-conversions-t6-per-oatcommongamet6commont6cpp-t5-assumed-the-same-v-t5-i)
+- [Falloff [V, BlackOps.exe; Plutonium t6mp.exe]](#falloff-v-blackopsexe-plutonium-t6mpexe)
+- [Picking from an alias list [V, BlackOps.exe; Plutonium t6mp.exe]](#picking-from-an-alias-list-v-blackopsexe-plutonium-t6mpexe)
+- [Playback rules [V, BlackOps.exe; Plutonium t6mp.exe]](#playback-rules-v-blackopsexe-plutonium-t6mpexe)
+  - [Limits (`limitCount`/`limitType`, `entityLimitCount`/`entityLimitType`)](#limits-limitcountlimittype-entitylimitcountentitylimittype)
+  - [Priority](#priority)
+  - [neverPlayTwice (T6)](#neverplaytwice-t6)
+  - [startDelay, fadeIn, fadeOut (milliseconds)](#startdelay-fadein-fadeout-milliseconds)
+  - [Randomise-entity seeds](#randomise-entity-seeds)
+- [Exporter notes](#exporter-notes)
+- [Open](#open)
+<!-- /toc -->
+
 Base for the zonedump audio exporter and engine audio. This page covers the alias records, where the
 sample data lives, the codecs, curves, units and alias-list selection.
 

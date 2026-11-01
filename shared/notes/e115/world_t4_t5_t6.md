@@ -1,5 +1,40 @@
 # T4 / T5 / T6 map world structs: a cross-game reference
 
+<!-- toc -->
+## Contents
+
+- [Conventions](#conventions)
+- [0. Where things hang, per game](#0-where-things-hang-per-game)
+- [1. World geometry](#1-world-geometry)
+  - [1.1 Vertex layout](#11-vertex-layout)
+  - [1.2 Surfaces (`GfxSurface`)](#12-surfaces-gfxsurface)
+  - [1.3 Triangles of one surface](#13-triangles-of-one-surface)
+  - [1.4 How the dumpers export it (for cross-checking E115's reader)](#14-how-the-dumpers-export-it-for-cross-checking-e115s-reader)
+  - [1.5 Brush models (doors, debris, movers)](#15-brush-models-doors-debris-movers)
+- [2. Static models (`GfxStaticModelDrawInst`)](#2-static-models-gfxstaticmodeldrawinst)
+- [3. Lighting](#3-lighting)
+  - [3.1 Lightmap pages](#31-lightmap-pages)
+  - [3.2 Sun and primary lights](#32-sun-and-primary-lights)
+  - [3.3 Reflection probes](#33-reflection-probes)
+- [4. Visibility and what not to draw](#4-visibility-and-what-not-to-draw)
+  - [4.1 DPVS in brief](#41-dpvs-in-brief)
+  - [4.2 Surfaces and materials to skip](#42-surfaces-and-materials-to-skip)
+- [5. Coordinates](#5-coordinates)
+  - [5.1 The CoD frame](#51-the-cod-frame)
+  - [5.2 What the converters do](#52-what-the-converters-do)
+  - [5.3 What E115 should apply (Y-up, right-handed, metres)](#53-what-e115-should-apply-y-up-right-handed-metres)
+- [6. `clipMap_t` (collision)](#6-clipmap_t-collision)
+  - [6.1 Layout: T4/T5 inline vs T6 `ClipInfo`](#61-layout-t4t5-inline-vs-t6-clipinfo)
+  - [6.2 Brushes](#62-brushes)
+  - [6.3 Terrain triangle soup (partitions / aabb tree)](#63-terrain-triangle-soup-partitions--aabb-tree)
+  - [6.4 Static-model collision](#64-static-model-collision)
+  - [6.5 Recipe: one collision triangle soup](#65-recipe-one-collision-triangle-soup)
+- [7. mapents](#7-mapents)
+  - [7.1 Format](#71-format)
+  - [7.2 Classnames that matter](#72-classnames-that-matter)
+- [8. Open questions to settle against the three test zones](#8-open-questions-to-settle-against-the-three-test-zones)
+<!-- /toc -->
+
 What E115 needs to read from OAT's in-memory `gfxworld`, `clipmap`, `comworld` and `mapents` assets to draw a WaW (T4),
 BO1 (T5) or BO2 (T6) map as a recognisable, correctly placed environment, and later to collide with it. Researched
 2026-10-26. XModel, Material and GfxImage are covered in [assets_t4_t5_t6.md](assets_t4_t5_t6.md) (called **ASSETS** below); this file only

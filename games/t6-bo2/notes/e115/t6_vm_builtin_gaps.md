@@ -1,5 +1,22 @@
 # Script VM gaps: builtins the T6 zm scripts call that the VM doesn't register
 
+<!-- toc -->
+## Contents
+
+- [actor/AI (42), AI side](#actorai-42-ai-side)
+- [player (12), player side](#player-12-player-side)
+- [weapon (4), player side](#weapon-4-player-side)
+- [sound (1), player side](#sound-1-player-side)
+- [fx (1), player side](#fx-1-player-side)
+- [physics (3), VM core](#physics-3-vm-core)
+- [entity (11), VM core](#entity-11-vm-core)
+- [vehicle/turret (28), VM core](#vehicleturret-28-vm-core)
+- [math/string (4), player side](#mathstring-4-player-side)
+- [stats/online (4), player side](#statsonline-4-player-side)
+- [not a builtin (7), no owner (a decompile artefact or a script function from another file)](#not-a-builtin-7-no-owner-a-decompile-artefact-or-a-script-function-from-another-file)
+- [Sources and credits](#sources-and-credits)
+<!-- /toc -->
+
 Made by `tools/script_pass/vm_gaps.py`. It reads gsc-tool's decompile of each map's exported scripts (local only, never
 committed), takes every call that isn't one of that map's script functions, and checks it against the names the VM
 registers (`.add("name", ...)` in src/script, src/game and games/reforged).

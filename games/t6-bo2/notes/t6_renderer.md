@@ -1,5 +1,17 @@
 # T6 (BO2) renderer - structs, functions, how a frame flows
 
+<!-- toc -->
+## Contents
+
+- [How sure the t6zm addresses are](#how-sure-the-t6zm-addresses-are)
+- [Key t6zm addresses (matched)](#key-t6zm-addresses-matched)
+- [How a frame flows (from the names, call graph and structs)](#how-a-frame-flows-from-the-names-call-graph-and-structs)
+  - [GfxRenderCommand (command ids)](#gfxrendercommand-command-ids)
+  - [GfxDrawSurf sort key (64 bits, low bit first)](#gfxdrawsurf-sort-key-64-bits-low-bit-first)
+  - [Structs (server PDB; check sizes before trusting them on t6zm)](#structs-server-pdb-check-sizes-before-trusting-them-on-t6zm)
+- [Next steps](#next-steps)
+<!-- /toc -->
+
 Time-boxed pass on 2026-10-20 (25 minutes). Sources:
 
 - **Server build:** the dedicated server `CoDMPServer_PC.exe` (2013-03-11) in the game's `pc pdb` folder ships the whole

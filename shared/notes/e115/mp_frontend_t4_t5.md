@@ -1,5 +1,24 @@
 # MP front end: WaW (T4) and BO1 (T5) create-a-class, default classes and emblems
 
+<!-- toc -->
+## Contents
+
+- [1. World at War](#1-world-at-war)
+  - [Slots [V] (`_class.gsc:470-646`, `classtable.csv`)](#slots-v-_classgsc470-646-classtablecsv)
+  - [Weapons [V] (`statstable.csv` rows 0-109, unlocks from `ranktable.csv` columns 8-9)](#weapons-v-statstablecsv-rows-0-109-unlocks-from-ranktablecsv-columns-8-9)
+  - [Perks [V] (`statstable.csv` rows 150-189)](#perks-v-statstablecsv-rows-150-189)
+  - [Default classes [V] (`classtable.csv`, loaded at `_class.gsc:131-135`)](#default-classes-v-classtablecsv-loaded-at-_classgsc131-135)
+- [2. Black Ops](#2-black-ops)
+  - [Slots [V] (`classbonustable.csv` header, `_class.gsc:209-300`)](#slots-v-classbonustablecsv-header-_classgsc209-300)
+  - [Weapons and equipment [V] (`statstable.csv`)](#weapons-and-equipment-v-statstablecsv)
+  - [Perks [V]](#perks-v)
+  - [Killstreaks [V] (`statstable.csv` column 5 = kills)](#killstreaks-v-statstablecsv-column-5--kills)
+  - [Feature unlocks [V] (`statstable.csv` rows 216-244)](#feature-unlocks-v-statstablecsv-rows-216-244)
+  - [Default classes [V] (`statstable.csv` class tags, read by the engine `GetDefaultClassSlot`, `_class.gsc:105-109`)](#default-classes-v-statstablecsv-class-tags-read-by-the-engine-getdefaultclassslot-_classgsc105-109)
+- [3. BO1 emblem editor](#3-bo1-emblem-editor)
+- [Open items](#open-items)
+<!-- /toc -->
+
 This covers the data a Play / Weapons / Operator / Barracks front end needs: create-a-class slot rules, perk tiers,
 attachments and unlocks, the default classes, and what BO1's emblem editor allows. It is the companion to
 [mp_t4_tdm_ffa.md](../../../games/t4-waw/notes/e115/mp_t4_tdm_ffa.md) (match rules).

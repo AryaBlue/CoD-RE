@@ -50,7 +50,7 @@ def build(out):
 
         def sub(m, src=src):
             tgt, anchor = m.group(1), m.group(2) or ''
-            if tgt.startswith(('http://', 'https://', 'mailto:')):
+            if tgt.startswith(('#', 'http://', 'https://', 'mailto:')):
                 return m.group(0)
             target = (src.parent / tgt).resolve()
             try:

@@ -6,7 +6,7 @@ install's files. This repo has the format knowledge and the code, not the conten
 
 ## Start here
 
-[`PORTING_METHOD.md`](PORTING_METHOD.md) is the full recipe for porting a BO4 map to Black Ops 3 (Mod Tools). We
+[`porting_method.md`](porting_method.md) is the full recipe for porting a BO4 map to Black Ops 3 (Mod Tools). We
 worked it out on Blood of the Dead.
 
 ## What we have solved

@@ -1,46 +1,43 @@
 """Refresh this repo from the working projects, then review with `git status` and commit.
 
 Copies only our own reverse-engineering output (struct headers, size probes, OAT
-patches, binary-format decoders, notes) - never game files or dumped assets.
+patches, binary-format decoders, notes). Never game files or dumped assets.
 """
-import shutil, subprocess
+import shutil, subprocess, sys
 from pathlib import Path
 
 HERE = Path(__file__).parent
 CONV = Path(r'E:\Documents\BO1MapConverter')
 
-# Repo is organised by game: games/<game>/ holds game-specific RE; shared/ and the
-# top-level converter/ hold the cross-game pieces that can't live under one game.
+# dest folder -> source files. games/<game>/ holds game-specific RE, shared/ and converter/ the rest
 COPIES = {
     'games/t5-bo1/headers': [CONV / 'research' / n for n in ('T5.h', 'T5_Assets.h')],
     'games/t6-bo2/headers': [CONV / 'research' / 'probe' / 'T6_Assets.h'],
     'shared/probe': [CONV / 'research' / 'probe' / n for n in ('sizes.cpp', 'sizes.txt', 'b.bat')],
     'shared/tools': [CONV / 'research' / n for n in ('structdiff.py', 'structdiff.txt')],
-    # B2W's handoff log stays out (other people's paths); its code goes in as our patch below
-    'shared/notes': [CONV / 'research' / 'bo1_to_bo2_porting.md'],
-    'games/t6-bo2/notes': [CONV / 'research' / 't6_cbuf.md', CONV / 'research' / 't6_sv_sendservercommand.md',
-              CONV / 'research' / 't6_sound_playsound.md',
-              CONV / 'research' / 't6_materials_runtime.md']
-             + sorted(f for f in (CONV / 'research' / 't6_renderer').glob('t6*') if f.is_file()),
+    'shared/notes': [CONV / 'research' / 'bo1_to_bo2_porting.md'],  # b2w's handoff log stays out, other people's paths
+    'games/t6-bo2/notes/engine': [CONV / 'research' / n for n in ('t6_cbuf.md', 't6_sv_sendservercommand.md', 't6_sound_playsound.md')],
+    'games/t6-bo2/notes/render': [CONV / 'research' / 't6_materials_runtime.md'],
+    'games/t6-bo2/notes/tables': sorted(f for f in (CONV / 'research' / 't6_renderer').glob('t6*') if f.is_file()),
     'games/t6-bo2/t6match': sorted(f for f in (CONV / 'research' / 't6_renderer' / 't6match').iterdir() if f.suffix in ('.py', '.java')),
     'converter': [CONV / 'run_bo1.py', CONV / 'README.md'],
     'converter/tools': sorted((CONV / 'tools').glob('*.py')),
-    # ZM Workshop's code stays private: the user doesn't want the tool uploaded
+    # ZM Workshop's code stays private
+}
+# notes lose their game prefix here, the folder already says which game
+RENAME = {
+    't6_cbuf.md': 'cbuf.md', 't6_sv_sendservercommand.md': 'sv_sendservercommand.md',
+    't6_sound_playsound.md': 'sound_playsound.md', 't6_materials_runtime.md': 'materials_runtime.md',
 }
 
-# local OAT checkouts -> their by-game home here (key = source tree under CONV, value =
-# dest). Each checkout's changes.patch is one multi-game unit, so it lives under the game
-# it serves; cross-game checkouts go to shared/.
+# local OAT checkout under CONV -> its home here. one changes.patch per checkout, filed under the game it mostly serves
 OAT_TREES = {
-    'oat': HERE / 'shared' / 'oat-patches' / 'oat',          # base, multi-game
-    'oat-bsp': HERE / 'games' / 't5-bo1' / 'oat-bsp',        # T5 BSP dumpers
-    'oat_ext': HERE / 'shared' / 'oat-patches' / 'oat_ext',  # T4 + T5 extraction dumpers
+    'oat': HERE / 'shared' / 'oat-patches' / 'oat',
+    'oat-bsp': HERE / 'games' / 't5-bo1' / 'oat-bsp',
+    'oat_ext': HERE / 'shared' / 'oat-patches' / 'oat_ext',
 }
-# NB: games/t6-bo2/oatfork/ is a MANUAL snapshot (the optimized Linker/Unlinker fork
-# lives in F:\ClaudeBench\oatfork, outside CONV), so collect.py does not regenerate
-# it. Refresh it by hand when that fork's speed/dumper work changes.
-# our BO1 converter: changes against upstream B2W (github.com/Ticass/B2W), same layout
-CONVERTER_TREE = 'b2w_bo1'
+# games/t6-bo2/oatfork/ is a manual snapshot (lives in F:\ClaudeBench\oatfork), refresh it by hand
+CONVERTER_TREE = 'b2w_bo1'  # our BO1 converter, diffed against upstream B2W (github.com/Ticass/B2W)
 SKIP_NEW = ('.png', '.jpg', '.dds', '.iwi', '.webp')  # art isn't ours to publish
 
 
@@ -55,7 +52,7 @@ def main():
         out.mkdir(parents=True, exist_ok=True)
         for src in sources:
             if src.is_file():
-                shutil.copy2(src, out / src.name)
+                shutil.copy2(src, out / RENAME.get(src.name, src.name))
             else:
                 print('missing', src)
     trees = list(OAT_TREES.items())
@@ -67,8 +64,7 @@ def main():
         out.mkdir(parents=True)
         base = git(tree, 'rev-parse', 'HEAD').strip()
         if 'upstream' in git(tree, 'remote').split():
-            # our work is committed on a branch: diff against where it left upstream
-            base = git(tree, 'merge-base', 'HEAD', 'upstream/main').strip()
+            base = git(tree, 'merge-base', 'HEAD', 'upstream/main').strip()  # diff against where we left upstream
         added = git(tree, 'diff', '--name-only', '--diff-filter=A', base).splitlines()
         (out / 'BASE_COMMIT').write_text(base + '\n')
         (out / 'changes.patch').write_text(
@@ -81,6 +77,7 @@ def main():
             target = out / 'new' / rel
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(tree / rel, target)
+    subprocess.run([sys.executable, str(HERE / 'shared' / 'tools' / 'index.py')], check=True)
     print('done')
 
 

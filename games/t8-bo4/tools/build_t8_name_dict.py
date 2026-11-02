@@ -1,6 +1,6 @@
 """Build PATH/TO/t8_name_dict.json ({hash: name}) for BO4 XModel names.
 
-Hash (from t8_namehash.md): FNV-1a-64 of the bare name, lower-cased, '\\' -> '/', masked to 60 bits.
+Hash (from namehash.md): FNV-1a-64 of the bare name, lower-cased, '\\' -> '/', masked to 60 bits.
 Sources: Greyhound's fnv1a_xmodels.wni, the rip folder names, ACTS's path.wni, identifier strings in
 zm_escape.ff.dec, and any extra word lists passed on the command line (one name per line).
 python -I build_t8_name_dict.py [extra_list.txt ...]

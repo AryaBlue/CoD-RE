@@ -1,4 +1,4 @@
-"""Reference writer for the minimal W2BSP001 render world (version 1) in EMITTER_SPEC.md.
+"""Reference writer for the minimal W2BSP001 render world (version 1) in emitter_spec.md.
 Self-test: python emit_gfx_v1.py <known-good gfx.bin> <out.gfx.bin> re-emits it as v1 and reads it back."""
 import struct
 import sys

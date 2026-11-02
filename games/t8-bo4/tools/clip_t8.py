@@ -1,4 +1,4 @@
-"""BoD (T8) clipMap brushes -> clip.json (EMITTER_SPEC.md schema), from the decompressed zm_escape zone.
+"""BoD (T8) clipMap brushes -> clip.json (emitter_spec.md schema), from the decompressed zm_escape zone.
 Usage: clip_t8.py <zm_escape.ff.dec> <out clip.json>"""
 import json
 import struct

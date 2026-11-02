@@ -3,7 +3,7 @@
 Offline, read-only tools for Black Ops III PC fastfiles and the assets they carry inline. They read your own install.
 No game assets are stored in this repo. GPL-3.0.
 
-The format is written up in [`../../notes/t7_fastfile_format.md`](../../notes/t7_fastfile_format.md).
+The format is written up in [`../../notes/t7_fastfile_format.md`](../../notes/fastfile_format.md).
 BO3 PC core and frontend fastfiles are zlib-compressed and not AES-encrypted, so you need no key.
 
 ## Tools

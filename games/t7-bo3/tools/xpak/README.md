@@ -44,7 +44,7 @@ If it fails:
 
 ## Format
 
-[`../../notes/t7_xpak_format.md`](../../notes/t7_xpak_format.md) describes the container and the decompression.
+[`../../notes/xpak_format.md`](../../notes/xpak_format.md) describes the container and the decompression.
 
 ## Credit and licence
 

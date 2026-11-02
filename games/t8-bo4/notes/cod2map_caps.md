@@ -1,4 +1,4 @@
-# cod2map64.exe plane caps (RE 2026-10-23)
+# cod2map64.exe plane caps
 
 Our own RE of the BO3 modtools map compiler `bin/cod2map64.exe`
 (sha256 201a6b31072f74cfacab944014d446185570608e37e556132cc00db3f9db8efd, PE x86_64,

@@ -1,7 +1,7 @@
 """BO3 (T7) XPAK extractor. Our own port of the decompression scheme; the
 block-group layout (BO3XPakDataHeader) and DecompressPackageObject logic were
 reverse-engineered with reference to Scobalula's Greyhound (XPAKCache.cpp,
-DBGameFiles.h) — see ../../notes/t7_xpak_format.md for the format write-up.
+DBGameFiles.h) — see ../../notes/xpak_format.md for the format write-up.
 Offline, read-only."""
 import sys, struct
 sys.path.insert(0, ".")

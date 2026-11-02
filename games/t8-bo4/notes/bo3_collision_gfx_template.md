@@ -1,4 +1,4 @@
-# BO3 (T7) Collision + GfxWorld Concrete Layouts — Hypothesis Template for BO4 Hand-RE
+# BO3 (T7) collision and GfxWorld layouts: the template for BO4 hand-RE
 
 <!-- toc -->
 ## Contents
@@ -23,7 +23,7 @@
 - [Cross-check / drift notes](#cross-check--drift-notes)
 <!-- /toc -->
 
-Companion to `t8_struct_refs.md`. This file gives the **exact BO3/T7 struct layouts** so two
+Companion to `struct_refs.md`. This file gives the **exact BO3/T7 struct layouts** so two
 teammates can use them as the starting hypothesis when reversing the BO4/T8 equivalents (same
 engine family — T8 is expected to be a close evolution of T7).
 
@@ -289,7 +289,7 @@ struct cStaticModel_s {
 Husky reads these from the **live process** (`GfxMap` asset, found at asset-pool slot via
 `assetPoolsAddress + 0x200`). Offsets below are computed by summing Husky's `[Pack=1]` structs
 and are **in-memory VAs** — for an offline BO4 zone, treat field *order* as reliable and
-re-verify the `Padding[...]` gaps (same caveat as the XModel structs in `t8_struct_refs.md §1`).
+re-verify the `Padding[...]` gaps (same caveat as the XModel structs in `struct_refs.md §1`).
 
 Positions here are raw engine units; Husky multiplies by 2.54 (inch→cm) for OBJ — that is
 Husky's choice, not part of the layout.
@@ -365,7 +365,7 @@ struct GfxVertexData {          // 20 B, at GfxVerticesDataPointer + vertIndex*2
     int      Padding2;          // +0x10  packed tangent (Husky ignores)
 };                              // 20 B
 ```
-Normal unpack = the same scheme as the XModel normals in `t8_struct_refs.md §1b` (Wraith
+Normal unpack = the same scheme as the XModel normals in `struct_refs.md §1b` (Wraith
 "MethodD" / 10:10:10 signed, /511). NOTE: unlike BO4 XModel UVs (half-floats), BO3 **world** UVs
 here are **full float32**.
 
@@ -404,7 +404,7 @@ textures; geometry does not require it.)
 
 ### Teammate B — BO4 reversing checklist
 1. Find `GfxWorld` (asset pool 14; ACTS confirms top-level size `0x1ab0` — see
-   `t8_struct_refs.md §3`). BO4 keeps `surfaceCount` near the top, `indexCount`+`uint16* indices`
+   `struct_refs.md §3`). BO4 keeps `surfaceCount` near the top, `indexCount`+`uint16* indices`
    known, but the per-surface `GfxSurface` array ptr + the split vertex buffers are in `unk`
    regions — the BO3 layout above tells you *what shapes to look for*: a position buffer
    (float3), a parallel data buffer, a global u16 index buffer, a `GfxSurface`-like record with

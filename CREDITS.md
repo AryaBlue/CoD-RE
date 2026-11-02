@@ -18,7 +18,7 @@ The Call of Duty reverse-engineering in this repository builds on prior communit
 - **LÖVE (LuaJIT).** Runs the live-bytecode test's real-Lua side (`tests/live/lua`). https://love2d.org
 - **ate47 — bo3-source.** Decompiled stock BO3 scripts, the reference for what BO3 perk mods call when we bring their ideas to BO2. https://github.com/ate47/bo3-source
 
-## E115 research notes, T4 / T5 / T6 (`games/*/notes/e115/`, `shared/notes/e115/`)
+## Notes on T4 / T5 / T6 (`games/*/notes/`, `shared/notes/`)
 These notes came out of E115, our from-scratch engine that loads the user's own WaW, BO1 and BO2 installs. They quote no game script; where they lean on a tool or someone else's research, it is listed here.
 - **OpenAssetTools (Laupetin, GPL-3.0).** Our zone dumper (`e115_zonedump`) is built on our vendored OAT fork. The notes rely on OAT's T4/T5/T6 struct headers and ZoneCode, zone loading, the Unlinker (rawfile scripts, string/stat tables, weapon infostrings, `--list` zone listings), the XAnim reader, the vertex/normal/image decode paths and the T6 sound loader. Nothing from OAT is copied into the notes. https://github.com/Laupetin/OpenAssetTools
 - **xensik — gsc-tool (GPL-3.0).** Decompiled the stock BO2 (T6) zombies and MP scripts from the user's own fastfiles so the notes could cite file and function and paraphrase the logic. It was also the opcode/alignment reference in the scripting note. https://github.com/xensik/gsc-tool

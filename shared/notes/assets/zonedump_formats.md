@@ -74,7 +74,7 @@ Everything here was read in the code as of 2026-10-26. **[I]** marks anything in
 | data | space | units |
 |---|---|---|
 | glb mesh positions, node TRS under the root, probe positions, `e115_light.origin`, `e115_sun.toSun`, exposure planes | cod: right-handed, **z up** | cod units (inches) |
-| the `cod_to_engine` root node (node 0 of every zonedump glb) | maps cod to engine: rotate −90° about x, `(x, y, z) → (x, z, −y)`, scale 0.0254 | — |
+| the `cod_to_engine` root node (node 0 of every zonedump glb) | maps cod to engine: rotate −90° about x, `(x, y, z) → (x, z, −y)`, scale 0.0254 | - |
 | engine world, camera, `--cam`/`--target`, views files, `.lighting` directions | engine: right-handed, **y up** | metres |
 | `.ents` origins and angles | cod map space | cod units, degrees |
 | `sounds.json` distances | cod | cod units |
@@ -140,14 +140,14 @@ Everything here was read in the code as of 2026-10-26. **[I]** marks anything in
 |---|---|---|---|---|---|
 | `e115_lightmap` | number: glTF texture index | page: linear rgb / max(a, 1/255) (E115 lightmaps doc, unpublished) | not lightmapped (lit by probes or the stand-in light) | samples the page at `TEXCOORD_1` as baked indirect light | `--world`, world surfaces with a lightmap page |
 | `e115_sun` | number: glTF texture index | sun visibility 0..1 in `.g`, at `TEXCOORD_1` | fully visible | baked sun shadow. **Read only when `e115_lightmap` is present** | `--world`, when the page has a sun page |
-| `e115_layers` | array of `{"op": "blend"\|"multiply", "color": tex, "slot": 0..2}` | — | no layers | up to 3 layers over the base (blend: `lerp(albedo, rgb, a·w)`, multiply: `albedo *= lerp(1, rgb, w)`). An unknown `op` or an out-of-range slot drops the layer with a warning. A layer without `color` isn't drawn. Skinned and sky draws skip layers | `--world`, multi-layer world techsets |
-| `e115_casts_shadow` | `false` | — | `true` | left out of the sun shadow pass | any export, when the game's material flag `0x40` (CASTS_SHADOW) is clear |
-| `e115_receives_sun_shadow` | `false` | — | `true` | no dynamic sun shadow map. Baked or probe sun visibility only. The node's flag must also be true to receive | `--world`, surfaces whose primary light isn't the sun |
-| `e115_blend` | `"alpha"` \| `"multiply"` \| `"add"` | — | `"alpha"` | blend equation of a `BLEND` material. Unknown values are drawn as alpha, with a warning | any export, from the drawn technique's blend state |
+| `e115_layers` | array of `{"op": "blend"\|"multiply", "color": tex, "slot": 0..2}` | - | no layers | up to 3 layers over the base (blend: `lerp(albedo, rgb, a·w)`, multiply: `albedo *= lerp(1, rgb, w)`). An unknown `op` or an out-of-range slot drops the layer with a warning. A layer without `color` isn't drawn. Skinned and sky draws skip layers | `--world`, multi-layer world techsets |
+| `e115_casts_shadow` | `false` | - | `true` | left out of the sun shadow pass | any export, when the game's material flag `0x40` (CASTS_SHADOW) is clear |
+| `e115_receives_sun_shadow` | `false` | - | `true` | no dynamic sun shadow map. Baked or probe sun visibility only. The node's flag must also be true to receive | `--world`, surfaces whose primary light isn't the sun |
+| `e115_blend` | `"alpha"` \| `"multiply"` \| `"add"` | - | `"alpha"` | blend equation of a `BLEND` material. Unknown values are drawn as alpha, with a warning | any export, from the drawn technique's blend state |
 | `e115_sort` | whole number 0..255 | cod `MaterialInfo::sortKey` | −1 (unknown, sorts first) | blended draws go in ascending key order, scene order within a key. Out of range or non-whole → throws | any export (always when the material had a definition) |
-| `e115_water` | `true` | — | `false` | parsed into `MaterialData::water`. **Not used by the renderer** (see Mismatches). zonedump sets `baseColorFactor` to the game's `waterColor` and no texture | any export, `water*` techsets |
+| `e115_water` | `true` | - | `false` | parsed into `MaterialData::water`. **Not used by the renderer** (see Mismatches). zonedump sets `baseColorFactor` to the game's `waterColor` and no texture | any export, `water*` techsets |
 | `e115_sky_rotation` | `[cos, sin]` | turn about cod z, `x' = x·cos − y·sin` | `[1, 0]` | turns the sky cube lookup. **Sky nodes only** | any export, from `skyBoxRotation` |
-| `e115_sky_flip_z` | `true` | — | — | **not read** (see Mismatches) | any export, `skyBoxRotation.w < 0` |
+| `e115_sky_flip_z` | `true` | - | - | **not read** (see Mismatches) | any export, `skyBoxRotation.w < 0` |
 | `e115_sky_hdr` | `[mode, scale]` | mode 1: linear = rgb / max(a, 1e-6) of a unorm cube. Mode 0: sRGB texture taken as is | `[0, 0]`: plain sky | scale 0 = plain. Otherwise decode by mode, then × scale. **Sky nodes only**. zonedump writes mode-1 base textures non-sRGB | any export, from `skyColorParm` (T5 `sky_cubemap_hdr`: `cloudsHeight.z`, mode 0) |
 | `e115_uv_scroll` | `[u, v]` | uv per second [I] | `[0, 0]` | offset `fract(uvScroll · t)` added to uv0. **Sky nodes only** | any export, from `uvScroll` |
 | `e115_contents` | whole number u32 | cod contents bits ([collision_contents.md](../world/collision_contents.md)) | collision: `0x1` (solid) | collision: the triangles' contents. 0 = not loaded. Ignored when drawing | `--collision` |
@@ -158,14 +158,14 @@ Everything here was read in the code as of 2026-10-26. **[I]** marks anything in
 | key | JSON type | units / space | default | engine does | emitted by |
 |---|---|---|---|---|---|
 | `e115_light` | `{"origin": [x, y, z], "probe": n}`, either sub-key optional | origin: root (cod) space | origin: the mesh bounds centre. probe: −1 | origin: where the probe field is sampled for this node. probe: index into `e115_node_probes`, used instead of the field. Out of range → throws | `--world`, static models (`lightingOrigin`; BO2 own light sample) |
-| `e115_casts_shadow` | `false` | — | `true` | the node's meshes stay out of the sun shadow pass | `--world`, skybox. Static models only with `--smodel-cast-bits` |
-| `e115_receives_sun_shadow` | `false` | — | `true` | as on materials. Both flags must be true | `--world`, static models that aren't sun-primary, skybox |
-| `e115_sky` | `true` | — | `false` | skybox: drawn first, centred on the camera, unlit, behind everything. Left out of the scene bounds and probe lighting. Enables the sky material keys | `--world`, the skybox xmodel |
-| `e115_brushmodel` | string `"*N"` | — | `""` | parsed. **Not used** | `--world`, brush-model nodes |
-| `e115_targetname` | string | — | `""` | parsed. **Not used** (the node's `name` is also the targetname when there is one) | `--world`, brush-model nodes with a targetname, script_model nodes |
-| `e115_classname` | string | — | `""` | not read yet | `--world`, script_model nodes (`"script_model"`) |
-| `e115_noteworthy` | string | — | `""` | not read yet | `--world`, script_model nodes with a `script_noteworthy` |
-| `e115_trigger` | `true` | — | `false` | collision: the node and its whole subtree are skipped (never solid) | `--collision`, the `triggers` group and each trigger node |
+| `e115_casts_shadow` | `false` | - | `true` | the node's meshes stay out of the sun shadow pass | `--world`, skybox. Static models only with `--smodel-cast-bits` |
+| `e115_receives_sun_shadow` | `false` | - | `true` | as on materials. Both flags must be true | `--world`, static models that aren't sun-primary, skybox |
+| `e115_sky` | `true` | - | `false` | skybox: drawn first, centred on the camera, unlit, behind everything. Left out of the scene bounds and probe lighting. Enables the sky material keys | `--world`, the skybox xmodel |
+| `e115_brushmodel` | string `"*N"` | - | `""` | parsed. **Not used** | `--world`, brush-model nodes |
+| `e115_targetname` | string | - | `""` | parsed. **Not used** (the node's `name` is also the targetname when there is one) | `--world`, brush-model nodes with a targetname, script_model nodes |
+| `e115_classname` | string | - | `""` | not read yet | `--world`, script_model nodes (`"script_model"`) |
+| `e115_noteworthy` | string | - | `""` | not read yet | `--world`, script_model nodes with a `script_noteworthy` |
+| `e115_trigger` | `true` | - | `false` | collision: the node and its whole subtree are skipped (never solid) | `--collision`, the `triggers` group and each trigger node |
 | `e115_entity` | whole number ≤ INT32_MAX | index of the entity block in the map's entity string (`.ents` order) [I: same string] | −1 | parsed. **Not used** (brush models don't move yet) | `--collision`, brush-model nodes; `--world`, script_model nodes |
 | `e115_hitboxes` | array of `{"min": [x,y,z], "max": [x,y,z], "offset": [x,y,z], "r2": n, "loc": string, "skin": n}` | the bone node's own space, cod units (x along the bone) | none | `NodeData::hitBoxes`, traced by `physics/HitTest` (below). A missing sub-key → throws. Unknown `loc` → warning, taken as `none` | `--xmodel`, `--xanim`: every bone of a skinned model |
 
@@ -180,11 +180,11 @@ the attached head) carries one entry per model.
 | `offset` | `XBoneInfo::offset` | the box centre. It equals (min + max) / 2 on every Nacht zombie bone |
 | `r2` | `XBoneInfo::radiusSquared` | the reject sphere, \|half extent\|². Bones with no box have 0. t4 skips `r2` < 4 |
 | `loc` | `XModel::partClassification[bone]` | hit location name, as OAT names them: `none`, `helmet`, `head`, `neck`, `torso_upper`, `torso_mid` (t6 only), `torso_lower`, `right_arm_upper`, `left_arm_upper`, `right_arm_lower`, `left_arm_lower`, `right_hand`, `left_hand`, `right_leg_upper`, `left_leg_upper`, `right_leg_lower`, `left_leg_lower`, `right_foot`, `left_foot`, `gun`, `shield` (t6 only) |
-| `skin` | — | index of the glb skin (one per merged model) the box came from, so one model's boxes can be switched off (`BoneTraceOptions::hiddenSkins`) |
+| `skin` | - | index of the glb skin (one per merged model) the box came from, so one model's boxes can be switched off (`BoneTraceOptions::hiddenSkins`) |
 
 t4 and t5 `hitLocation_t` have no `torso_mid`, so zonedump adds 1 to raw values from `torso_lower` up before naming
 them. t6's enum matches the list above. The box is tested in the node's world space, so the node matrix (with
-`cod_to_engine`'s 0.0254 scale) puts it in metres. See [t4_hits_damage.md](../../../games/t4-waw/notes/engine/hits_damage.md) §1.
+`cod_to_engine`'s 0.0254 scale) puts it in metres. See [hits_damage.md](../../../games/t4-waw/notes/engine/hits_damage.md) §1.
 
 ### Animation extras
 
@@ -193,9 +193,9 @@ them. t6's enum matches the list above. The box is tested in the node's world sp
 | key | JSON type | units | default | engine does | emitted by |
 |---|---|---|---|---|---|
 | `e115_frame_rate` | number | frames per second | 30 | parsed. **Not used at run time** (key times are already seconds) | `--xanim` (`framerate`, else 30) |
-| `e115_looped` | bool | — | `false` | looped clips wrap. Others hold the last frame and report finished | `--xanim` (`bLoop`) |
-| `e115_delta` | bool | — | `false` | carries root motion: the `tag_origin` translation channel moves the actor (and its collision capsule), unless `--in-place` | `--xanim` (has a delta part) |
-| `e115_additive` | bool | — | `false` | channels are offsets on another pose. Playing one alone logs a warning | `--xanim` (cod `assetType == 6`) |
+| `e115_looped` | bool | - | `false` | looped clips wrap. Others hold the last frame and report finished | `--xanim` (`bLoop`) |
+| `e115_delta` | bool | - | `false` | carries root motion: the `tag_origin` translation channel moves the actor (and its collision capsule), unless `--in-place` | `--xanim` (has a delta part) |
+| `e115_additive` | bool | - | `false` | channels are offsets on another pose. Playing one alone logs a warning | `--xanim` (cod `assetType == 6`) |
 | `e115_notetracks` | array of `{"name": string, "time": number}` | seconds from clip start | none | reported when crossed (wraps fire the tail, then the head). Not an array, or a note without `name`/`time` → throws | `--xanim` (normalised time × length) |
 
 ### Root extras
@@ -205,7 +205,7 @@ them. t6's enum matches the list above. The box is tested in the node's world sp
 | `e115_sun` | object, below | root (cod) | no sun | becomes `LightingEnvironment.sun` and the baked settings (`importLighting`) | `--world`, when the gfxworld has a sun light |
 | `e115_probes` | probe set, below | root (cod) | none | the irradiance field for things without lightmaps | `--world`, from the light grid |
 | `e115_node_probes` | probe set, below | root (cod) | none | per-node light, indexed by `e115_light.probe` | `--world`, BO2 static models with their own sample |
-| `e115_collision` | `{"game": string, "masks": {name: u32}}` | — | no masks | masks go to `CollisionMesh::setMask`. `game` is ignored | `--collision` |
+| `e115_collision` | `{"game": string, "masks": {name: u32}}` | - | no masks | masks go to `CollisionMesh::setMask`. `game` is ignored | `--collision` |
 | `e115_exposure` | object, below | cod | none | BO1-style auto exposure from the camera position | `--world`, T5 only |
 
 `e115_sun`:
@@ -222,7 +222,7 @@ accessor indices into the glb's `accessors`, and a wrong size throws.
 
 | sub-key | accessor | meaning |
 |---|---|---|
-| `count` | — (a number) | probes, *n* |
+| `count` | - (a number) | probes, *n* |
 | `position` | VEC3 float × *n* | root (cod) space |
 | `terms` | SCALAR float × 30*n* | per probe 10 rgb terms `K, Bx, By, Bz, Qxx, Qyy, Qzz, Qxy, Qxz, Qyz`. Linear `E(n) = K + B·n + nᵀQn` in baked units, multiplies albedo. zonedump converts from the SH9 basis (`IrradianceProbe::fromSh9`) |
 | `sunVisibility` | SCALAR float × *n* | 0..1 (BO2 stored. WaW/BO1: 1 where the sun is the primary light, else 0) |
@@ -240,7 +240,7 @@ accessor indices into the glb's `accessors`, and a wrong size throws.
 | sub-key | type | units | meaning |
 |---|---|---|---|
 | `default` | number > 0, required | exposure / 8 | target outside every volume |
-| `volumes` | array (optional, must be an array) | — | first volume containing the camera wins |
+| `volumes` | array (optional, must be an array) | - | first volume containing the camera wins |
 | `volumes[].planes` | `[[nx, ny, nz, w], ...]`, required | cod space, facing in | inside when `dot(n, p) + w ≥ 0` for all |
 | `volumes[].exposure` | number, required | / 8 | volume target |
 | `volumes[].featherRange` | number, required | per cod unit of depth | target = `exposure + featherAdjust · min(featherRange · depth, 1)`, depth capped at 50 |
@@ -275,7 +275,7 @@ the glb, and each image `name` is the game image name. Lightmap pages are `light
 Writer layout (`zonedump --collision`): node 0 `cod_to_engine`, a `world` node (terrain + world brushes), one node per
 brush model named `*N <classname>` at its entity's placement with `e115_entity`, and trigger brush models under a
 `triggers` node. One primitive per (contents, surface) pair. Each pair has its own material named
-`contents 0x… surface 0x…`, double-sided, with a hashed colour for viewers. Triangles are unwelded with flat normals.
+`contents 0x... surface 0x...`, double-sided, with a hashed colour for viewers. Triangles are unwelded with flat normals.
 Contents 0 is dropped at export. Bits are listed in [collision_contents.md](../world/collision_contents.md).
 
 ## `.ents` map entities
@@ -312,20 +312,20 @@ keys after them are optional, with the defaults shown, so exports from before th
 
 | key | type | units | engine does |
 |---|---|---|---|
-| `game` | string, optional | — | provenance only, never read |
-| `distanceScale` | number, **required** | — | provenance: the factor the export already applied (T6 2, else 1). Distances are effective. A file without it is refused (older exports held stored T6 distances) |
+| `game` | string, optional | - | provenance only, never read |
+| `distanceScale` | number, **required** | - | provenance: the factor the export already applied (T6 2, else 1). Distances are effective. A file without it is refused (older exports held stored T6 distances) |
 | `curves` | `{name: [[x, y], ...]}`, required | x 0..1 ascending (else throws), y gain | piecewise linear, ends held |
-| `banks[]` | array, required | — | |
-| `banks[].aliases[].name` | string | — | the alias name. The same name in two banks: the first loaded wins [I: like zone load order] |
-| `...variants[].file` | string, relative to the json's folder, or `null` | — | decoded on first play (miniaudio: `.wav`, `.flac`). `null` = silent variant |
+| `banks[]` | array, required | - | |
+| `banks[].aliases[].name` | string | - | the alias name. The same name in two banks: the first loaded wins [I: like zone load order] |
+| `...variants[].file` | string, relative to the json's folder, or `null` | - | decoded on first play (miniaudio: `.wav`, `.flac`). `null` = silent variant |
 | `volMin`, `volMax` | number | linear gain | rolled uniformly per play |
 | `pitchMin`, `pitchMax` | number | ratio | rolled uniformly per play |
 | `distMin`, `distMax` | number | cod units, effective | falloff: `dryMin` curve over 0..distMin, `dryMax` curve over distMin..distMax, clamped |
 | `curves.dryMin`, `curves.dryMax` | string | a name in `curves` (an unknown name throws) | |
-| `looping` | bool | — | voice loops |
-| `panType` | string | — | `"2d"` → not spatialised. Anything else is 3D |
+| `looping` | bool | - | voice loops |
+| `panType` | string | - | `"2d"` → not spatialised. Anything else is 3D |
 | `probability` | number | 0..1, 0 = always | chance the picked variant plays at all |
-| `secondary` | string or `null` | — | alias started along with this one (not itself) |
+| `secondary` | string or `null` | - | alias started along with this one (not itself) |
 | `limitType`, `entityLimitType` | `"none"`, `"oldest"`, `"reject"`, `"priority"` (else throws) | default `"none"` | what a play does once `limitCount` voices of the alias name are going, over all voices / on its entity |
 | `limitCount`, `entityLimitCount` | whole number | default 0 | |
 | `neverPlayTwice` | bool | default false | the variant plays once, then its picks fail (no reroll) |
@@ -374,7 +374,7 @@ throws `AssetError`.
 
 | key | format | meaning |
 |---|---|---|
-| `origin` | `[x, y, z]`, cod units, cod space | where the node was placed. Nacht's sit up to 63 units above the floor [M]. T4 drops every node at load, and `NavGraph::dropToFloor` does the same: a 30×30×30 box swept from 1 unit above down 256 lands it on the floor, then a 30×30×72 standing box there must be clear, both against world geometry only (movers never count). A node in solid or with no floor in reach is disabled ([zombies_t4_nacht.md](../../../games/t4-waw/notes/zombies/nacht.md)) |
+| `origin` | `[x, y, z]`, cod units, cod space | where the node was placed. Nacht's sit up to 63 units above the floor [M]. T4 drops every node at load, and `NavGraph::dropToFloor` does the same: a 30×30×30 box swept from 1 unit above down 256 lands it on the floor, then a 30×30×72 standing box there must be clear, both against world geometry only (movers never count). A node in solid or with no floor in reach is disabled ([nacht.md](../../../games/t4-waw/notes/zombies/nacht.md)) |
 | `angle` | degrees | yaw about cod z |
 | `type` | string | the game's `nodeType` lowercased without `NODE_`: `pathnode`, `negotiation_begin`, `negotiation_end`, `cover_stand`, ... Each game's enum is mapped by the writer |
 | `spawnflags`, `radius` | number, cod units | as the game has them |
@@ -474,14 +474,18 @@ Attachments (`weapons.json` `attach`):
 ## Effects: `fx/<name>.json`
 
 `zonedump <zone.ff> [--load <zone.ff>]... --game <install> --fx <name[,name]|*> <dir>` writes each t4 `FxEffectDef`
-to `<dir>/fx/<name>.json`, for example `<dir>/fx/weapon/muzzleflashes/pistolflash.json`. Every effect it chains to
-(runners, `effectOnDeath`, `effectOnImpact`, `effectEmitted`) is written too. Each sprite material's colour map goes to
-`<dir>/images/<image>.dds`, converted the same way as the model export's (`ImageSource` and `writeDds`). Effects and
-materials are found in every loaded zone, and a later zone wins. t5 zones export too, with `"game":"t5"`, T5's own type
-names (`spriteRotated`, `line`; no `sparkCloud`) and the extra elem keys in [fx_t5_layout.md](../../../games/t5-bo1/notes/engine/fx_layout.md). t6 zones export the same way, with `"game":"t6"`,
-`msecNonLoopingLife`, `boundingBoxCentre` and `occlusionQuery` on the effect and `spotLight` / `{lightDef}` on spot lights
-([fx_t6_layout.md](../../../games/t6-bo2/notes/engine/fx_layout.md)). Nacht, as exported to
-`<exportRoot>/t4/fx` (305 effects, 135 images):
+to `<dir>/fx/<name>.json`, for example `<dir>/fx/weapon/muzzleflashes/pistolflash.json`.
+
+- Every effect it chains to (runners, `effectOnDeath`, `effectOnImpact`, `effectEmitted`) is written too.
+- Each sprite material's colour map goes to `<dir>/images/<image>.dds`, converted the same way as the model export's
+  (`ImageSource` and `writeDds`).
+- Effects and materials are found in every loaded zone, and a later zone wins.
+- t5 zones export too, with `"game":"t5"`, T5's own type names (`spriteRotated`, `line`; no `sparkCloud`) and the
+  extra elem keys in [fx_layout.md](../../../games/t5-bo1/notes/engine/fx_layout.md).
+- t6 zones export the same way, with `"game":"t6"`, `msecNonLoopingLife`, `boundingBoxCentre` and `occlusionQuery`
+  on the effect and `spotLight` / `{lightDef}` on spot lights ([fx_layout.md](../../../games/t6-bo2/notes/engine/fx_layout.md)).
+
+Nacht, as exported to `<exportRoot>/t4/fx` (305 effects, 135 images):
 
 ```
 Z=<pluto_t4>/zone/english
@@ -590,11 +594,11 @@ when some loaded zone defines it and a placed model maps to it as `<m>_on`, `<m>
  "spawned":[{"model":"zombie_vending_revive","glb":"script_models/zombie_vending_revive.glb"}]}
 ```
 
-BO2 perk machines are `script_struct`s that the script spawns ([zombies_t6_struct_spawns.md](../../../games/t6-bo2/notes/zombies/struct_spawns.md)). The converter
+BO2 perk machines are `script_struct`s that the script spawns ([struct_spawns.md](../../../games/t6-bo2/notes/zombies/struct_spawns.md)). The converter
 passes the T6 `PerkRules` spawn fields to the world job:
 - `--perk-structs zm_perk_machine --perk-names <specialty>=<targetname>,...`: each struct with that targetname that the
   `--mode` filter keeps, and that has a `model`, becomes a node like a script_model. Its `e115_classname` is
-  `script_struct`, and its `e115_targetname` is the machine name the script gives it (`vending_jugg`, …), empty if the
+  `script_struct`, and its `e115_targetname` is the machine name the script gives it (`vending_jugg`, ...), empty if the
   specialty isn't in the table. `placed[].classname` says which kind each entry is.
 - `--extra-models <name>,...`: models the map's script spawns itself (`perks.spawnedModels`, Nuketown's five). They go to
   `script_models/` and are listed in `spawned`; their `_on` swaps are found as for placed models.
@@ -616,7 +620,7 @@ passes the T6 `PerkRules` spawn fields to the world job:
 
 `--zbarriers <out.json>` writes every `zbarrier` asset in the zone and its `--load` zones; the main zone wins a clash. Each
 piece's board, alternate and upgraded model goes to `<json dir>/zbarrier_models/<name>.glb` by the `--xmodel` path. The
-layout and the map ents that use the assets are in [zbarrier_t6.md](../../../games/t6-bo2/notes/zombies/zbarrier.md). A t4/t5 zone is refused.
+layout and the map ents that use the assets are in [zbarrier.md](../../../games/t6-bo2/notes/zombies/zbarrier.md). A t4/t5 zone is refused.
 
 ```json
 {"format":"e115_zbarriers","version":1,"game":"t6","modelDir":"zbarrier_models","missingModels":[],"barriers":[
@@ -656,7 +660,7 @@ t6 map, from the map zone alone. `content::loadVehicleDefs` reads the file. A t4
 
 - The keys are the vehicletype names: ent `vehicletype`, or the third `spawnvehicle` arg.
 - Speeds and accels are inches/s and inches/s², as the engine stores them. OAT's dumps show mph, which is these ÷ 17.6.
-- `maxSpeed` / `accel` are what a path vehicle drives at when script hasn't set a speed ([t6_vehicles.md](../../../games/t6-bo2/notes/engine/vehicles.md)) [V]:
+- `maxSpeed` / `accel` are what a path vehicle drives at when script hasn't set a speed ([vehicles.md](../../../games/t6-bo2/notes/engine/vehicles.md)) [V]:
   the target is maxSpeed, it speeds up at accel and slows at 0.5 × accel.
 - `rotRate` / `rotAccel` are as stored (OAT dumps them unscaled). Their units are [U].
 - `type` uses OAT's class names: "4 wheel", "motorcycle", "tank", "plane", "boat", "artillery", "helicopter".

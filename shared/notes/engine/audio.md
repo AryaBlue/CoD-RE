@@ -124,7 +124,7 @@ Sample data:
 | 0x14 | block_size | 0x10600 |
 | 0x18 | buffer_size | 0x83000 |
 | 0x1C | format | 6 (MS-ADPCM) on every file |
-| 0x20 | channel_flags | L 1, R 2, … RB 0x80 |
+| 0x20 | channel_flags | L 1, R 2, ... RB 0x80 |
 | 0x24 | flags | `LOOPING 1`, `PAD_LOOP_BUFFER 2`; seen 0 and 3 |
 | 0x28 | seek_table_count | 0 |
 | 0x2C | seek_table (ptr) | 0 |
@@ -149,8 +149,8 @@ should switch on `format`.
 ### T5 playback: XAudio2, MS-ADPCM and xWMA [V, BlackOps.exe]
 
 The PC game plays sound through **XAudio2 2.7** (DirectX June 2010):
-- It calls `CoCreateInstance` with `CLSID_XAudio2` `5a508685-…` or `CLSID_XAudio2_Debug` `db05ea35-…`, and
-  `IID_IXAudio2` `8bcf1f58-…` (`0x4aaca3`, `0x8b1820`).
+- It calls `CoCreateInstance` with `CLSID_XAudio2` `5a508685-...` or `CLSID_XAudio2_Debug` `db05ea35-...`, and
+  `IID_IXAudio2` `8bcf1f58-...` (`0x4aaca3`, `0x8b1820`).
 - It doesn't import or load any WMA, ACM, DMO or Media Foundation decoder. XAudio2 decodes xWMA itself.
 
 The source voice format is built from the `snd_asset` at `0x8b12a0`:
@@ -232,9 +232,9 @@ Alias fields:
 The enum values come from OAT's `ObjCommon/Game/T6/SoundConstantsT6.h`, taken from the executable:
 - `loadType` (`SOUND_LOAD_TYPES`, `:155`): `0 unknown, 1 loaded, 2 streamed, 3 primed`. Loaded aliases read from the
   `.sabl`, streamed and primed from the `.sabs` [I by name; measured codecs agree].
-- `busType` (`:163`): `bus_reverb, bus_fx, bus_voice, bus_pfutz, bus_hdrfx, bus_ui, …`.
+- `busType` (`:163`): `bus_reverb, bus_fx, bus_voice, bus_pfutz, bus_hdrfx, bus_ui, ...`.
 - `limitType` / `entityLimitType`: `none, oldest, reject, priority`.
-- `randomizeType` (`:177`): bits `volume 1, pitch 2, variant 4` (`SND_RANDOMIZE_INSTANCE 0, ENTITY_VOLUME 1, …`,
+- `randomizeType` (`:177`): bits `volume 1, pitch 2, variant 4` (`SND_RANDOMIZE_INSTANCE 0, ENTITY_VOLUME 1, ...`,
   `T6_Assets.h:6311`).
 - Curve names (`SOUND_CURVES`, `:42`): `default, defaultmin, allon, alloff, rcurve0-5, steep, sindelay, cosdelay, sin, cos,
   rev60, rev65`.
@@ -519,7 +519,7 @@ loaded asset) [I on the reset point]. It isn't a "don't repeat the last variant"
 **Volume and pitch** (`randomizeType & 1`, `& 2`; T5 `0x8af1a0`, T6 `0x659167`):
 - The key is `(alias.id << 16) + (entnum & 0xfff)`, with `| 0x80000000` for volume and `& 0x7fffffff` for pitch.
 - The value comes from a **random-value cache** (T5 `0x5440b0`, 148 slots; T6 `0x4f4e30`, 136 slots). Entries are
-  stamped with the sound clock and **expire after 30,000 ms** (`cmp …, 0x7530`).
+  stamped with the sound clock and **expire after 30,000 ms** (`cmp ..., 0x7530`).
 - So a given alias on a given entity reuses the same volume/pitch roll for up to 30 s, then rerolls. The exact
   refresh-on-use and eviction rules aren't traced [I].
 - Without the bits, each play calls `random01()`.

@@ -1,7 +1,7 @@
 # T6 pathnode links: one-way links are real directed edges
 
 Every exported T6 graph has one-way links: prison 309, nuked 626, transit 657, tomb 1341, buried 1312, highrise
-931, MP maps 19–187. This note checks whether `t6zm.exe` makes them two-way at load. Researched 2026-10-27.
+931, MP maps 19-187. This note checks whether `t6zm.exe` makes them two-way at load. Researched 2026-10-27.
 
 ## Conventions
 

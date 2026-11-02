@@ -16,7 +16,7 @@
 How BO1 bots pick targets, move, aim, shoot and throw grenades. This is the reference for Reforged's offline MP bots
 (M4).
 
-The split is the one in [mp_t4_tdm_ffa.md](../../../t4-waw/notes/mp/tdm_ffa_rules.md) §7:
+The split is the one in [tdm_ffa_rules.md](../../../t4-waw/notes/mp/tdm_ffa_rules.md) §7:
 - **Script** (`maps/mp/gametypes/_bot.gsc`) decides *what*: loadouts, goals for revives/crates/equipment, team help.
 - **The engine** (`BlackOpsMP.exe`) decides *how*: the target, aim, firing, strafing, sprinting and grenades.
 

@@ -9,39 +9,39 @@
 - [1.3 cbrush_t   (align 8, total size **0x60** per wiki)](#13-cbrush_t---align-8-total-size-0x60-per-wiki)
 - [1.4 ClipInfo   (the big counted-array container; `clipMap_t` holds one inline + one ptr)](#14-clipinfo---the-big-counted-array-container-clipmap_t-holds-one-inline--one-ptr)
 - [1.5 ClipMaterial   (brush material + surface/content flags)](#15-clipmaterial---brush-material--surfacecontent-flags)
-- [1.6 clipMap_t   (top-level, relevant fields in order)  — WIKI-RE](#16-clipmap_t---top-level-relevant-fields-in-order---wiki-re)
-- [1.7 cLeaf_s / cLeafBrushNode_s / cNode_t / cmodel_t  (BSP + submodels)  — WIKI-RE](#17-cleaf_s--cleafbrushnode_s--cnode_t--cmodel_t--bsp--submodels---wiki-re)
-- [1.8 Collision accel: CollisionPartition / CollisionAabbTree  — WIKI-RE](#18-collision-accel-collisionpartition--collisionaabbtree---wiki-re)
-- [1.9 cStaticModel_s   (collision-side static model placement)  — WIKI-RE](#19-cstaticmodel_s---collision-side-static-model-placement---wiki-re)
-  - [Teammate A — BO4 reversing checklist](#teammate-a--bo4-reversing-checklist)
-- [2.1 GfxMap (= GfxWorld render asset)  — concrete in-memory offsets](#21-gfxmap--gfxworld-render-asset---concrete-in-memory-offsets)
+- [1.6 clipMap_t   (top-level, relevant fields in order)  - WIKI-RE](#16-clipmap_t---top-level-relevant-fields-in-order----wiki-re)
+- [1.7 cLeaf_s / cLeafBrushNode_s / cNode_t / cmodel_t  (BSP + submodels)  - WIKI-RE](#17-cleaf_s--cleafbrushnode_s--cnode_t--cmodel_t--bsp--submodels----wiki-re)
+- [1.8 Collision accel: CollisionPartition / CollisionAabbTree  - WIKI-RE](#18-collision-accel-collisionpartition--collisionaabbtree----wiki-re)
+- [1.9 cStaticModel_s   (collision-side static model placement)  - WIKI-RE](#19-cstaticmodel_s---collision-side-static-model-placement----wiki-re)
+  - [Teammate A - BO4 reversing checklist](#teammate-a---bo4-reversing-checklist)
+- [2.1 GfxMap (= GfxWorld render asset)  - concrete in-memory offsets](#21-gfxmap--gfxworld-render-asset----concrete-in-memory-offsets)
 - [2.2 GfxSurface   (size **0x60 / 96 B**, read at `GfxSurfacesPointer + i*96`)](#22-gfxsurface---size-0x60--96-b-read-at-gfxsurfacespointer--i96)
 - [2.3 World vertex buffers](#23-world-vertex-buffers)
 - [2.4 GfxStaticModel   (render placement instance, size **0x98 / 152 B**)](#24-gfxstaticmodel---render-placement-instance-size-0x98--152-b)
 - [2.5 Material (for surface → image, abridged from Husky)](#25-material-for-surface--image-abridged-from-husky)
-  - [Teammate B — BO4 reversing checklist](#teammate-b--bo4-reversing-checklist)
+  - [Teammate B - BO4 reversing checklist](#teammate-b---bo4-reversing-checklist)
 - [Cross-check / drift notes](#cross-check--drift-notes)
 <!-- /toc -->
 
 Companion to `struct_refs.md`. This file gives the **exact BO3/T7 struct layouts** so two
 teammates can use them as the starting hypothesis when reversing the BO4/T8 equivalents (same
-engine family — T8 is expected to be a close evolution of T7).
+engine family - T8 is expected to be a close evolution of T7).
 
-- **Teammate A** — reverse BO4 `clipMap_t` (asset 11). Use §1.
-- **Teammate B** — reverse BO4 `GfxWorld` surfaces + static-model placements (asset 14). Use §2.
+- **Teammate A** - reverse BO4 `clipMap_t` (asset 11). Use §1.
+- **Teammate B** - reverse BO4 `GfxWorld` surfaces + static-model placements (asset 14). Use §2.
 
 **Confidence tags**
-- **WIKI-RE** — COD Engine Research wiki, reversed from BO3 binary. Field *order + types* are
+- **WIKI-RE** - COD Engine Research wiki, reversed from BO3 binary. Field *order + types* are
   solid; most **absolute offsets are NOT published** (the wiki gives sizes/alignment only where
   noted). Treat offsets as "derive by summing declared sizes", then verify against the zone.
-- **RIPPER-VERIFIED (lineage)** — from Husky's `BlackOps3.cs`, which provably produces correct
+- **RIPPER-VERIFIED (lineage)** - from Husky's `BlackOps3.cs`, which provably produces correct
   BO3 map OBJs from live process memory. Byte offsets ARE concrete (computed below), but they
-  are **in-memory (runtime VA) layouts**; on-disk zone padding may differ — re-verify the
+  are **in-memory (runtime VA) layouts**; on-disk zone padding may differ - re-verify the
   `Padding[...]` gaps against the BO4 zone image before trusting absolute offsets.
-- **CAVEAT** — wiki itself flags the field as unconfirmed/approximate.
+- **CAVEAT** - wiki itself flags the field as unconfirmed/approximate.
 
 **Sources (read-only, nothing cloned/run):**
-- COD Engine Research wiki, "Collision Map Asset (BO3)" — https://codresearch.dev/index.php/Collision_Map_Asset_(BO3)
+- COD Engine Research wiki, "Collision Map Asset (BO3)" - https://codresearch.dev/index.php/Collision_Map_Asset_(BO3)
   (cross-check pages: BO2 https://codresearch.dev/index.php/Collision_Map_Asset_(BO2) ,
   BO1 https://codresearch.dev/index.php/Collision_Map_Asset_(BO1) ,
   MW3 https://codresearch.dev/index.php/Collision_Map_Asset_(MW3) )
@@ -56,11 +56,11 @@ Types: `vec3 = float[3]` (12 B); `ScriptString = uint16`; pointers = 8 B (x64); 
 
 ---
 
-# 1. BO3 clipMap_t and sub-structs  (for Teammate A — BO4 collision)
+# 1. BO3 clipMap_t and sub-structs  (for Teammate A - BO4 collision)
 
 **Source: COD wiki "Collision Map Asset (BO3)". Confidence: WIKI-RE.**
 BO3 merged SP+MP map types (as IW did at MW3). Collision is Treyarch brush/plane + a walkable
-tri soup — **not Havok**. This is the layout the BO4 `clipMap_t` (asset 11) is expected to
+tri soup - **not Havok**. This is the layout the BO4 `clipMap_t` (asset 11) is expected to
 evolve from.
 
 ## 1.0 Parse goal → target JSON
@@ -114,7 +114,7 @@ struct cbrush_t {
 ```
 **CAVEAT:** the field list sums past 0x60, and the wiki notes "only one `verts` is loaded, at
 least on 360" and marks `contents` as appearing twice. Treat `numverts`/`verts` as present but
-**verify the tail of this struct against the zone** — this is the least certain sub-struct.
+**verify the tail of this struct against the zone** - this is the least certain sub-struct.
 A non-axial brush = intersection of (6 axial planes from mins/maxs) + (`numsides` `cbrushside_t`
 planes); `verts` are the precomputed corner points.
 
@@ -143,10 +143,10 @@ struct ClipMaterial {
     int         contentFlags;  // +0x0C
 };  // 0x10
 ```
-Wiki gives no bit values for surface/content flags — carry BO3's over to BO4 as a guess, verify
+Wiki gives no bit values for surface/content flags - carry BO3's over to BO4 as a guess, verify
 with known material names (e.g. clip, nosight, water) in the zone string table.
 
-## 1.6 clipMap_t   (top-level, relevant fields in order)  — WIKI-RE
+## 1.6 clipMap_t   (top-level, relevant fields in order)  - WIKI-RE
 ```c
 struct clipMap_t {
     const char*   name;
@@ -186,7 +186,7 @@ struct clipMap_t {
 - `triEdgeIsWalkable` = 1 bit per tri-edge (`triCount*3` bits, 32-bit-word padded). Bit set =
   that edge is walkable (used to tag the AI/player-walkable surface).
 
-## 1.7 cLeaf_s / cLeafBrushNode_s / cNode_t / cmodel_t  (BSP + submodels)  — WIKI-RE
+## 1.7 cLeaf_s / cLeafBrushNode_s / cNode_t / cmodel_t  (BSP + submodels)  - WIKI-RE
 ```c
 struct cLeaf_s {
     uint16 firstCollAabbIndex;   // range into aabbTrees
@@ -224,7 +224,7 @@ struct cmodel_t {                // collision submodel (e.g. door brushmodels)
 };
 ```
 
-## 1.8 Collision accel: CollisionPartition / CollisionAabbTree  — WIKI-RE
+## 1.8 Collision accel: CollisionPartition / CollisionAabbTree  - WIKI-RE
 ```c
 struct CollisionPartition {      // const struct
     char triCount;               // tris in this partition
@@ -249,10 +249,10 @@ struct cStaticModelWritable { uint16 nextModelInWorldSector; };
 **How material is assigned to a tri:** walk the AABB tree → leaf (`childCount==0`) →
 `partitionIndex` → `CollisionPartition` → `firstTri/triCount` range of `triIndices`; the leaf's
 `materialIndex` names the material for those tris. CAVEAT: the wiki does NOT confirm that
-`firstTri` indexes `triIndices` (vs a separate tri list) — verify on the BO4 zone; this is the
+`firstTri` indexes `triIndices` (vs a separate tri list) - verify on the BO4 zone; this is the
 least-documented linkage and the thing Teammate A should nail down empirically.
 
-## 1.9 cStaticModel_s   (collision-side static model placement)  — WIKI-RE
+## 1.9 cStaticModel_s   (collision-side static model placement)  - WIKI-RE
 ```c
 struct cStaticModel_s {
     cStaticModelWritable writable;        // uint16 nextModelInWorldSector
@@ -268,18 +268,18 @@ struct cStaticModel_s {
 };
 ```
 (This is the **collision** copy of static-model placements; the **render** copy is
-`GfxStaticModel` in §2 — they are parallel lists, same models, different struct.)
+`GfxStaticModel` in §2 - they are parallel lists, same models, different struct.)
 
-### Teammate A — BO4 reversing checklist
+### Teammate A - BO4 reversing checklist
 1. Find `clipMap_t` in the zone (asset pool 11). Anchor on `name` (null-term string) + the final
    `checksum`.
-2. Lock `vertCount`/`verts` + `triCount`/`triIndices` first — the tri soup is the payload; cross
+2. Lock `vertCount`/`verts` + `triCount`/`triIndices` first - the tri soup is the payload; cross
    validate with the walkable-bitfield size formula.
 3. Resolve `ClipInfo` (inline) counted arrays: `numBrushes`/`brushes`, `brushContents`, planes,
-   brushsides — that gives the brush set.
+   brushsides - that gives the brush set.
 4. Confirm the partition→aabb→material linkage (§1.8) to tag tri materials.
 5. Expect BO4 to add fields (new dynent/rope sizes, extra counts). Field *order* should largely
-   hold; absolute offsets will shift — do not hardcode BO3 offsets.
+   hold; absolute offsets will shift - do not hardcode BO3 offsets.
 
 ---
 
@@ -288,13 +288,13 @@ struct cStaticModel_s {
 **Source: Scobalula/Husky `BlackOps3.cs` @ `ce1f82d`. Confidence: RIPPER-VERIFIED (lineage).**
 Husky reads these from the **live process** (`GfxMap` asset, found at asset-pool slot via
 `assetPoolsAddress + 0x200`). Offsets below are computed by summing Husky's `[Pack=1]` structs
-and are **in-memory VAs** — for an offline BO4 zone, treat field *order* as reliable and
+and are **in-memory VAs** - for an offline BO4 zone, treat field *order* as reliable and
 re-verify the `Padding[...]` gaps (same caveat as the XModel structs in `struct_refs.md §1`).
 
-Positions here are raw engine units; Husky multiplies by 2.54 (inch→cm) for OBJ — that is
+Positions here are raw engine units; Husky multiplies by 2.54 (inch→cm) for OBJ - that is
 Husky's choice, not part of the layout.
 
-## 2.1 GfxMap (= GfxWorld render asset)  — concrete in-memory offsets
+## 2.1 GfxMap (= GfxWorld render asset)  - concrete in-memory offsets
 ```c
 struct GfxMap {                 // [Pack=1]
     long  NamePointer;             // +0x000  -> gfx map name
@@ -318,7 +318,7 @@ struct GfxMap {                 // [Pack=1]
     long  GfxStaticModelsPointer;  // +0x438  -> GfxStaticModel[] (0x98 each)
 };
 ```
-**Key design point (same as T6):** the world uses a **split vertex stream** — positions in one
+**Key design point (same as T6):** the world uses a **split vertex stream** - positions in one
 buffer (`GfxVerticesPointer`, 12 B/vert) and colour/UV/normal/tangent in a parallel buffer
 (`GfxVerticesDataPointer`, 20 B/vert), both indexed by the same vertex index. A **global u16
 index buffer** + **per-surface base offsets** let the map exceed 65 k verts with 2-byte indices.
@@ -348,7 +348,7 @@ idx1  = triIndices[ FaceIndex + i*3 + 1 ] + base
 idx2  = triIndices[ FaceIndex + i*3 + 2 ] + base      // Husky swaps winding: writes 0,2,1
 ```
 So a world surface = `(firstVertex = VertexBufferOffset/12, vertexCount = VertexCount,
-baseIndex = FaceIndex, triCount = FaceCount)` into the global index buffer — directly analogous
+baseIndex = FaceIndex, triCount = FaceCount)` into the global index buffer - directly analogous
 to T6 `srfTriangles`.
 
 ## 2.3 World vertex buffers
@@ -402,27 +402,27 @@ Per image: `MaterialImage64B` with a `SemanticHash` (colour map = `0xA0AB1041`) 
 `ImagePointer`; image name at `ImagePointer + 0xF8`. (Only needed if Teammate B wants per-surface
 textures; geometry does not require it.)
 
-### Teammate B — BO4 reversing checklist
-1. Find `GfxWorld` (asset pool 14; ACTS confirms top-level size `0x1ab0` — see
+### Teammate B - BO4 reversing checklist
+1. Find `GfxWorld` (asset pool 14; ACTS confirms top-level size `0x1ab0` - see
    `struct_refs.md §3`). BO4 keeps `surfaceCount` near the top, `indexCount`+`uint16* indices`
    known, but the per-surface `GfxSurface` array ptr + the split vertex buffers are in `unk`
-   regions — the BO3 layout above tells you *what shapes to look for*: a position buffer
+   regions - the BO3 layout above tells you *what shapes to look for*: a position buffer
    (float3), a parallel data buffer, a global u16 index buffer, a `GfxSurface`-like record with
    (vertexBufferOffset, vertexCount, faceCount, faceIndex, material*).
 2. Static-model instances (`GfxStaticModelDrawInst` in BO4, under `GfxWorldDpvsStatic`) are
-   already partly known in ACTS and are the **most recoverable** render data — origin + packed
+   already partly known in ACTS and are the **most recoverable** render data - origin + packed
    transform + `XModel*` (rippable via Greyhound). Confirm the BO4 transform packing against the
    BO3 `GfxStaticModel` (plain float origin + float[9] matrix + float scale) as the hypothesis;
-   BO4 may pack rotation as a quat or half-floats — check.
-3. BO4 world UVs/normals may be packed (half-float/10:10:10) rather than BO3's float32 UVs —
+   BO4 may pack rotation as a quat or half-floats - check.
+3. BO4 world UVs/normals may be packed (half-float/10:10:10) rather than BO3's float32 UVs -
    verify the data-buffer stride empirically.
 
 ---
 
 ## Cross-check / drift notes
 - The **cbrush_t** tail (`numverts`/`verts`) and the **cLeaf_s** "extra 4 bytes" are the two
-  wiki-flagged uncertainties in §1 — do not trust their absolute offsets without a zone dump.
+  wiki-flagged uncertainties in §1 - do not trust their absolute offsets without a zone dump.
 - All §1 offsets must be *derived* (wiki publishes order+sizes, not offsets); all §2 offsets are
-  concrete but **in-memory** (Husky reads live RAM) — re-verify padding on the offline BO4 zone.
+  concrete but **in-memory** (Husky reads live RAM) - re-verify padding on the offline BO4 zone.
 - Older-title wiki pages (BO2/BO1/MW3/Ghosts) are useful to bracket which fields are stable
-  across the family vs which Treyarch added at BO3 — handy when a BO4 field doesn't match BO3.
+  across the family vs which Treyarch added at BO3 - handy when a BO4 field doesn't match BO3.

@@ -33,12 +33,12 @@ reflection, refraction, constants, and where each value lives. Researched 2026-1
 
 ## Techniques [V]
 
-- **T4:** every lit technique slot (8–21, 36–42) uses one VS/PS pair, `water_l_sun`.
+- **T4:** every lit technique slot (8-21, 36-42) uses one VS/PS pair, `water_l_sun`.
   - Technique flags 0xc1, which include NEEDS_RESOLVED_POST_SUN: it reads the resolved scene.
   - Other slots: `build_floatz`, `vertcol_shaded`, wireframe, `debug_bumpmap`.
 - **T5:** `pimp_technique_waterlsun`, in two variants:
-  - `..._53bd42e` (slots 10–16, 52–58, 73–79) reads linear float-Z.
-  - `..._78f69911` (slots 80–86, 108–114) reads a hardware depth buffer, decoded as `zNear·0.99951 / max(0.99951 − d, 1e-8)`.
+  - `..._53bd42e` (slots 10-16, 52-58, 73-79) reads linear float-Z.
+  - `..._78f69911` (slots 80-86, 108-114) reads a hardware depth buffer, decoded as `zNear·0.99951 / max(0.99951 − d, 1e-8)`.
   - Both use the same VS; apart from the depth decode the maths is identical.
 - **No cubemap and no reflection probe is sampled.** The "env" term is a screen-space lookup into the resolved scene, plus a sky/ground colour.
 
@@ -52,7 +52,7 @@ reflection, refraction, constants, and where each value lives. Researched 2026-1
 | `gameTime` (.w) | c5 | c5 | code |
 | `fogColor` | c0 | c0 | code |
 | `sunPosition`, `sunDiffuse` | c17, c18 | c17, c18 | code |
-| `hdrControl0` (.x) | — | c7 | code (T5 only) |
+| `hdrControl0` (.x) | - | c7 | code (T5 only) |
 | `envMapParms` | c6 | c6 | material |
 | `waterColor` | c7 | c8 | material |
 | `waterParams` | c8 | c9 | material |
@@ -141,7 +141,7 @@ reflection, refraction, constants, and where each value lives. Researched 2026-1
 `wc/water_dynamic` (docks) and `wc/water_dynamic_makin` use `wc_water_dynamic`, dumped from `mp_docks.ff`.
 
 **Two techsets split near from far** [V]:
-- **`wc_water_dynamic`** is the map surface material (lit slots 8–21, 36–42). It uses `water_dynamic_far`.
+- **`wc_water_dynamic`** is the map surface material (lit slots 8-21, 36-42). It uses `water_dynamic_far`.
 - **`water_dynamic`** is a separate techset that the non-`wc` material `water_dynamic` uses, with the same constants and textures. Its lit slots use `water_dynamic_near`; technique flags 0xc9 add DECL_HAS_OPTIONAL_SOURCE.
   - Its VS reads packed vertices: a position, plus a second position and normal that it morphs towards by `waterParms.y`.
   - So it's a code-generated, geomorphing grid, not BSP geometry [I: the mesh source wasn't traced].

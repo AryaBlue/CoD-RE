@@ -3,22 +3,22 @@
 <!-- toc -->
 ## Contents
 
-- [KEY ORIENTING FACT — how BO4 stores map collision vs AI nav (read this first)](#key-orienting-fact--how-bo4-stores-map-collision-vs-ai-nav-read-this-first)
-- [1. BO4/T8 XModel — surface + streamed vertex/index layout  ⭐ MOST ACTIONABLE](#1-bo4t8-xmodel--surface--streamed-vertexindex-layout---most-actionable)
+- [KEY ORIENTING FACT - how BO4 stores map collision vs AI nav (read this first)](#key-orienting-fact---how-bo4-stores-map-collision-vs-ai-nav-read-this-first)
+- [1. BO4/T8 XModel - surface + streamed vertex/index layout  ⭐ MOST ACTIONABLE](#1-bo4t8-xmodel---surface--streamed-vertexindex-layout---most-actionable)
   - [1a. Model → LOD → Surface chain](#1a-model--lod--surface-chain)
-  - [1b. Streamed mesh blob — the on-disk/xpak byte layout (THE important bit)](#1b-streamed-mesh-blob--the-on-diskxpak-byte-layout-the-important-bit)
+  - [1b. Streamed mesh blob - the on-disk/xpak byte layout (THE important bit)](#1b-streamed-mesh-blob---the-on-diskxpak-byte-layout-the-important-bit)
 - [2. BO4/T8 `.xpak` container (stream package)  ⭐ ACTIONABLE](#2-bo4t8-xpak-container-stream-package---actionable)
   - [Header (`BO3XPakHeader`, used for BO4 v0xB; `#pragma pack(1)`)](#header-bo3xpakheader-used-for-bo4-v0xb-pragma-pack1)
   - [Hash/entry table (`BO3XPakHashEntry` at `HashOffset`, `HashCount` entries, 24 bytes each)](#hashentry-table-bo3xpakhashentry-at-hashoffset-hashcount-entries-24-bytes-each)
-  - [Index records (at `IndexOffset`, `IndexCount` entries) — metadata only](#index-records-at-indexoffset-indexcount-entries--metadata-only)
-  - [Data-object block format (`DecompressPackageObject`) — how a streamed object is stored](#data-object-block-format-decompresspackageobject--how-a-streamed-object-is-stored)
+  - [Index records (at `IndexOffset`, `IndexCount` entries) - metadata only](#index-records-at-indexoffset-indexcount-entries---metadata-only)
+  - [Data-object block format (`DecompressPackageObject`) - how a streamed object is stored](#data-object-block-format-decompresspackageobject---how-a-streamed-object-is-stored)
 - [3. BO4/T8 GfxWorld / render geometry  (PARTIAL)](#3-bo4t8-gfxworld--render-geometry--partial)
-- [4. BO4/T8 clipMap_t / collision  (GAP — no open-source extractor)](#4-bo4t8-clipmap_t--collision--gap--no-open-source-extractor)
+- [4. BO4/T8 clipMap_t / collision  (GAP - no open-source extractor)](#4-bo4t8-clipmap_t--collision--gap---no-open-source-extractor)
 - [5. BO4/T8 fastfile (`.ff`) container + asset pool enum](#5-bo4t8-fastfile-ff-container--asset-pool-enum)
   - [`.ff` container](#ff-container)
-  - [Asset pool enum (`XAssetType : byte`) — relevant ids (full list in the file)](#asset-pool-enum-xassettype--byte--relevant-ids-full-list-in-the-file)
-- [6. BO4/T8 Havok collision + AI navmesh  (GAP — confirmed Havok, no open extractor)](#6-bo4t8-havok-collision--ai-navmesh--gap--confirmed-havok-no-open-extractor)
-- [GAPS — what still needs raw-byte RE (no usable published layout found)](#gaps--what-still-needs-raw-byte-re-no-usable-published-layout-found)
+  - [Asset pool enum (`XAssetType : byte`) - relevant ids (full list in the file)](#asset-pool-enum-xassettype--byte---relevant-ids-full-list-in-the-file)
+- [6. BO4/T8 Havok collision + AI navmesh  (GAP - confirmed Havok, no open extractor)](#6-bo4t8-havok-collision--ai-navmesh--gap---confirmed-havok-no-open-extractor)
+- [GAPS - what still needs raw-byte RE (no usable published layout found)](#gaps---what-still-needs-raw-byte-re-no-usable-published-layout-found)
 - [Local copies of mined source](#local-copies-of-mined-source)
 <!-- /toc -->
 
@@ -26,34 +26,34 @@ Research deliverable for the offline BO4 GfxWorld + collision extractor. Goal: a
 known/published layout rather than reverse from zero.
 
 **Scope of confidence tags**
-- **RIPPER-VERIFIED** — taken directly from the source of a tool that provably rips BO4
+- **RIPPER-VERIFIED** - taken directly from the source of a tool that provably rips BO4
   assets (Greyhound/Wraith). Layout is proven because the tool produces correct output.
-- **UNLINKER-SOURCE** — taken from ate47/atian-cod-tools (ACTS), an offline BO4 fastfile
+- **UNLINKER-SOURCE** - taken from ate47/atian-cod-tools (ACTS), an offline BO4 fastfile
   unlinker. These are on-disk/in-zone layouts with `static_assert` size checks, but many
   fields are still `unkXX` (partially reversed).
-- **LINEAGE** — from a closely related title (BO3/T7) on the CoD research wiki; BO4 is the
+- **LINEAGE** - from a closely related title (BO3/T7) on the CoD research wiki; BO4 is the
   same engine family, so the shape is a strong starting point but must be re-verified.
-- **COMMUNITY-GUESS / GAP** — no authoritative source; flagged as needing raw-byte RE.
+- **COMMUNITY-GUESS / GAP** - no authoritative source; flagged as needing raw-byte RE.
 
 **Primary repos mined (read-only, nothing cloned/run):**
-- Scobalula/Greyhound @ commit `22c3d17` — proven BO4 model/image/anim ripper (reads live process memory).
-- ate47/atian-cod-tools (ACTS) @ commit `7906279` — offline BO4 `.ff`/`.xpak` unlinker.
-- Scobalula/Husky @ commit `ce1f82d` — CoD BSP/GfxWorld→OBJ extractor (lineage only; **stops at Vanguard/MW2019, NO BO4**).
-- codresearch.dev (COD Engine Research wiki) — struct wiki (has BO1/BO2/BO3, **no BO4 pages**).
+- Scobalula/Greyhound @ commit `22c3d17` - proven BO4 model/image/anim ripper (reads live process memory).
+- ate47/atian-cod-tools (ACTS) @ commit `7906279` - offline BO4 `.ff`/`.xpak` unlinker.
+- Scobalula/Husky @ commit `ce1f82d` - CoD BSP/GfxWorld→OBJ extractor (lineage only; **stops at Vanguard/MW2019, NO BO4**).
+- codresearch.dev (COD Engine Research wiki) - struct wiki (has BO1/BO2/BO3, **no BO4 pages**).
 
 ---
 
-## KEY ORIENTING FACT — how BO4 stores map collision vs AI nav (read this first)
+## KEY ORIENTING FACT - how BO4 stores map collision vs AI nav (read this first)
 
 From the ACTS BO4 asset-type enum (UNLINKER-SOURCE, `src/core/shared/games/bo4/pool.hpp`,
 `enum XAssetType : byte`), BO4 keeps **three separate things** our converter conflates:
 
 | Asset | enum id | What it is | Open-source extractor? |
 |---|---|---|---|
-| `ASSET_TYPE_CLIPMAP` | **11** | **World / bullet collision** — Treyarch's own `clipMap_t` (brushes, planes, tris, BSP). NOT Havok. | **No** (ACTS marks `col_map` unimplemented) |
-| `ASSET_TYPE_NAVMESH` | **96** | AI pathing navmesh — the `hkaiNavMesh` Havok data seen in the zone. | **No** |
-| `ASSET_TYPE_NAVVOLUME` | **97** | AI nav volume (flight/3D nav) — Havok. | **No** |
-| `ASSET_TYPE_PHYSPRESET` / `ASSET_TYPE_PHYSCONSTRAINTS` | 0 / 1 | Rigid-body physics (ragdoll/props) — Havok (`hknp`/`hkp`). | **No** |
+| `ASSET_TYPE_CLIPMAP` | **11** | **World / bullet collision** - Treyarch's own `clipMap_t` (brushes, planes, tris, BSP). NOT Havok. | **No** (ACTS marks `col_map` unimplemented) |
+| `ASSET_TYPE_NAVMESH` | **96** | AI pathing navmesh - the `hkaiNavMesh` Havok data seen in the zone. | **No** |
+| `ASSET_TYPE_NAVVOLUME` | **97** | AI nav volume (flight/3D nav) - Havok. | **No** |
+| `ASSET_TYPE_PHYSPRESET` / `ASSET_TYPE_PHYSCONSTRAINTS` | 0 / 1 | Rigid-body physics (ragdoll/props) - Havok (`hknp`/`hkp`). | **No** |
 | `ASSET_TYPE_GFXWORLD` | **14** | Render geometry. | Partial (ACTS: metadata only) |
 | `ASSET_TYPE_GAMEWORLD` | 13 | Gameplay entity world. | No |
 | `ASSET_TYPE_COMWORLD` | 12 | Lights/probes/exploders (NOT collision). | Yes (ACTS, metadata) |
@@ -61,15 +61,15 @@ From the ACTS BO4 asset-type enum (UNLINKER-SOURCE, `src/core/shared/games/bo4/p
 
 **Implication for the port:** the `hkai*` Havok data the teammate found is the **AI navmesh
 (96/97)**, which is a Havok format with no community extractor. But the **world/bullet
-collision is still a Treyarch `clipMap_t` (asset 11)** — brush/plane/tri, the same family our
-T6 converter expects — it just has not been reversed by any open tool yet. So collision is
+collision is still a Treyarch `clipMap_t` (asset 11)** - brush/plane/tri, the same family our
+T6 converter expects - it just has not been reversed by any open tool yet. So collision is
 *conceptually* convertible (not pure Havok), but the BO4 `clipMap_t` layout must be
 reversed by hand (BO3's layout below is the best starting template). Havok is only
 unavoidable for AI nav + rigid-body physics, which a map port can regenerate or omit.
 
 ---
 
-## 1. BO4/T8 XModel — surface + streamed vertex/index layout  ⭐ MOST ACTIONABLE
+## 1. BO4/T8 XModel - surface + streamed vertex/index layout  ⭐ MOST ACTIONABLE
 
 **Source:** Scobalula/Greyhound @ `22c3d17`
 - Structs: `src/WraithXCOD/WraithXCOD/DBGameAssets.h` (`BO4XModel`, `BO4XModelLod`, `BO4XModelSurface`, `BO4XModelMeshInfo`)
@@ -81,7 +81,7 @@ unavoidable for AI nav + rigid-body physics, which a map port can regenerate or 
 Caveat: Greyhound reads from the *live process*, so pointer fields are runtime VAs. The
 **mesh buffer byte layout** (positions/UV/normal/weights/faces below) is the same bytes that
 live in the `.xpak`-streamed mesh blob, so it is directly usable offline. Fixed-size header
-structs (`BO4XModelSurface` etc.) are runtime layouts — field *order* is reliable, but the
+structs (`BO4XModelSurface` etc.) are runtime layouts - field *order* is reliable, but the
 `Padding[...]` gaps are in-memory and may differ from the on-disk/zone struct; cross-check
 against ACTS `bo4_unlinker_model.cpp` when parsing the zone image rather than live memory.
 
@@ -132,7 +132,7 @@ struct BO4XModelSurface {      // one per submesh; #pragma pack(1)
 Material per surface: read `MaterialHandlesPtr[surfaceIndex]` (pointer stride 8; Greyhound
 advances `+8` then reads a `uint64_t` handle per surface). 1 material per submesh.
 
-### 1b. Streamed mesh blob — the on-disk/xpak byte layout (THE important bit)
+### 1b. Streamed mesh blob - the on-disk/xpak byte layout (THE important bit)
 
 `BO4XModelMeshInfoEx` (the stream descriptor at `XModelMeshPtr`) gives offsets *within* the
 mesh blob and the blob's size/key. The blob itself is either already in memory (StatusFlag &
@@ -163,11 +163,11 @@ struct BO4XModelMeshInfoEx {   // #pragma pack(1)
 
 **Per-vertex data, read with these strides (verbatim from `LoadXModel`):**
 
-- **Position** — at `VertexOffset + (surface.VerticiesIndex * 12)`. Each vertex = **3× float32
-  (12 bytes)**, read straight into a `Vector3`. NOTE: full floats, *not* packed/quantised —
+- **Position** - at `VertexOffset + (surface.VerticiesIndex * 12)`. Each vertex = **3× float32
+  (12 bytes)**, read straight into a `Vector3`. NOTE: full floats, *not* packed/quantised -
   directly usable. (Greyhound: `MeshReader.Read<Vector3>()`.)
 
-- **UV + normal + tangent + colour** — at `UVOffset + (VerticiesIndex * stride)`, where
+- **UV + normal + tangent + colour** - at `UVOffset + (VerticiesIndex * stride)`, where
   **stride = 16 bytes normally, 24 bytes if `HasExtendedVertexInfo` (StatusFlag & 64)**. The
   struct for the first 16 bytes:
   ```c
@@ -189,7 +189,7 @@ struct BO4XModelMeshInfoEx {   // #pragma pack(1)
   If extended (24-byte stride): the extra 8 bytes follow and are skipped by Greyhound
   (comment: "first 4 bytes seems to be UV, possibly better camo UV mapping").
 
-- **Weights** — at `WeightsOffset + (VerticiesIndex * 12)`. Only present when
+- **Weights** - at `WeightsOffset + (VerticiesIndex * 12)`. Only present when
   `surface.Flag1 & 2`. Struct (12 bytes):
   ```c
   struct GfxStreamWeight {
@@ -199,7 +199,7 @@ struct BO4XModelMeshInfoEx {   // #pragma pack(1)
   ```
   If `Flag1 & 2` is unset: single rigid weight (bone 0, weight 1.0).
 
-- **Faces/indices** — at `FacesOffset + (surface.FacesIndex * 2)`. Each face = **3× uint16**
+- **Faces/indices** - at `FacesOffset + (surface.FacesIndex * 2)`. Each face = **3× uint16**
   (16-bit index width), CCW triangle:
   ```c
   struct GfxStreamFace { uint16_t Index1, Index2, Index3; };
@@ -209,7 +209,7 @@ struct BO4XModelMeshInfoEx {   // #pragma pack(1)
   `Bo4GfxBlendShapeVert` = `{uint16 FlagsAndShapeIndex; uint16 X,Y,Z; uint16 Unk0..3}` with
   `shapeIndex = FlagsAndShapeIndex >> 8` and XYZ delta as half-floats. Not needed for a map port.
 
-**Takeaway for the extractor:** XModel geometry is trivially parseable offline — positions are
+**Takeaway for the extractor:** XModel geometry is trivially parseable offline - positions are
 plain float3, indices are u16 triples, surfaces give `(firstVertex=VerticiesIndex,
 vertexCount, baseIndex=FacesIndex, triCount=FacesCount/3)`. This is the single highest-value
 finding and the thing the ripper most firmly proves.
@@ -219,7 +219,7 @@ finding and the thing the ripper most firmly proves.
 ## 2. BO4/T8 `.xpak` container (stream package)  ⭐ ACTIONABLE
 
 **Source:** Scobalula/Greyhound @ `22c3d17`
-- Header structs: `src/WraithXCOD/WraithXCOD/DBGameFiles.h` (`BO3XPakHeader`, `BO3XPakHashEntry`, `BO3XPakDataHeader`) — shared BO3/BO4.
+- Header structs: `src/WraithXCOD/WraithXCOD/DBGameFiles.h` (`BO3XPakHeader`, `BO3XPakHashEntry`, `BO3XPakDataHeader`) - shared BO3/BO4.
   https://github.com/Scobalula/Greyhound/blob/master/src/WraithXCOD/WraithXCOD/DBGameFiles.h
 - Parse/decompress: `XPAKCache.cpp` (`LoadPackage`, `ExtractPackageObject`, `DecompressPackageObject`) and `XPAKSupport.cpp` (`ParseXPAK`).
   https://github.com/Scobalula/Greyhound/blob/master/src/WraithXCOD/WraithXCOD/XPAKCache.cpp
@@ -248,7 +248,7 @@ uint64_t IndexCount;   // number of key/property index records
 uint64_t IndexOffset;
 uint64_t IndexSize;
 ```
-(MW2019 v0xD inserts 288 extra bytes after the first 24 — not relevant to BO4.)
+(MW2019 v0xD inserts 288 extra bytes after the first 24 - not relevant to BO4.)
 
 ### Hash/entry table (`BO3XPakHashEntry` at `HashOffset`, `HashCount` entries, 24 bytes each)
 ```c
@@ -259,13 +259,13 @@ uint64_t Size;         // compressed size; mask low 56 bits: Size & 0xFFFFFFFFFF
 ```
 Lookup: `objectFileOffset = Header.DataOffset + entry.Offset`.
 
-### Index records (at `IndexOffset`, `IndexCount` entries) — metadata only
+### Index records (at `IndexOffset`, `IndexCount` entries) - metadata only
 Each: `uint64 Hash; uint64 PropertiesSize; <PropertiesSize bytes>`. Properties are a
 newline-separated ASCII key:value blob (`width:`,`height:`,`size0:`,`name:`,`format:`,`type:`).
 For BO4, `name:` is a hex value masked to 60 bits (`& 0x0FFF...F`). Images only need this;
 model mesh blobs are fetched purely by `Key` from the hash table.
 
-### Data-object block format (`DecompressPackageObject`) — how a streamed object is stored
+### Data-object block format (`DecompressPackageObject`) - how a streamed object is stored
 An object's data is a sequence of **block groups**, each prefixed by a `BO3XPakDataHeader`:
 ```c
 struct BO3XPakDataHeader {     // #pragma pack(1)
@@ -275,10 +275,10 @@ struct BO3XPakDataHeader {     // #pragma pack(1)
 };
 ```
 Per block, `flag` selects the codec:
-- `0x0` — **raw/stored** (memcpy `blockSize` bytes)
-- `0x3` — **LZ4** block (`DecompressLZ4Block`)
-- `0x6` — **Oodle** (via "Siren"), decompressed size = `min(remaining, 262112)` (0x40000-32)
-- `0x8` — **Oodle** with a 4-byte little-endian decompressed-size prefix inside the block
+- `0x0` - **raw/stored** (memcpy `blockSize` bytes)
+- `0x3` - **LZ4** block (`DecompressLZ4Block`)
+- `0x6` - **Oodle** (via "Siren"), decompressed size = `min(remaining, 262112)` (0x40000-32)
+- `0x8` - **Oodle** with a 4-byte little-endian decompressed-size prefix inside the block
   (`blockDecompressedSize = *(uint32*)dataBlock`, then decompress `dataBlock+4`, `blockSize-4`)
 
 After each block group the reader is padded up to the next **0x80 boundary**
@@ -298,9 +298,9 @@ https://github.com/ate47/atian-cod-tools/blob/main/src/core/acts/tools/fastfile/
 
 **Confidence: UNLINKER-SOURCE, but mostly stubbed.** ACTS has the top-level `GfxWorld` struct
 with a verified total size (`static_assert(sizeof(GfxWorld) == 0x1ab0)`), but the **render
-surface/vertex/index geometry is NOT reversed** — the relevant regions are large `unkXX`
+surface/vertex/index geometry is NOT reversed** - the relevant regions are large `unkXX`
 runs. The dump worker only emits JSON *metadata* (name, bounds, static-model draw instances,
-lighting/cookie image refs) — it does **not** export map mesh vertices/triangles. So this is a
+lighting/cookie image refs) - it does **not** export map mesh vertices/triangles. So this is a
 scaffold, not a working map-geometry ripper.
 
 What IS known (field offsets within `GfxWorld`, pack(1)):
@@ -337,14 +337,14 @@ struct GfxStaticModelDrawInst {// per static-model placement (dpvs.smodelDrawIns
     ScrString_t name; uint32 unk28; uint16 unk2c; uint16 unk2e; uint32 unk30; int32 unk34;
 };
 ```
-`GfxWorldDpvsStatic` holds `smodelCount`, `smodelDrawInsts` (static model placements — useful:
+`GfxWorldDpvsStatic` holds `smodelCount`, `smodelDrawInsts` (static model placements - useful:
 these reference `XModel`s you CAN rip via §1), plus `GfxVisArray smodelVisData[4]` /
 `surfaceVisData[4]` / `volDecalVisData[4]`, and `groupLodModels`.
 
 **Gap:** the `GfxSurface` / `srfTriangles` equivalents (firstVertex/vertexCount/triCount/
 baseIndex per world surface) and the world **vertex buffer** layout are inside unnamed `unk`
 regions. For render geometry we have `indexCount`+`indices` but not the matching vertex
-struct — this still needs raw-byte RE. Static-model instances (position + XModel ref) ARE
+struct - this still needs raw-byte RE. Static-model instances (position + XModel ref) ARE
 recoverable and may cover most of a zm map's visible geometry via placed models rather than
 baked world surfaces.
 
@@ -356,16 +356,16 @@ the BO3 layout is the single best template to resolve BO4's `unk` regions.
 
 ---
 
-## 4. BO4/T8 clipMap_t / collision  (GAP — no open-source extractor)
+## 4. BO4/T8 clipMap_t / collision  (GAP - no open-source extractor)
 
 **Status:** BO4 **does** have `ASSET_TYPE_CLIPMAP = 11` (Treyarch brush/plane collision, not
-Havok), but **no open-source tool reverses it.** ACTS explicitly lists it as unimplemented —
+Havok), but **no open-source tool reverses it.** ACTS explicitly lists it as unimplemented -
 `bo4_unlinker_map.hpp` header comment: `[ ] col_map (clipmap)`. ACTS's `com_map`
-(`ASSET_TYPE_COMWORLD`) is **lights/probes/exploders only** (`ComWorld`, size 0x60 — see
+(`ASSET_TYPE_COMWORLD`) is **lights/probes/exploders only** (`ComWorld`, size 0x60 - see
 `bo4_unlinker_map_com.cpp`), NOT collision. Greyhound/Wraith do not touch collision at all.
 
 **Best available template = BO3 (same engine family):** COD Engine Research wiki,
-"Collision Map Asset (BO3)" — https://codresearch.dev/index.php/Collision_Map_Asset_(BO3)
+"Collision Map Asset (BO3)" - https://codresearch.dev/index.php/Collision_Map_Asset_(BO3)
 **Confidence: LINEAGE.** BO4's `clipMap_t` is expected to be a close evolution of this.
 
 BO3 `clipMap_t` shape (summarised from the wiki; verify every offset against the BO4 zone):
@@ -375,7 +375,7 @@ BO3 `clipMap_t` shape (summarised from the wiki; verify every offset against the
   brush contents.**
 - BSP: node array + leaf array (each counted).
 - **Geometry: vertex array + triangle index array (counts), plus a per-triangle-edge
-  walkability bitfield** — this is the part most directly convertible to T6 collision tris.
+  walkability bitfield** - this is the part most directly convertible to T6 collision tris.
 - Collision accel: partition array + AABB-tree array (partitions hold triangle/index ranges).
 - Submodels: `cmodel_t` array.
 - Visibility: cluster count, bytes-per-cluster, vis data ptr.
@@ -429,7 +429,7 @@ collision; this is the main unknown for the port but is NOT a Havok dependency.
 - NOTE: your teammate already has the decompressed zone, so the AES/RSA/Oodle front-end is
   already solved; this section is mainly for completeness + to confirm you're on `0x27F`.
 
-### Asset pool enum (`XAssetType : byte`) — relevant ids (full list in the file)
+### Asset pool enum (`XAssetType : byte`) - relevant ids (full list in the file)
 ```
 0 PHYSPRESET            1 PHYSCONSTRAINTS      2 DESTRUCTIBLEDEF     3 XANIM
 4 XMODEL                5 XMODELMESH           6 MATERIAL            8 TECHNIQUE_SET
@@ -442,22 +442,22 @@ Config mirror (names only): ACTS `config/data/asset_types.json` and `config/data
 
 ---
 
-## 6. BO4/T8 Havok collision + AI navmesh  (GAP — confirmed Havok, no open extractor)
+## 6. BO4/T8 Havok collision + AI navmesh  (GAP - confirmed Havok, no open extractor)
 
 **What's confirmed:** BO4 exposes `ASSET_TYPE_NAVMESH = 96` and `ASSET_TYPE_NAVVOLUME = 97`
 (ACTS enum, §5). These are the `hkaiNavMesh` / `hkaiStreamingSet` /
 `hkaiNavMeshGenerationUtilsSettings` Havok objects the teammate found in the decompressed
-zm_escape zone — i.e. BO4's **AI navigation is Havok AI**, and **rigid-body physics**
+zm_escape zone - i.e. BO4's **AI navigation is Havok AI**, and **rigid-body physics**
 (`ASSET_TYPE_PHYSPRESET`/`PHYSCONSTRAINTS`) is Havok Physics (`hkp`/`hknp`).
 
 **Open-source extraction status: NONE.**
 - ACTS: only `bo4_unlinker_physpreset.cpp` exists; **no navmesh/havok handler** (the tree has
   no `hkai`/`hknp`/`hkp`/`navmesh` source beyond physpreset).
-- Greyhound/Wraith/Husky: models/images/anims/GfxWorld only — no Havok, no navmesh.
+- Greyhound/Wraith/Husky: models/images/anims/GfxWorld only - no Havok, no navmesh.
 - Cordycep: in-memory CoD asset loader; no published BO4 Havok→mesh converter found.
 - COD Engine Research wiki: **no NavMesh / Havok page at all** (search returns nothing).
 
-**General Havok RE approach (from other games — adaptable, not CoD-specific):**
+**General Havok RE approach (from other games - adaptable, not CoD-specific):**
 Confidence COMMUNITY-GUESS / external.
 - Havok ships **built-in reflection data** in the binary, and **public headers for Havok 2014**
   exist to cross-reference offsets→member names (zeldaret/botw wiki):
@@ -469,34 +469,34 @@ Confidence COMMUNITY-GUESS / external.
 These assume a standalone `.hkx` packfile; BO4 embeds Havok objects inside the Treyarch zone,
 so a loader would first have to carve the `hkai*`/`hkp*` blobs out of the decompressed zone and
 identify the **exact Havok SDK version** (identifiable from the version string / class
-signatures in those blobs — capture it from the zone; likely a ~2014–2016 build given BO4's
-2018 ship date, but **unconfirmed** — this is a thing to read off the raw bytes).
+signatures in those blobs - capture it from the zone; likely a ~2014-2016 build given BO4's
+2018 ship date, but **unconfirmed** - this is a thing to read off the raw bytes).
 
 **Recommendation for the port (matches the coordinator's concern):**
-1. **World/bullet collision** is NOT Havok — it's the Treyarch `clipMap_t` (§4). That is the
+1. **World/bullet collision** is NOT Havok - it's the Treyarch `clipMap_t` (§4). That is the
    thing to reverse for a walkable map; Havok is not on the critical path for it.
 2. **AI navmesh (Havok)** is effectively unobtainable via existing tools. For a zm port,
    **regenerate the navmesh in the BO3 toolchain** (or reuse the donor BO3 map's nav) rather
-   than converting BO4 Havok — far cheaper than reversing Havok AI serialisation.
+   than converting BO4 Havok - far cheaper than reversing Havok AI serialisation.
 3. If `clipMap_t` RE proves too costly, the documented fallback (reuse an existing BO3 map's
-   collision shell) remains valid — but note that it's a *convenience*, not a Havok necessity.
+   collision shell) remains valid - but note that it's a *convenience*, not a Havok necessity.
 
 ---
 
-## GAPS — what still needs raw-byte RE (no usable published layout found)
+## GAPS - what still needs raw-byte RE (no usable published layout found)
 
-1. **BO4 `clipMap_t` (asset 11)** — no open extractor; only the BO3 wiki layout as a template.
+1. **BO4 `clipMap_t` (asset 11)** - no open extractor; only the BO3 wiki layout as a template.
    This is the #1 blocker for native BO4→T6 collision. (§4)
-2. **BO4 GfxWorld render surfaces/vertex buffer** — top-level struct known (ACTS, 0x1ab0) but
+2. **BO4 GfxWorld render surfaces/vertex buffer** - top-level struct known (ACTS, 0x1ab0) but
    the per-surface `GfxSurface`/`srfTriangles` ranges and the world vertex buffer layout are in
    unnamed regions; only `indexCount`+`uint16* indices` are identified. Use Husky BO3 as the
    template. Static-model instance list IS recoverable. (§3)
-3. **BO4 Havok navmesh/physics internals** — Havok format + exact SDK version unconfirmed; no
+3. **BO4 Havok navmesh/physics internals** - Havok format + exact SDK version unconfirmed; no
    CoD tool extracts it. Recommend regenerate/reuse rather than convert. (§6)
-4. **On-disk (zone) vs in-memory XModel header padding** — Greyhound's fixed structs are
+4. **On-disk (zone) vs in-memory XModel header padding** - Greyhound's fixed structs are
    in-memory; confirm the `Padding[...]` gaps against the zone layout before trusting absolute
    offsets when parsing the raw zone (the *mesh blob* byte layout in §1b is unaffected and safe).
-5. **Exact retail `XFileBO4_0x27F` full field list** — ACTS uses offset constants; only the
+5. **Exact retail `XFileBO4_0x27F` full field list** - ACTS uses offset constants; only the
    key offsets (0x490/0x4A8/0x6F0/0x730/0x830, size 0x840, 9 blocks) are captured here. Not on
    critical path since the zone is already decompressed.
 

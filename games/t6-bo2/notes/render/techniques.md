@@ -62,7 +62,7 @@ when loading `.techset` text. The first 36 are the slots of `MaterialTechniqueSe
 | 16 | lit sun dlight glight | 34 | debug bumpmap |
 | 17 | lit sun shadow dlight glight | 35 | debug performance |
 
-Entries 36-47 ("custom tech 01" … "custom tech 12") are text aliases for slots 2-13. Each value is
+Entries 36-47 ("custom tech 01" ... "custom tech 12") are text aliases for slots 2-13. Each value is
 `slot | 0x100` for most entries (some have the flag clear: 26-31, 33); the flag's use isn't traced yet.
 
 ## 2. How a draw picks its technique
@@ -173,7 +173,7 @@ Same meaning, different numbering. T4 techsets have 59 slots, T5 130, T6 36.
 | 8 | lit spot shadow | 16 | 14 |
 | 13 | lit omni | 18 | 15 |
 | 14 | lit omni shadow | 20 | 16 |
-| 15-25 | … dlight glight | (none) | 31-37 (LIT_DLIGHT_GLIGHT …) |
+| 15-25 | ... dlight glight | (none) | 31-37 (LIT_DLIGHT_GLIGHT ...) |
 
 - **WaW's odd numbers are `_FADE` variants.**
 - **BO1 1 is BUILD_FLOAT_Z**, not a shadow-map pass.

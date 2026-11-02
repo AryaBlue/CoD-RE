@@ -19,7 +19,7 @@ dedups referenced compile planes into the BSP plane lump; `if (nummapplanes == 0
 - Counts UNIQUE planes only (per-plane ref flag at compile entry +0x14 gates the copy). THIS is the binding cap that the merged MotD-shell+BoD clip hit.
 
 ## Practical takeaways for the port pipeline
-- Patch collision meshes (clip_brushes.patches) do NOT add to the plane table — confirmed: the spawn build linked 143,999 patches + 7,891 brushes fine. So terrain soup is plane-free; only brush walls spend the 131,072 budget.
+- Patch collision meshes (clip_brushes.patches) do NOT add to the plane table - confirmed: the spawn build linked 143,999 patches + 7,891 brushes fine. So terrain soup is plane-free; only brush walls spend the 131,072 budget.
 - Pure-BoD world brushes = 50,105 unique planes (bod_clip_le45.json) -> fits with ~80k headroom. The old failure was shell+BoD combined.
 - RAISING the final cap (only if a map's brush planes exceed 131k): patch the `== 0x20000` immediate in EmitPlanes to a larger value AND enlarge the output array at 0x14379c6d0 (16 B * count). The matching limit also lives in BlackOps3.exe (loads the BSP), so a raised-cap map only loads on a patched/offline (Plutonium) engine -> legitimate for personal offline ports only, never for a shareable workshop map. Primary path stays collision decimation.
 

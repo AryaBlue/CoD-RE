@@ -49,8 +49,8 @@ Sources:
 
 | area | difference from T4-T6 | evidence |
 |---|---|---|
-| world | `GfxWorld` keeps the T4 shape: `GfxWorldVertex {xyz, binormalSign, color, texCoord, lmapCoord, …}`, `GfxLightmapArray {primary, secondary}` | `IW4_Assets.h:3648,3654`; `IW3_Assets.h:2189`; `IW5_Assets.h:2502` [V] |
-| | Lightmap decode is probably T4's primary/secondary pair; IW4/IW5 images use the v8 IWI map-type bits | [assets_t4_t5_t6.md](assets/assets.md) (line ~576 in the source) [I] |
+| world | `GfxWorld` keeps the T4 shape: `GfxWorldVertex {xyz, binormalSign, color, texCoord, lmapCoord, ...}`, `GfxLightmapArray {primary, secondary}` | `IW4_Assets.h:3648,3654`; `IW3_Assets.h:2189`; `IW5_Assets.h:2502` [V] |
+| | Lightmap decode is probably T4's primary/secondary pair; IW4/IW5 images use the v8 IWI map-type bits | [assets.md](assets/assets.md) (line ~576 in the source) [I] |
 | light grid | IW3: `GfxLightGridColors {rgb[56][3]}`, the same entry and row layout as T4 | `IW3_Assets.h:2194-2222` [V] |
 | | IW4/IW5: the same fields (IW5 adds `useSkyForLowZ`) | `IW4:3709`, `IW5:2566` [V] |
 | | The T4 grid decoder should carry over, but its colour scale needs checking [I] | |
@@ -59,7 +59,7 @@ Sources:
 | | So `Collision.cpp`'s T4 and T6 paths cover both shapes. Trace masks need reading from each exe | |
 | xmodel | IW4/IW5 split surfaces into a separate `XModelSurfs` asset (`IW4:535`, `IW5:565`). One extra pointer hop | [V] |
 | | OAT already dumps IW3/4/5 xmodels to GLB | `SupportedAssetTypes.md` [V] |
-| | The T4/IW3 missing-triangle quirk applies to IW3 | [assets_t4_t5_t6.md](assets/assets.md) (line ~177 in the source) [V] |
+| | The T4/IW3 missing-triangle quirk applies to IW3 | [assets.md](assets/assets.md) (line ~177 in the source) [V] |
 | xanim | `XAnimParts` is present in all three (`IW3:288`, `IW4:405`, `IW5:429`), the same lineage as T4 | [V], details [I] |
 | material | IW material/techset family (IW4 has separate vertex/pixel shader assets). `MaterialState.cpp` needs a statebits decode per game | `SupportedAssetTypes.md` IW4 rows [V]; [I] |
 | sound | `snd_alias_t` uses floats in final units (`volMin/Max`, `pitchMin/Max`, `distMin/Max`, `probability`) and a single `SndCurve* volumeFalloffCurve`. No min curves, no reverb distance | `IW3:1591`, `IW4:1840`, `IW5:1653`; `SndCurve {filename, knotCount, knots[8][2]}` `IW3:1537` [V] |
@@ -122,7 +122,7 @@ modes.
 
 1. **IW4 (MW2): best value per effort, blocked on content.** OAT loads it, its structs are the T4 lineage, and only
    new template instantiations plus a Miles-sound and float-alias conversion are needed. But there's **no MW2 map
-   zone on disk** [M]. It's worth doing when the user installs the base game.
+   zone on disk** [M]. It's worth doing when we install the base game.
 2. **IW3 (CoD4): the same story as IW4, the closest to T4.** It's not installed.
 3. **IW5 (MW3):** as IW4 plus T6-style `ClipInfo` and compiled scripts. It's not installed.
 4. **T7 sounds only:** low effort, partial value. The bank reader at v15 gets every BO3 sample offline today, but
@@ -139,7 +139,7 @@ modes.
 beyond T4-T6 is T7, and its full cost is an order of magnitude above IW4's. The cheap, contained next steps are:
 - The T7 bank v15 reader (sounds by hash).
 - A structural spike that decodes one T7 zone's asset list offline with `bo3_ff_dec.py`, to size the zone-loader work.
-- Asking the user whether they own MW2 / CoD4 / MW3 base installs. With those, IW4 is roughly a week of converter work
+- Checking whether we own MW2 / CoD4 / MW3 base installs. With those, IW4 is roughly a week of converter work
   and no engine work [I].
 
 ## Open

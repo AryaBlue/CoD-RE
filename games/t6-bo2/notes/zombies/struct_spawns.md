@@ -61,7 +61,7 @@ The perk structs are in the **base** map ents on every map; none are in the `so_
 | zm_tomb | 6 | `zclassic_perks_tomb` | Jugg, Stamin-Up, Mule Kick (`p6_zm_tm_vending_three_gun`), Revive (`p6_zm_tm_vending_revive`), Speed Cola. The PaP struct (`p6_zm_tm_packapunch`) has no token, so every mode keeps it |
 | zm_nuked | 0 | - | §3 |
 
-- Transit's other tokens are for grief/standard per location (`zgrief_perks_town`, `zstandard_perks_farm`, …) and for
+- Transit's other tokens are for grief/standard per location (`zgrief_perks_town`, `zstandard_perks_farm`, ...) and for
   No Man's Land (`znml_perks_town`, `znml_perks_cornfield`).
 - Prison's Deadshot struct already names the on model (`zombie_vending_ads_on`), and Electric Cherry an `_off` one.
 
@@ -116,7 +116,7 @@ supplies the gameplay side.**
 
 - **zonedump `--world`:** after the mode filter, each `zm_perk_machine` struct with a `model` becomes a node, exactly as a
   `script_model` is placed now:
-  - extras: e115_classname `script_struct`, e115_targetname = the §1 machine name (`vending_jugg`, …),
+  - extras: e115_classname `script_struct`, e115_targetname = the §1 machine name (`vending_jugg`, ...),
     e115_noteworthy = the specialty, e115_entity = the struct's block
   - mesh shared and deduped; the `_on` models go to `script_models/` by the existing swap rule
   - It has to happen at export: the mode is already applied there (§5), and the meshes come from the same zones. A

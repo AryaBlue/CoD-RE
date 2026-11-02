@@ -17,6 +17,6 @@
 ## Recommendation
 - Keep the lead's fallback: render swap first, shell clip kept.
 - For the true BoD layout (route 3), the cheapest full collision is:
-  - render-tri prisms from the extracted gfx (we already do this for clip tris; mind the 65k welded-vert cap per collision model — chunk it);
+  - render-tri prisms from the extracted gfx (we already do this for clip tris; mind the 65k welded-vert cap per collision model - chunk it);
   - plus navmesh-derived seeds for AI pathing.
 - Havok physics → brush conversion is moot: there is none to convert.

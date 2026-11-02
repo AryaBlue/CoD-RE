@@ -284,7 +284,7 @@ T6: `perks:1692-1730`; a perk with no case falls back to `zombie_perk_cost` 2000
 - **Ammo** (`vulture:832-870`):
   - The current weapon's stock gains `clamp(int(maxAmmo × rand 0..0.025), 1, max)`.
   - Heat weapons: −1..2 heat.
-  - Fuel weapons: +1–3 % fuel.
+  - Fuel weapons: +1-3 % fuel.
 - **Stink zombies:**
   - A 50 % roll, 12 s cooldown, at most 4 (`vulture:1031-1038`).
   - Standing in a stink cloud (radius **70**, `vulture:526`) shows an overlay and makes zombies ignore the player (`ignoreme`, `vulture:627`).

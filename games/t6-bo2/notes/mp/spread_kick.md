@@ -147,7 +147,7 @@ if spreadOverrideState == 1 && aimSpreadScale*ratio < 255:
 aimSpreadScale = clamp(aimSpreadScale, 0, 255)
 ```
 
-All [V 0x8E0080–0x8E05A4] except the bracketed names. Points that matter for matching:
+All [V 0x8E0080-0x8E05A4] except the bracketed names. Points that matter for matching:
 - Decay is **skipped entirely in any frame that adds** (moving above 11 u/s with MoveAdd > 0, turning, airborne, AQS).
   Firing does not stop decay: the fire add is applied separately (section 5).
 - Stance picks decay by **eFlags** bits (prone 0x8, crouch 0x4), but the min/max in section 6 use the view height.
@@ -211,7 +211,7 @@ if adsFrac == 1.0: spread = adsSpread + (max - adsSpread) * s     ; exact == 1.0
 else:              spread = min + (max - min) * s
 ```
 There is **no ADS-fraction lerp**: until the ADS fraction is exactly 1 the shot uses full hip spread; at 1 it is
-`adsSpread` lerped towards hip max by the scale (which `adsZeroSpread` keeps at 0) [V 0x66E66E–0x66E6AB].
+`adsSpread` lerped towards hip max by the scale (which `adsZeroSpread` keeps at 0) [V 0x66E66E-0x66E6AB].
 
 `Bullet_Fire` **0x5D0C20** (weaponType 0 = bullet) [V]:
 ```
@@ -315,7 +315,7 @@ for t = cg.frametime msec; t > 0; t -= 5:
             kickAngles += d
             if kickAngles == 0 || |kickAngles| > 10: kickAngles = clamp(+-10); kickAVel = 0
 ```
-[V 0x51F150–0x51F43C]. Stance here is from `viewHeightTarget` via **0x8BFA60**: 11 → prone, 40 → crouch, else stand
+[V 0x51F150-0x51F43C]. Stance here is from `viewHeightTarget` via **0x8BFA60**: 11 → prone, 40 → crouch, else stand
 (22 is a special case on ps+0x5B8) [V].
 
 **Note (quirk, [V])**: for a single (non-dual-wield) weapon both the hip branch (adsFrac ≤ 0.5) [V 0x51F3E5] and the
@@ -352,7 +352,7 @@ for remaining = frametime (s); remaining > 0; in 0.005 s slices, stop early once
         spd  = spd > 0 ? max(spd - dt*static, 0) : min(spd + dt*static, 0)   ; constant friction
         spd  = clamp(spd, -vmax, vmax)
 ```
-[V 0x8F0700–0x8F0990]. Gun kick, unlike view kick, **lerps** hip→ADS by the ADS fraction. `vGunOffset` (degrees) is
+[V 0x8F0700-0x8F0990]. Gun kick, unlike view kick, **lerps** hip→ADS by the ADS fraction. `vGunOffset` (degrees) is
 then fed into the view-model angle build (0x8F0160/0x8F0340) [I exact use].
 
 ## 12. Against the current Reforged code

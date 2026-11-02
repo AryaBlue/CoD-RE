@@ -49,7 +49,7 @@ by 4. `effectAttached` shifts the tail by another 4, and T5 adds 0x24 bytes at t
 
 | field | T4 | T5 |
 |---|---|---|
-| `flags` … `initialRotation` | 0x000-0x097 | 0x000-0x097 |
+| `flags` ... `initialRotation` | 0x000-0x097 | 0x000-0x097 |
 | `rotationAxis` (`uint`) | - | 0x098 |
 | `gravity` | 0x098 | 0x09C |
 | `reflectionFactor` | 0x0A0 | 0x0A4 |
@@ -121,7 +121,7 @@ T4's `useItemClip` is gone; T5 has `unused[2]` in its place.
 | `u` on cloud | int range, e.g. `[1024, 0]`, `[512, 256]` | `cloudDensityRange` |
 | `u` on everything else | `[1, 1]` by default; line elems trim to e.g. `[0.4, 0.5]`, `[1, 0.09]` | `billboardTrim` top/bottom width |
 | `spawnSound` | 6 elems: `dst_electronics_elc_sm` ×3, `dst_electronics_sparks_lg`, `dst_electrical_large`, `wpn_thundergun_idle` | a sound alias played on spawn |
-| `billboardPivot` | 177 elems: spriteRotated `[0, 1]`, billboard `[0, -0.8]`, tail `[0, -0.5]`, line `[0, 0.4]`… | [I] the quad's pivot in half-sizes |
+| `billboardPivot` | 177 elems: spriteRotated `[0, 1]`, billboard `[0, -0.8]`, tail `[0, -0.5]`, line `[0, 0.4]`... | [I] the quad's pivot in half-sizes |
 | `unused[2]` | 0 everywhere | |
 
 - The union is chosen by type in the exporter: `cloudDensityRange` on clouds, `billboardTrim` on the rest [I]. The
@@ -145,7 +145,7 @@ T4's `useItemClip` is gone; T5 has `unused[2]` in its place.
 - T5 sets bits the iw3 table in `ExportFx.cpp` doesn't name. The export keeps them in `unknownFlags`.
 - **`0x4000` is the most common** (326 elems), e.g. on every elem of `fx_pistol_flash_base`. Next come `0x200000`
   (100), `0x800000` (61) and `0x400000` (45). [I] These are T5 additions; not decoded.
-- The named bits (spawn offset, run-relative, hasGravity …) are assumed to keep their iw3 meaning [I]. The measured
+- The named bits (spawn offset, run-relative, hasGravity ...) are assumed to keep their iw3 meaning [I]. The measured
   values are plausible: muzzle-flash elems are `runRelativeTo: effect` and blood drops have `hasGravity`.
 
 ## Not carried over

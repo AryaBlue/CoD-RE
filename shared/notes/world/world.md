@@ -37,7 +37,7 @@
 
 What E115 needs to read from OAT's in-memory `gfxworld`, `clipmap`, `comworld` and `mapents` assets to draw a WaW (T4),
 BO1 (T5) or BO2 (T6) map as a recognisable, correctly placed environment, and later to collide with it. Researched
-2026-10-26. XModel, Material and GfxImage are covered in [assets_t4_t5_t6.md](../assets/assets.md) (called **ASSETS** below); this file only
+2026-10-26. XModel, Material and GfxImage are covered in [assets.md](../assets/assets.md) (called **ASSETS** below); this file only
 points at it.
 
 ## Conventions
@@ -119,7 +119,7 @@ Scale-based unit vector (`PACK:127-136`, `CONV/world.py:162-169`) **[V]**: bytes
 `s = (b3 + 192) / 32385; v = ((b0-127)·s, (b1-127)·s, (b2-127)·s)`, then normalise (the converter does; OAT does not).
 
 T5 uses the same reader as T4 in the converter (`D5:499-509` writes the raw u32s into the WaW format; Kino rendered
-correctly in game per the user's notes) **[I]**: treat T5 colour and normals exactly like T4.
+correctly in game per our notes) **[I]**: treat T5 colour and normals exactly like T4.
 
 **T6: `GfxPackedWorldVertex`, 36 bytes in `vd0`** (`OAT6/Common/Game/T6/T6_Assets.h:5773-5782`; `static_assert`
 in `D6:27`) **[V]**
@@ -232,11 +232,13 @@ for k in 0 .. triCount*3-1:
 ### 1.5 Brush models (doors, debris, movers)
 
 `GfxWorld.models[i]` = `GfxBrushModel {writable, bounds[2][3], surfaceCount, startSurfIndex}` (`T4H:2462-2468`,
-`T5H:2965-2971`). Model 0 is the world. Model N is the render part of the `"model" "*N"` entity. **[V]**
-`dpvs.staticSurfaceCount` = the world's surfaces, and brush-model surfaces follow them (`GWL:481,1051-1052`) **[V]**.
-Stock nuked: 9867 surfaces, `staticSurfaceCount 9865`. Every brush model has 0 surfaces and
-`startSurfIndex 0xFFFFFFFF` (`AUDIT/...gfxworld.txt:6-60`) **[M]**. Skip a model when `surfaceCount == 0`.
-Whether brush-model surfaces are stored in world space or relative to the entity origin is **unverified**. See §8.
+`T5H:2965-2971`).
+
+- Model 0 is the world. Model N is the render part of the `"model" "*N"` entity. **[V]**
+- `dpvs.staticSurfaceCount` = the world's surfaces, and brush-model surfaces follow them (`GWL:481,1051-1052`) **[V]**.
+- Stock nuked: 9867 surfaces, `staticSurfaceCount 9865`. Every brush model has 0 surfaces and
+  `startSurfIndex 0xFFFFFFFF` (`AUDIT/...gfxworld.txt:6-60`) **[M]**. Skip a model when `surfaceCount == 0`.
+- Whether brush-model surfaces are stored in world space or relative to the entity origin is **unverified**. See §8.
 
 ---
 
@@ -421,7 +423,7 @@ with `mapType 5`, DXGI 77 (`AUDIT/...gfxworld.txt:6,458`) **[M]**. They are opti
 | OAT T6 BSP linker | inverse: `BO2 = (x, -z, y)` | `OAT6/.../BSP/BSPUtil.cpp:17-24` **[V]** |
 | T5 BSP unlinker | `(x, z, -y)`; quaternion `(qx, qz, -qy, qw)` | `U5:57-72` **[V]** |
 
-- **The "×100" in the user's notes is an FBX/ufbx artefact, not a unit change.** The linker divides node
+- **The "×100" in our notes is an FBX/ufbx artefact, not a unit change.** The linker divides node
   translation/scale by 100 because ufbx stores them ×100 (`BSPC:52-60`) **[V]**. Vertex positions stay 1:1 game units;
   "OAT waw2bo2 glbs are 1:1 COD inches (NO x100 scale)" (`RE/games/t8-bo4/tools/smodel_lib.py:5`) **[V]**.
 - **[!] `U5` calls its transform `LhcToRhc`.** But `(x, y, z) -> (x, z, -y)` has determinant +1. It is a rotation,

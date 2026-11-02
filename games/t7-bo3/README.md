@@ -4,12 +4,12 @@ Reverse-engineering notes and small offline tools for Black Ops III (T7 engine),
 
 ## Notes
 
-- [t7_assetpool_offset.md](notes/assetpool_offset.md): the XModel `assetPools` table base offset for the current
+- [assetpool_offset.md](notes/assetpool_offset.md): the XModel `assetPools` table base offset for the current
   retail build, and the GfxMap read layout. We recovered it (read-only) to fix the C2M/Husky memory-based map
   extractor after a Steam update moved the pool base.
-- [t7_xpak_format.md](notes/xpak_format.md): the `.xpak` container (`KAPI` v10) and how its blobs decompress. Use
+- [xpak_format.md](notes/xpak_format.md): the `.xpak` container (`KAPI` v10) and how its blobs decompress. Use
   it to get HD textures that stream from disk instead of sitting in memory.
-- [t7_fastfile_format.md](notes/fastfile_format.md): the BO3 PC fastfile (`TAff0000` v`0x251`), a chain of zlib
+- [fastfile_format.md](notes/fastfile_format.md): the BO3 PC fastfile (`TAff0000` v`0x251`), a chain of zlib
   blocks, and the inline `GfxImage` layout (the always-loaded UI art). Worked out from scratch.
 
 ## Tools

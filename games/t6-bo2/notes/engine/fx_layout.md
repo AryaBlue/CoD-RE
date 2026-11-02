@@ -92,7 +92,7 @@ cloud 87 / 60, spriteRotated 74 / 53, model 71 / 67, decal 47 / 44, spriteOrient
 
 - The asset type is `fximpacttable`, in `common_zm.ff` (asset `ImpactFx`). OAT loads 21 rows.
 - Row names: `t6zm.exe` 0xb11100 has the same 21 + 4 flesh names as BO1.
-- Columns: the infoParm table at `t6zm.exe` 0xca29d8 (stride 20) lists bark … tallgrass, then **riotshield**, then
+- Columns: the infoParm table at `t6zm.exe` 0xca29d8 (stride 20) lists bark ... tallgrass, then **riotshield**, then
   opaqueglass. So the 32 columns are default + 30 + `riotshield`. opaqueglass falls past the end, as it does in BO1.
 - Check: the `riotshield` column holds `impacts/fx_riotshield_large` on the bullet rows [M]. 723 cells filled.
 

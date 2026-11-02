@@ -97,7 +97,7 @@ So `"all"` (0x1fe) covers teams 1..8 and leaves out both neutral (0) and spectat
 - Other writers of `sentient+4`: `0x5d5480` (vteam, needs a vehicle), `0x65f490` and `0x66bf40` (vehicle and turret paths) [V].
 
 **How the animscript set is picked** [V]:
-- It is chosen per actor species from the table `0x2d49534`: index 0 human, 2 = the `zm_` set (`zm_init`…), 3 = `zm_dog_`.
+- It is chosen per actor species from the table `0x2d49534`: index 0 human, 2 = the `zm_` set (`zm_init`...), 3 = `zm_dog_`.
 - So the robots (aitype type "zombie") do run `zm_init` [I].
 - That is consistent with the script agent's finding, but it only sets the script variable.
 

@@ -56,4 +56,4 @@ so two viable runtime-injection strategies for a tool DLL:
 Helper addresses seen on this path: entity/param fetch `0x0059a740`, request/channel setup `0x0044c390`
 (calls `0x004f7490`), sound-system-up guard `0x0063d5a0`.
 
-Related: [t6_cbuf.md](cbuf.md) (Cbuf_AddText), [t6_sv_sendservercommand.md](sv_sendservercommand.md).
+Related: [cbuf.md](cbuf.md) (Cbuf_AddText), [sv_sendservercommand.md](sv_sendservercommand.md).

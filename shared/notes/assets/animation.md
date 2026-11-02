@@ -77,9 +77,9 @@ The fields are the same in all three games, apart from a few flags **[V]** (`T4H
 | `names` | `ScriptString*` | `uint16_t*` | `uint16_t*` | bone names as zone script-string indices, `boneCount[PART_TYPE_ALL]` of them |
 | `numframes`, `framerate` | ✓ | ✓ | ✓ | length = numframes / framerate. The `end` notetrack lands exactly there **[V-data]** |
 | `bLoop`, `bDelta` | ✓ | ✓ | ✓ | looped; has root motion |
-| `bDelta3D` | — | — | ✓ | root motion rotates in 3D (full quat) rather than yaw only |
-| `bStreamable` | — | ✓ | — | data is streamed, not in the zone. zonedump refuses these (`ANIM:148`) |
-| `bLeftHandGripIK` | — | ✓ | ✓ | not used yet |
+| `bDelta3D` | - | - | ✓ | root motion rotates in 3D (full quat) rather than yaw only |
+| `bStreamable` | - | ✓ | - | data is streamed, not in the zone. zonedump refuses these (`ANIM:148`) |
+| `bLeftHandGripIK` | - | ✓ | ✓ | not used yet |
 | `assetType` | ✓ | ✓ | ✓ | see §4 |
 | `boneCount[10]` | ✓ | ✓ | ✓ | bones per `XAnimPartType` |
 | `dataByte/Short/Int`, `randomDataByte/Short`, `indices` | ✓ | ✓ | ✓ | packed track data, read in order (§3) |
@@ -109,16 +109,16 @@ Part types, identical in all three games (`T4H:299`, `T5H:393`, `T6H:477`) **[V]
     **[V-data]**.
   - Key times = frame / framerate. *_NO_SIZE tracks are a single constant.
 - **Full quat.** Four int16 values (x, y, z, w), normalised; 32767 ≈ 1 (`ANIM:21`) **[V-data]**.
-  - Checked on ai_zombie_walk_v1: j_clavicle_le keeps its rest (≈ 0.73, 0, 0.68, 0) and j_knee_le bends 23–71°.
+  - Checked on ai_zombie_walk_v1: j_clavicle_le keeps its rest (≈ 0.73, 0, 0.68, 0) and j_knee_le bends 23-71°.
 - **Half quat.** Two int16 values (z, w), with x = y = 0, so the bone only rotates about its local z (`ANIM:28`) **[I]**.
   - It fits: fingers and bulge bones on half tracks stay continuous.
   - Not checked one bone at a time.
 - **Translation.**
   - `SMALL_TRANS`: `mins + size * u8`. `TRANS`: `mins + size * u16`. So `size` is already divided per step (`ANIM:34`)
     **[V-data]**.
-  - With that reading, j_mainroot comes out at a 31–37-unit hip height through the walk.
+  - With that reading, j_mainroot comes out at a 31-37-unit hip height through the walk.
 - **[!] Translations are offsets on the xmodel's own local translation, not absolute** (`ANIM:282`) **[I, strong]**.
-  - Zombie anims give j_mainroot (-1…13, -8…1, -6…0). The model's local is (-3.4, 0, 37.2). Taken as absolute, the
+  - Zombie anims give j_mainroot (-1...13, -8...1, -6...0). The model's local is (-3.4, 0, 37.2). Taken as absolute, the
     pelvis would sit on the floor. Added, it bobs between 31 and 37.
   - WaW viewmodel anims give j_elbow_le (12.09, 0, 0). The arms model stores 0 there and baseMat says 12.09. Added
     to 0, that is also right.
@@ -126,7 +126,7 @@ Part types, identical in all three games (`T4H:299`, `T5H:393`, `T6H:477`) **[V]
     model's local translation, when that differs from the baseMat rest (the viewmodel case).
 - **Rotations are absolute locals** **[V-data]**. They replace the rest rotation (clavicle example above).
 - **`NO_QUAT` bones** are written as a constant identity rotation (`ANIM:194`) **[I]**.
-  - The zombie anims have 1–3 such bones each, and 0–2 of those have a non-identity rest rotation (thumb_1,
+  - The zombie anims have 1-3 such bones each, and 0-2 of those have a non-identity rest rotation (thumb_1,
     tag_sync).
   - Whether the game uses identity or the model rotation there isn't settled. It only affects those few bones.
 - **Root motion (`deltaPart`).**
@@ -136,7 +136,7 @@ Part types, identical in all three games (`T4H:299`, `T5H:393`, `T6H:477`) **[V]
   - The animation gets `e115_delta: true`. The player decides whether to apply it to the node or to the entity.
   - Example: ai_zombie_walk_v1 moves tag_origin 155.6 units forward over 4.133 s, ≈ 0.95 m/s **[V-data]**.
 - **Notetracks.** `time` is normalised 0..1; seconds = time × length (`ANIM:257`) **[V-data]**: `end` lands on 4.133 s.
-  Names are kept raw (`footstep_left_large`, `sndnt#step_zombie`, …).
+  Names are kept raw (`footstep_left_large`, `sndnt#step_zombie`, ...).
 - **Quaternion hemisphere.** Consecutive keys are sign-flipped onto one hemisphere so linear blending takes the short
   arc (`ANIM:187`).
 
@@ -155,9 +155,9 @@ A sweep decoded every anim in three zones with zero errors **[V-data]**:
 
 | game | zone | anims | type 1 | type 2 | type 6 | type 0 |
 |---|---|---|---|---|---|---|
-| T4 | nazi_zombie_prototype + common | 1976 | 461 | 1358 | 157 | — |
-| T5 | zombie_theater + common + common_zombie | 3375 | 1127 | 2005 | 243 | — |
-| T6 | zm_nuked + code_post_gfx_zm + common_zm | 2532 | 1657 | 873 | — | 2 |
+| T4 | nazi_zombie_prototype + common | 1976 | 461 | 1358 | 157 | - |
+| T5 | zombie_theater + common + common_zombie | 3375 | 1127 | 2005 | 243 | - |
+| T6 | zm_nuked + code_post_gfx_zm + common_zm | 2532 | 1657 | 873 | - | 2 |
 
 - No `bDelta3D` anim turned up.
 - The type-6 names are aim and look layers (`combatrun_head_2/4/6/8`, `cornerstndl_lean_aim_*`), the classic use of
@@ -179,7 +179,7 @@ A sweep decoded every anim in three zones with zero errors **[V-data]**:
   - Joints the anim doesn't name keep their rest pose.
 - **Partial anims.**
   - A zombie body binds 72 of the walk's 108 bones; the rest belong to the head or gear models.
-  - The viewmodel arms bind 65 of 70; the other five are gun bones (j_gun, j_bolt, tag_flash…) that belong to the
+  - The viewmodel arms bind 65 of 70; the other five are gun bones (j_gun, j_bolt, tag_flash...) that belong to the
     weapon model.
   - So one anim drives several attached models, each by name **[V-data]**.
 - **Shared across games.** T6's zm_nuked `ai_zombie_walk_v1` decodes to the same values as T4's (same keys, same
@@ -195,10 +195,10 @@ A sweep decoded every anim in three zones with zero errors **[V-data]**:
       fore-end) and follows the rechamber.
     - One small kar98 part sits at y ≈ 37 in the bind itself, probably the stripper clip parked off-screen until the
       reload [I].
-  - Head placement at rest, CPU-skinned from the glb: head z 57.7–71.4 around j_head 63.5, on a body topping out at
+  - Head placement at rest, CPU-skinned from the glb: head z 57.7-71.4 around j_head 63.5, on a body topping out at
     62.6. During the walk it follows j_head (T4, T5 and T6) **[V-data]**.
 - **Foot plant** (ai_zombie_walk_v1, root motion applied, j_ball_le/ri world positions per frame) **[V-data]**:
-  - The lowest foot is 0.27–0.85 units off the ground (median 0.38).
+  - The lowest foot is 0.27-0.85 units off the ground (median 0.38).
   - The stance foot slides at a median 1.7 units/s while the body travels at 37.6 units/s. For example, j_ball_le
     holds x ≈ 103.5 from frame 70 to frame 90.
   - walk_fast_v1 is the same picture: 1.8 against 65.4.

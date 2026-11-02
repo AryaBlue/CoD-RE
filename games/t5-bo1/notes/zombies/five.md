@@ -54,7 +54,7 @@ During the move [V :317-398]:
 - Destination: random among the enabled zones' pads, never the same pad and never the pack room (`conference_level2`) [V :473-529].
   - The power room pad (script_string `power_room_portal`) goes only to war_room_zone_north or conference_level1 [V :481-499].
 - Cooldown: you can't come back through the pad you arrived at for 20 s, or until DEFCON goes active [V :319-332].
-- Zombies near the user follow through the portal (`no_zombie_left_behind`, :696-742).
+- Zombies near the player follow through the portal (`no_zombie_left_behind`, :696-742).
 - Sounds: `evt_teleporter_out`, then `evt_teleporter_go`. Fx: `transporter_start` / `transporter_beam` [V].
 
 ## 3. DEFCON pack-a-punch

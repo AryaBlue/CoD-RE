@@ -29,11 +29,18 @@ either game belongs in a public repo. This folder has the method and our code on
 ## How to read this
 
 Every scripted step has a command line. The paths in the examples are made up: BO4 in `C:\Games\BO4`, BO3 and the Mod
-Tools in `C:\Games\BO3`, work files in `C:\work`. The `port` scripts take their folders from environment
-variables, set once per shell: `set BO4_WORK=C:\work`, `set BO3_TOOLS=C:\Games\BO3` and, for the deploy step of
-`build_usermap.ps1`, `set BO3_GAME=C:\Games\BO3game` (PowerShell: `$env:BO4_WORK = 'C:\work'`). They default to `C:\work`
-and the usual Steam folders, and `port\bo4cfg.py` shows how each path is built. The `tools` scripts keep
-`PATH/TO/...` constants near the top. Run scripts from `games\t8-bo4`.
+Tools in `C:\Games\BO3`, work files in `C:\work`.
+
+- The `port` scripts read their folders from environment variables, set once per shell:
+
+      set BO4_WORK=C:\work
+      set BO3_TOOLS=C:\Games\BO3
+      set BO3_GAME=C:\Games\BO3game     (only the deploy step of build_usermap.ps1 needs this)
+
+  In PowerShell that is `$env:BO4_WORK = 'C:\work'` and so on. They default to `C:\work` and the usual Steam folders.
+  `port\bo4cfg.py` shows how each path is built.
+- The `tools` scripts keep `PATH/TO/...` constants near the top.
+- Run scripts from `games\t8-bo4`.
 
 ## 0. What the problem looks like
 

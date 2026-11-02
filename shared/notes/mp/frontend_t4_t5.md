@@ -21,7 +21,7 @@
 
 This covers the data a Play / Weapons / Operator / Barracks front end needs: create-a-class slot rules, perk tiers,
 attachments and unlocks, the default classes, and what BO1's emblem editor allows. It is the companion to
-[mp_t4_tdm_ffa.md](../../../games/t4-waw/notes/mp/tdm_ffa_rules.md) (match rules).
+[tdm_ffa_rules.md](../../../games/t4-waw/notes/mp/tdm_ffa_rules.md) (match rules).
 
 Tags:
 - **[V]**: read in the game files, with a table or script and line.
@@ -372,6 +372,7 @@ Rules:
 
 ### Feature unlocks [V] (`statstable.csv` rows 216-244)
 
+```
 feature_killstreaks: level 10
 feature_contracts: level 5
 feature_reticles: level 25
@@ -401,6 +402,7 @@ feature_challenges_elite: level 20
 feature_challenges_final: level 30
 feature_challenges_gamemode: level 8
 feature_challenges_medals: level 15
+```
 
 - Max rank is 50 (`maxrank` 49).
 - The 5 prestige classes open at prestige 1, 3, 5, 7 and 9.

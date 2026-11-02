@@ -37,7 +37,7 @@ server runs a frame, what a trace takes and returns, how triggers fire, how scri
 smooths entities between snapshots.
 
 Tags:
-- **[V]**: read in the exe, with the address. T6 is Plutonium `t6mp.exe` (sha256 `770318…6adf`). T5 is `BlackOps.exe`
+- **[V]**: read in the exe, with the address. T6 is Plutonium `t6mp.exe` (sha256 `770318...6adf`). T5 is `BlackOps.exe`
   (the Steam exe). Static reads only: nothing was run or patched.
 - **[I]**: inferred, usually from the Quake 3 / CoD4 lineage the code clearly follows. Treat as a guess until checked.
 
@@ -306,7 +306,7 @@ is `0xE`.
 
 ### Which entities can move [V]
 
-`moveto`/`movex`/`movey`/`movez`/`rotateto`/… are entity methods (method table `0xc76f18`). They accept only
+`moveto`/`movex`/`movey`/`movez`/`rotateto`/... are entity methods (method table `0xc76f18`). They accept only
 `script_brushmodel`, `script_model`, `script_origin` or `light` (`0x5a6940`, error `0xc33208`).
 
 `script_brushmodel` (`0x5fa7b0`) and the other mover inits (`0x5071c0`) set:

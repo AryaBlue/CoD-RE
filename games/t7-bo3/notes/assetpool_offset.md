@@ -19,7 +19,7 @@ auto-update, which is what makes C2M report
 | **this build (100.2.2.7.109.0)** | **`module_base + 0x93883F0`** |
 | delta | `-0x7F000` |
 
-The struct **layout is stable across patches** — only this base constant moved.
+The struct **layout is stable across patches** - only this base constant moved.
 
 ## assetPools table layout (confirmed against live memory)
 - Entry stride **0x20 bytes**, one entry per asset type: `{ void* pool; int itemSize; int itemCount; ... }`.
@@ -42,20 +42,20 @@ ruled out.
   staticModels @ 0x438 (stride 0x98: pos@0, 3x3 matrix@0xC, scale@0x30, modelPtr@0x58).
 
 ## Method / constraints
-- **Static RE is not viable:** retail `BlackOps3.exe` is Arxan-protected — on-disk
+- **Static RE is not viable:** retail `BlackOps3.exe` is Arxan-protected - on-disk
   entropy is 7.9+ on both `.text` sections and `.rdata`, so code/strings/xrefs are
   encrypted until runtime. The offset is only recoverable from a **running**
-  process. The assetPools table lives in `.data`'s BSS region — zero on disk,
+  process. The assetPools table lives in `.data`'s BSS region - zero on disk,
   filled at runtime (`.data` raw size `0x3a3600`, virtual `0x175d6360` from
   va `0x3252000`), so the search window is `base+0x3252000+0x3a3600 .. +0x175d6360`.
 - Recovered by **read-only** memory inspection (`ReadProcessMemory`) of the live
   game with the target map loaded. No modification to the game process.
 - A signature scan of that BSS window for the table whose entry-4 deref reads
-  `"void"` makes any tool **self-healing** across future BO3 patches — preferred
+  `"void"` makes any tool **self-healing** across future BO3 patches - preferred
   over a hardcoded constant, which re-breaks on every update.
 
 ## Fix location
-Applied in our C2M fork — `github.com/AryaBlue/C2M`,
+Applied in our C2M fork - `github.com/AryaBlue/C2M`,
 `src/Husky/Husky/HuskyUtil.cs`, the `Games` dictionary `BlackOps3` row
 (`GameDefinition` Item1 = assetPools base). The `+0x80 / +0x200 / +0x1E0` usage in
 `Games/BlackOps3.cs` is unchanged. Credit chain: Scobalula (Husky) →

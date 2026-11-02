@@ -214,7 +214,7 @@ Maps: zm_nuked, zm_transit, zm_highrise, zm_prison, zm_buried, zm_tomb. 117 dist
 
 ## Sources and credits
 
-- gsc-tool by xensik: the decompiler the inventory reads (run locally on the user's own game files).
+- gsc-tool by xensik: the decompiler the inventory reads (run locally on our own game files).
 - JezuzLizard's Recompilable GSCs for BO2 zombies and multiplayer (now plutoniummod/t6-scripts): hand-fixed T6
   scripts, read only as a behaviour reference where our decompile looks odd. Nothing from it is in the repo.
 - Per-builtin references (codresearch wiki, Plutonium's T6 function list, zeroy's script reference, OAT's T6

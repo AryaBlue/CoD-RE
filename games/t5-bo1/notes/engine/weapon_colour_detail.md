@@ -57,7 +57,7 @@ linear = albedo²          // gamma → linear, then the usual t5 lprobe lightin
 | `cammo_gunplastic` | 32² | flat 0.278 grey | −0.222 × colour.a |
 
 - These four are flat (zero variance), so their `colorDetailScale` doesn't matter.
-- The other `cammo_*` images (wood_tile, base_*, tan_*, plastic_*, od_green_aug…) are per-gun and weren't measured [U].
+- The other `cammo_*` images (wood_tile, base_*, tan_*, plastic_*, od_green_aug...) are per-gun and weren't measured [U].
 
 **colorDetailScale across the 97 materials:**
 
@@ -65,9 +65,9 @@ linear = albedo²          // gamma → linear, then the usual t5 lprobe lightin
 |---|---|
 | `weapon_camo_neutral` | 8×8 (18) |
 | `weapon_camo_off` | 8×8 (13), 1×1 (5), 2×2 (2), 4×2 (2), 3×2 (1), 0.7 (1) |
-| `cammo_gunmetal` | 0.5–2 |
-| `cammo_gunplastic` | 1–8 |
-| everything else | 1–4 |
+| `cammo_gunmetal` | 0.5-2 |
+| `cammo_gunplastic` | 1-8 |
+| everything else | 1-4 |
 
 ## What it means for us
 
@@ -83,5 +83,5 @@ linear = albedo²          // gamma → linear, then the usual t5 lprobe lightin
 ## Open
 
 1. Confirm the full combine in the sun-shadow and spot pixel shaders [I].
-2. Measure the per-gun `cammo_*` images (wood, tan, base…), which may be real patterns where the tiling matters.
+2. Measure the per-gun `cammo_*` images (wood, tan, base...), which may be real patterns where the tiling matters.
 3. Check whether T5 swaps this slot at runtime for the PaP camo 15 or swaps the whole material (`GameProfile.cpp:904` note).

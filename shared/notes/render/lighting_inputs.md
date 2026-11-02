@@ -90,11 +90,11 @@ Probe 0 is always a dummy at the origin with a 4×4 image on T5/T6. Light 0 is a
 | `radius` | 44 | 44 | 44 |
 | `cosHalfFovOuter / Inner / Expanded` | 48 / 52 / 56 | same | same |
 | `rotationLimit / translationLimit` | 60 / 64 | same | same |
-| `mipDistance` | – | 68 | 68 |
-| `diffuseColor` f32×4 | – | 72 | 80 |
-| `specularColor` / `attenuation` | – | 88 / 104 | – |
-| `dAttenuation` / `roundness` | – | – | 72 / 76 |
-| `falloff` / `angle` / `aAbB` / `cookieControl0` | – | 120 / 136 / 152 / 168 | 96 / 112 / 128 / 144 |
+| `mipDistance` | - | 68 | 68 |
+| `diffuseColor` f32×4 | - | 72 | 80 |
+| `specularColor` / `attenuation` | - | 88 / 104 | - |
+| `dAttenuation` / `roundness` | - | - | 72 / 76 |
+| `falloff` / `angle` / `aAbB` / `cookieControl0` | - | 120 / 136 / 152 / 168 | 96 / 112 / 128 / 144 |
 | `defName` | 68 | 216 | 192 |
 | size | 72 | 220 | 196 |
 
@@ -105,9 +105,9 @@ Probe 0 is always a dummy at the origin with a 4×4 image on T5/T6. Light 0 is a
 - **T6** has no type 3 on Nuked. Its 12 type-5 lights use def `white_light_cube` with cosOuter 0.378, so they're
   most likely omnis lit through a cube cookie [I]. The T6 enum isn't in OAT. Its spot lights use def `white_light`.
 - **Colour.** WaW is 0..1 LDR: the spots read (1, 0.502, 0) orange, def `light_point_linear`. BO1 is HDR, with
-  spots up to about 10. BO2 is HDR: spots 19–73 max channel, type 5 7–28. Nuked's spots are cyan,
+  spots up to about 10. BO2 is HDR: spots 19-73 max channel, type 5 7-28. Nuked's spots are cyan,
   e.g. (24.2, 40.2, 47.9), and its type-5 lights are green (2.95, 13.8, 0.93).
-- **Radius.** WaW 300–600. Kino about 200. Nuked spots 400–1000, type 5 60–650.
+- **Radius.** WaW 300-600. Kino about 200. Nuked spots 400-1000, type 5 60-650.
 - **T5/T6 extra fields** (`falloff`, `aAbB`, `angle`, `dAttenuation`, `roundness`) are what BO2's lit programs use
   for attenuation. b2w derived it from t6 `sub_782FA0` (`LT:189-200`) [V by b2w]:
 
@@ -153,25 +153,25 @@ The grid is embedded in GfxWorld at +296 (T4), +536 (T5) and +464 (T6). Struct d
 
 | field | T4 | T5 | T6 |
 |---|---|---|---|
-| `hasLightRegions` bool | 0 | 0 | – |
+| `hasLightRegions` bool | 0 | 0 | - |
 | `sunPrimaryLightIndex` | 4 | 4 | 0 |
 | `mins` u16×3 / `maxs` u16×3 | 8 / 14 | 8 / 14 | 4 / 10 |
-| `offset` f32 | – | – | 16 |
+| `offset` f32 | - | - | 16 |
 | `rowAxis` / `colAxis` | 20 / 24 | same | same |
 | `rowDataStart` u16* | 28 | 28 | 28 |
 | `rawRowDataSize` / `rawRowData` | 32 / 36 | same | same |
 | `entryCount` / `entries` | 40 / 44 | same | same |
 | `colorCount` / `colors` | 48 / 52 | same | same |
-| `coeffCount` / `coeffs` | – | – | 56 / 60 |
-| `skyGridVolumeCount` / `skyGridVolumes` | – | – | 64 / 68 |
+| `coeffCount` / `coeffs` | - | - | 56 / 60 |
+| `skyGridVolumeCount` / `skyGridVolumes` | - | - | 64 / 68 |
 | size | 56 | 56 | 72 |
 
 ### Spatial index
 
 - `mins`/`maxs` are cell coordinates, biased.
-  - prototype: (3933, 3955, 2047)–(4247, 4219, 2068)
-  - theater: (4008, 4007, 2042)–(4168, 4182, 2063)
-  - nuked: (4027, 4035, 2046)–(4163, 4166, 2065)
+  - prototype: (3933, 3955, 2047)-(4247, 4219, 2068)
+  - theater: (4008, 4007, 2042)-(4168, 4182, 2063)
+  - nuked: (4027, 4035, 2046)-(4163, 4166, 2065)
 - They fit cells of 32 × 32 × 64 units with corners at `cell · size − 131072`. On prototype that gives x −5216..4832
   and z −64..1280, inside the world bounds (−6464..5824, z −188..1472).
   - Checked by `zonedump --lightgrid`: the grid E(up), trilinear over the corners, is compared with the lightmap
@@ -187,7 +187,7 @@ The grid is embedded in GfxWorld at +296 (T4), +536 (T5) and +464 (T6). Struct d
   - On T4/T5 the last byte is `needsTrace`; on T6 it is `visibility`.
   - T4 `needsTrace` is a corner trace mask (`LT:162`) [V by b2w]: 0 on 14 970 of 18 105 prototype entries.
   - T5's is all 0 [M].
-  - T6 `visibility` is sun visibility 0–255: 255 on 36 873 of 45 835 nuked entries [M; meaning per b2w].
+  - T6 `visibility` is sun visibility 0-255: 255 on 36 873 of 45 835 nuked entries [M; meaning per b2w].
   - `primaryLightIndex` 255 = no primary light (976 / 8 064 / 2 770 entries) [M].
 
 ### Payload: 56 directional samples per set [V by b2w]
@@ -198,7 +198,7 @@ The grid is embedded in GfxWorld at +296 (T4), +536 (T5) and +464 (T6). Struct d
 
 **T4** `GfxLightGridColors { u8 rgb[56][3] }`, 168 B (`T4H:2427-2437`):
 - Plain gamma RGB. WaW's model program uses `2·c/255` in gamma space, which is linear `4·(c/255)²` (`LT:158-161`).
-- Measured mean bytes (29.2, 26.0, 26.3), range 0–255. A mid set reads about (10–28) per channel [M].
+- Measured mean bytes (29.2, 26.0, 26.3), range 0-255. A mid set reads about (10-28) per channel [M].
 
 **T5** `GfxCompressedLightGridColors { u8 rgb[56][3] }`: each 3-byte slot is ONE 24-bit word, not three channels
 (`LG:215-238`, from OpenBLOPS `R_DecodeLightGridColors`):
@@ -228,15 +228,15 @@ Struct definitions: `T4H:2566`, `T5H:3106`, `T6H:3946`. The full layout is in wo
 
 | field | T4 | T5 | T6 |
 |---|---|---|---|
-| `cachedLightSettingIndex` | 64 | – | – |
-| `lightingHandle` u16 | – | 72 | 68 |
-| `colorsIndex` u16 | – | – | 70 |
-| `lightingSH` (`GfxLightingSHQuantized`, u16 V0..V2[4]) | – | – | 72 |
+| `cachedLightSettingIndex` | 64 | - | - |
+| `lightingHandle` u16 | - | 72 | 68 |
+| `colorsIndex` u16 | - | - | 70 |
+| `lightingSH` (`GfxLightingSHQuantized`, u16 V0..V2[4]) | - | - | 72 |
 | `primaryLightIndex` | 71 | 75 | 96 |
-| `visibility` | – | – | 97 |
+| `visibility` | - | - | 97 |
 | `reflectionProbeIndex` | 70 | 74 | 98 |
-| `smid` | – | – | 100 |
-| `lmapVertexInfo[4]` (12 B each) | – | – | 104 |
+| `smid` | - | - | 100 |
+| `lmapVertexInfo[4]` (12 B each) | - | - | 104 |
 
 Values [M]:
 - `lightingHandle` / `cachedLightSettingIndex` are 0 on every model in all three games. They're filled at
@@ -259,7 +259,7 @@ Struct definitions: `T4H:2581`, `T5H:3059`, `T6H:3894`.
 ### T6 baked vertex lightmap colours
 
 `GfxStaticModelLmapVertexInfo` (`T6H:3939`): `u32* lmapVertexColors`, VB, `u16 numLmapVertexColors`, one per LOD.
-- 716 of 2082 nuked models carry them: 14–28 610 per LOD, mean 786 [M].
+- 716 of 2082 nuked models carry them: 14-28 610 per LOD, mean 786 [M].
 - Example LOD 0 words: `00897e64 00887d64` on an office chair, `00030c10` on a dark one.
   - Read as BGRA (little-endian D3DCOLOR) that's R 0x89, G 0x7e, B 0x64: warm. The order is [I].
   - The 4th byte is used: mean 54 over all words, 0 in those examples. Its meaning is unknown, possibly a
@@ -275,10 +275,10 @@ Struct definitions: `T4H:2581`, `T5H:3059`, `T6H:3894`.
 | field | T4 | T5 | T6 |
 |---|---|---|---|
 | `origin` | 0 | 0 | 0 |
-| `lightingSH` (`GfxLightingSH`, f32 V0..V2[4]) | – | – | 12 |
+| `lightingSH` (`GfxLightingSH`, f32 V0..V2[4]) | - | - | 12 |
 | `reflectionImage` `GfxImage*` | 12 | 12 | 60 |
-| `probeVolumes` / `probeVolumeCount` | – | 16 / 20 | 64 / 68 |
-| `mipLodBias` | – | – | 72 |
+| `probeVolumes` / `probeVolumeCount` | - | 16 / 20 | 64 / 68 |
+| `mipLodBias` | - | - | 72 |
 | size | 16 | 24 | 76 |
 
 - The array is at `GfxWorld.reflectionProbes` +248 (count +244) on T4. On T5/T6 it is at
@@ -365,7 +365,7 @@ the lit ones the three maps use [V].
 
 | | single layer | multi layer |
 |---|---|---|
-| techset name | `wc_l_sm_<L0>` (T4/T5), `wpc_lit_sm_<L0>_<hash>` (T6) | `l_sm_<L0>_<L1>[_<L2>…]` (T4/T5), `lit_sm_<L0>_<L1>…` (T6), no prefix, no hash |
+| techset name | `wc_l_sm_<L0>` (T4/T5), `wpc_lit_sm_<L0>_<hash>` (T6) | `l_sm_<L0>_<L1>[_<L2>...]` (T4/T5), `lit_sm_<L0>_<L1>...` (T6), no prefix, no hash |
 | COLOR0 in the PS | `albedo.rgb *= COLOR0.rgb` | per-layer blend weights, **never** a tint |
 | measured | 100% white on every material in all 3 maps [M] | carries all the non-white values [M] |
 
@@ -378,11 +378,11 @@ Shader evidence [V]:
   - Bases `b0` (blend) and `t0` (alpha test) also take COLOR0.a into alpha.
 - **Multi layer, layer k ≥ 1 weighted by one channel:**
   - layer 1 = **G**, layer 2 = **B**, layer 3 = **A**
-  - R is read only when the base op is `b0` (base alpha, e.g. T4 `l_sm_b0c0n0s0_sco_b1…`: `mul_pp r5.w, r1.w, v5.x`)
+  - R is read only when the base op is `b0` (base alpha, e.g. T4 `l_sm_b0c0n0s0_sco_b1...`: `mul_pp r5.w, r1.w, v5.x`)
   - 2 layers: the VS packs COLOR0.xy into TEXCOORD6.xy beside the layer-1 UV in .zw (T5 `mov o7.xy, v1 ;
     mov o7.zw, v5.xyxy`). The PS then does T6 `lit_sm_r0c0n0x0_b1c1n1`: `sample r1, v7.zwzz, t2 ; mul r1.w,
     r1.w, v7.y`.
-  - 3 or more layers: COLOR0 arrives as COLOR (T6 `…_m2c2_m3c3`: `mad … v1.yyyy` for layer 1, `mad r3.xyz,
+  - 3 or more layers: COLOR0 arrives as COLOR (T6 `..._m2c2_m3c3`: `mad ... v1.yyyy` for layer 1, `mad r3.xyz,
     v1.zzzz, r3, 1` for layer 2, `mad r3.xyz, v1.wwww, r3, 1` for layer 3).
 - **No COLOR0 at all:** only `wpc_sw4_3d_unlit_3layer_texcolor` (an unlit effect), so it is irrelevant here.
 
@@ -424,7 +424,7 @@ is the layer index (`b1c1n1s1x1` is layer 1). The highest index + 1 is the layer
 ### The magenta surfaces in the grid
 
 The magenta is `albedo × (R, G≈0, B)`. G is the layer-1 weight, and B and A sit at 255 because a 2-layer techset
-ignores them. Rows below are ranked by triangles × magenta share [M]. Mean RGBA is in 0–255.
+ignores them. Rows below are ranked by triangles × magenta share [M]. Mean RGBA is in 0-255.
 
 **Prototype (T4).** Material names are hashed (`*<a>n_<b>n`), so the layers come from the texture table:
 
@@ -432,12 +432,12 @@ ignores them. Rows below are ranked by triangles × magenta share [M]. Mean RGBA
 |---|---|---|---|---|---|
 | `*9n_10n` | 3043 | 255 151 255 255 | 38% | `l_sm_r0c0n0s0_sco_b1c1n1s1_sco` | `peleliu_wall_concrete_bunker_chipped_c` → `peleliu_wall_concrete_grungy_edges_c` |
 | `*28n_29n` (the road) | 615 | 255 157 255 255 | 38% | `l_sm_r0c0n0s0_sco_b1c1n1s1` | `peleliu_terrain_dirt_crumbly_c` → `okinawa_terrain_dirt_drydirt_c` |
-| `*33n_35n` | 391 | 255 130 255 255 | 48% | `…_sco_b1c1n1s1_sco` | `peleliu_terrain_dirt_drymuddrk_c` → `peleliu_terrain_dirt_crumbly_c` |
+| `*33n_35n` | 391 | 255 130 255 255 | 48% | `..._sco_b1c1n1s1_sco` | `peleliu_terrain_dirt_drymuddrk_c` → `peleliu_terrain_dirt_crumbly_c` |
 | `*56n_35n` | 370 | 255 133 255 255 | 47% | same | `peleliu_terrain_dirt_trckslight_c` → `peleliu_terrain_dirt_crumbly_c` |
 | `*57n_35n` | 300 | 255 149 255 255 | 42% | same | `peleliu_terrain_grass_patchy_dead_c` → `peleliu_terrain_dirt_crumbly_c` |
 | `*1n_30n` | 445 | 252 130 255 255 | 48% | same | `berlin_ceilings_plaster2_c` → `peleliu_terrain_rubble_conc_chunks_c` |
 
-- Prototype's road is the dirt-track blend family (`*28n_29n`, `*33n_35n`, `*56n_35n`, …).
+- Prototype's road is the dirt-track blend family (`*28n_29n`, `*33n_35n`, `*56n_35n`, ...).
 - 3-layer `*9n_10n_10n` / `*57n_27n_35n` use G for layer 1 and B for layer 2. Their B is also below 255.
 
 **Kino (T5).** The names keep the layer materials, `*<a>n_<b>n(base:layer1)`:
@@ -469,8 +469,8 @@ ignores them. Rows below are ranked by triangles × magenta share [M]. Mean RGBA
 - The yellow wall's layers:
   - layer 0: `zm_vinylsiding_yellow_c` / `_n` / `_s`
   - layer 1: `wood_trim_burned01_c` / `_n` (burn marks), blended by G
-- The yellow wall's 3-layer pieces have B below 255, as layer 2 predicts. `…_17n_17n` (`_b2c2n2x2`) has mean
-  B 114, and `…_17n_5` (`_m2c2`, `decal_wall_fillet`) has B 190.
+- The yellow wall's 3-layer pieces have B below 255, as layer 2 predicts. `..._17n_17n` (`_b2c2n2x2`) has mean
+  B 114, and `..._17n_5` (`_m2c2`, `decal_wall_fillet`) has B 190.
 - The roads and roofs are the same `rubble_ash` / `floor_burnt` blends.
 - The non-white R on the grass and rock rows (221, 224, 233) is unused, because those bases are `r0`.
 
@@ -497,9 +497,9 @@ The VS writes one shadow coordinate (T4 `TEXCOORD4`, T6 `v7`). `.xy` is the near
 | `.w` | lookup |
 |---|---|
 | ≤ 0.75 | near partition only |
-| 0.75–1 | near and far, lerp by `4w − 3` |
-| 1–4 | far partition only. The far UV is `xy · switchPartition.w + switchPartition.xy` (`shadowmapSwitchPartition`, T4/T5 `c2`, T6 `cb0[97]`). |
-| > 4 | no map. T4/T5: the branch skips the lookup, so only the baked gate applies [I, tail not fully traced]. T6 fades to the **baked** visibility over `w` 3–4 (`add_sat w, −3`), then uses only that. |
+| 0.75-1 | near and far, lerp by `4w − 3` |
+| 1-4 | far partition only. The far UV is `xy · switchPartition.w + switchPartition.xy` (`shadowmapSwitchPartition`, T4/T5 `c2`, T6 `cb0[97]`). |
+| > 4 | no map. T4/T5: the branch skips the lookup, so only the baked gate applies [I, tail not fully traced]. T6 fades to the **baked** visibility over `w` 3-4 (`add_sat w, −3`), then uses only that. |
 
 - **Filtering:**
   - T4/T5: 4 depth taps compared by hand (`cmp`, ×0.25), at offsets of 1/2048 and 1/4096 in UV. The constants suggest
@@ -525,12 +525,12 @@ The VS writes one shadow coordinate (T4 `TEXCOORD4`, T6 `v7`). `.xy` is the near
   material instead: `MTL_GAMEFLAG_CASTS_SHADOW = 0x40` (`T4H:1032`, `T6H:637`).
 - **BO2 shadow-map volumes.** Each volume's `control` decodes as `firstPlane | (planeCount − 1) << 16 | flags << 24`
   [M]:
-  - volume 0: planes 0–5, flags 2
-  - volumes 1–4: 10 planes each from 6/16/26/36, flags 8
+  - volume 0: planes 0-5, flags 2
+  - volumes 1-4: 10 planes each from 6/16/26/36, flags 8
   - Their sum is exactly 46.
-  - Volume 0 is an axis-aligned box around the playable area (|x| ≈ 2130, y −1176…600, z −296…144).
+  - Volume 0 is an axis-aligned box around the playable area (|x| ≈ 2130, y −1176...600, z −296...144).
   - Their use is probably limiting the cached/static sun-shadow region [I].
-- **`outdoorImage`** (512² on all three) and `outdoorLookupMatrix` map world space to a 0–1 outdoor mask. They are
+- **`outdoorImage`** (512² on all three) and `outdoorLookupMatrix` map world space to a 0-1 outdoor mask. They are
   for weather and outdoor occlusion, not shadows [I].
 - The direction is the sun's (section 1). `GfxLight.canUseShadowMap` / `sunisprimarylight 1` mark the sun as primary
   light 1 on all three maps.

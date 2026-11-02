@@ -22,7 +22,7 @@
   - [6. Napalm Strike (`napalm_mp`)](#6-napalm-strike-napalm_mp)
   - [7. Attack Dogs (`dogs_mp`)](#7-attack-dogs-dogs_mp)
   - [8. Attack Helicopter (`helicopter_comlink_mp`)](#8-attack-helicopter-helicopter_comlink_mp)
-  - [9. Points the engine team should know (summary)](#9-points-the-engine-team-should-know-summary)
+  - [9. Summary for engine work](#9-summary-for-engine-work)
 - [Black Ops II (t6)](#black-ops-ii-t6)
   - [0. Shared system: how scorestreaks are earned, held and used](#0-shared-system-how-scorestreaks-are-earned-held-and-used)
   - [1. UAV (`radar_mp`)](#1-uav-radar_mp)
@@ -59,8 +59,8 @@ Researched 2026-10-28.
   - BO2's vehicle defs, from `zonedump --vehicles` on `common_mp.ff`.
 - No script text is copied here. Logic is described in prose with numbers, names and file:function references.
 - **Related docs:**
-  - WaW's earn and hold rules are also in [mp_t4_tdm_ffa.md](../../../games/t4-waw/notes/mp/tdm_ffa_rules.md) §4.
-  - The BO1/BO2 threshold columns and the default three streaks are in [mp_rules_t4_t5_t6.md](rules.md) §3. The numbers here agree with both.
+  - WaW's earn and hold rules are also in [tdm_ffa_rules.md](../../../games/t4-waw/notes/mp/tdm_ffa_rules.md) §4.
+  - The BO1/BO2 threshold columns and the default three streaks are in [rules.md](rules.md) §3. The numbers here agree with both.
   - Reforged's `games/reforged/mp/Killstreaks.{h,cpp}` already holds WaW's earn/hold/use state, but no effects.
 
 ## Summary
@@ -71,8 +71,8 @@ Researched 2026-10-28.
 | on death | streak to 0; the held item is kept [V] | kill count to 0; unused earned streaks are kept as a stack [V] | momentum to 0 at spawn; unused streaks are kept [V] |
 | kills with a streak | count only if called in the same life [V] | never count [V] | give 25 points, not the kill's 100 [V] |
 | recon | recon plane 3 kills, 30 s, minimap only (no plane) [V] | spy plane 3; about 40 s of radar (20 s orbit + 20 s exit) [V] | UAV 425; 25 s, fast sweep with two up [V] |
-| counter | — | counter-spy plane 4, 30 s jam (client-side) [V] | counter-UAV 600, 30 s scramble [V] |
-| package | — | care package 5 [V] | care package 550 [V] |
+| counter | - | counter-spy plane 4, 30 s jam (client-side) [V] | counter-UAV 600, 30 s scramble [V] |
+| package | - | care package 5 [V] | care package 550 [V] |
 | others here | artillery 5, dogs 7 | RC-XD 3, napalm 5, mortar 6, attack helicopter 7, dogs 11 | RC-XD 450, hunter-killer 525, lightning strike 750, sentry 800 |
 
 **Shared engine-side unknowns.** The scripts only switch radar on or off, or into a mode (normal or fast). The engine's compass code decides several things [U] for all three games:
@@ -101,7 +101,7 @@ Tags: [V] read directly in data/script/exe, [I] inferred, [U] unknown.
 - The location selector material `map_artillery_selector` and the shellshocks `artilleryblast_friendly` and `artilleryblast_enemy` are precached.
 - Using a hardpoint awards XP event `"hardpoint"` worth 10 (`registerScoreInfo`).
 
-**How streaks accrue** [V] `GL` Callback_PlayerKilled (around lines 6520–6540)
+**How streaks accrue** [V] `GL` Callback_PlayerKilled (around lines 6520-6540)
 - `cur_kill_streak` goes up by one for each kill of an enemy player, but only when all of these hold:
   - the attacker is alive at the moment of the kill;
   - one of these is true: there is no eInflictor, or the eInflictor has no `requiredDeathCount`, or the attacker's `deathCount` equals the eInflictor's `requiredDeathCount`.
@@ -114,7 +114,7 @@ Tags: [V] read directly in data/script/exe, [I] inferred, [U] unknown.
 - If `scr_game_forceradar` is 1, the table changes to 3 = artillery and 5 = dogs, with no radar reward. In that mode every player has the compass showing enemies all the time, because `g_compassShowEnemies` is set from that dvar on connect (`GL` around line 4666).
 - There is a commented-out `kamikaze_mp` at 10/15. It is dead code.
 
-**Reset** [V] `GL` Callback_PlayerKilled (around lines 6355–6375)
+**Reset** [V] `GL` Callback_PlayerKilled (around lines 6355-6375)
 - `cur_kill_streak` is set to 0 on every death, including being team-killed and suicide.
 - The streak is per life only. It is initialised to 0 on connect (`GL` around line 4812).
 - `deathCount` goes up by one on each death.
@@ -265,7 +265,7 @@ Tags: [V] read directly in data/script/exe, [I] inferred, [U] unknown.
   - the hit Z minus 514 is used as the start height;
   - `doArtillery` then traces 10 000 units straight down from there at the chosen XY to find the ground;
   - map-hole failsafe: if nothing is hit, the caller's Z is used.
-- The target gets a random offset of 0–9 units (`randPointRadiusAway` with `RandomIntRange(0,10)`).
+- The target gets a random offset of 0-9 units (`randPointRadiusAway` with `RandomIntRange(0,10)`).
 - A compass marker is shown with the builtin `artilleryiconlocation(targetpos, team, 1)`. `artilleryWaiter()` hides it when the strike ends (on `artillery_status_change`).
   - The exe has the materials `compass_objpoint_flak_friendly` and `compass_objpoint_flak_busy` [V strings]. That these are the marker icons is [I].
 
@@ -280,18 +280,18 @@ Tags: [V] read directly in data/script/exe, [I] inferred, [U] unknown.
   - Cannon A: yaw −(1 or 2)°, firing distance 10 000 − rand(−100..100).
   - Cannon B: exact yaw and distance 10 000.
   - Cannon C: yaw +(1 or 2)°, distance 10 000 − rand(−100..100).
-  - Each cannon starts after a random delay of 0–3 s.
+  - Each cannon starts after a random delay of 0-3 s.
 - **5 shells per cannon** (tweakable `scr_hardpoint_artilleryCanonShellCount`, default 5), giving **15 shells total**.
   - `scr_hardpoint_artilleryCanonCount` (default 3) only feeds the in-flight shell counter `level.artilleryShellsInAir` = cannons × shells. It does not change the number of cannon threads, so a value other than 3 desyncs the end-of-strike wait. [V] for the code, [I] for the consequence.
 - **Volleys**: `volleyCount` = 1. Each cannon picks an aim point exactly r units from the target in a random direction, r ∈ [0, 500].
-- Each shell then waits rand(2–4) s and lands at randint(0..519) units from that aim point. Shells therefore spread up to about 1020 units from the target, most within a few hundred units [I]. Per cannon, shells are 2–4 s apart; with 3 cannons overlapping, there is roughly one impact every 0.7–1.3 s [I].
+- Each shell then waits rand(2-4) s and lands at randint(0..519) units from that aim point. Shells therefore spread up to about 1020 units from the target, most within a few hundred units [I]. Per cannon, shells are 2-4 s apart; with 3 cannons overlapping, there is roughly one impact every 0.7-1.3 s [I].
 - **Ballistics**:
   - each shell is a real projectile, `owner launchbomb("artillery_mp", firePos, velocity)`;
   - firePos is 10 000 units back along the yaw from the shell's own strike position;
   - pitch is `scr_artilleryAngle` (if 0 or unset, 60° upward), with a random offset of −3 to +2°;
   - the speed is solved from the range formula using `g_gravity` (engine default **800** [V], from the exe registration around 0x4fc650).
-- Flight time = distance / (v·cos pitch). At 60° with g = 800 that is v ≈ 3040 u/s and **about 6.6 s from launch to impact** [I, computed]. That makes the first impact land about 8.5–13.5 s after the call: 0–3 s cannon delay + 2–4 s shell wait + about 6.6 s flight.
-- Player-facing delay after confirming: about 9–14 s to the first shell. The last shell lands about 16–29 s after the call [I, computed]. A safety cap in `doArtillery` ends the strike 45 s after the call regardless [V].
+- Flight time = distance / (v·cos pitch). At 60° with g = 800 that is v ≈ 3040 u/s and **about 6.6 s from launch to impact** [I, computed]. That makes the first impact land about 8.5-13.5 s after the call: 0-3 s cannon delay + 2-4 s shell wait + about 6.6 s flight.
+- Player-facing delay after confirming: about 9-14 s to the first shell. The last shell lands about 16-29 s after the call [I, computed]. A safety cap in `doArtillery` ends the strike 45 s after the call regardless [V].
 - The in-progress flag clears when all 15 projectiles have sent `death` (`referenceCounter`), or at the 45 s cap. Only after that can anyone call a new strike.
 
 **Damage** [V] `weapons/artillery_mp`
@@ -357,7 +357,7 @@ Tags: [V] read directly in data/script/exe, [I] inferred, [U] unknown.
 | `scr_dog_time` | 60 | lifetime in seconds, from the call |
 
 - **Spawning**:
-  - the first 4 spawn one after another, with a wait `randomfloat(2, 5)` between each. The GSC `randomfloat` takes one argument, so the effective gap is [U]: either 0–2 s or 2–5 s;
+  - the first 4 spawn one after another, with a wait `randomfloat(2, 5)` between each. The GSC `randomfloat` takes one argument, so the effective gap is [U]: either 0-2 s or 2-5 s;
   - after that, each `dog died` notify triggers the same wait and one replacement, until the 4 replacements are used up, giving 8 in total;
   - spawn node choice: nodes with `script_noteworthy` `spawn`, or 20 random path nodes. In team modes the choice favours nodes far from enemies and near allies (`dog_pick_node_near_team`); in FFA it favours nodes about 1600 units from all players, with a penalty under 1200 (`dog_pick_node_away_from_enemy`). Both avoid line of sight to the two closest enemies (penalty 100 000) and reuse within 3 s.
 - **End**:
@@ -396,7 +396,7 @@ Tags: [V] read directly in data/script/exe, [I] inferred, [U] unknown.
 | Anim tree | `dog.atr`; scripts `maps/mp/animscripts/dog_*.gsc`; player xanims `player_view_dog_knockdown`, `_late`, `_saved`, `_neck_snap`, `_neck_miss` |
 | FX | `impacts/fx_deathfx_dogbite`, `impacts/fx_deathfx_dogbite_dmg` |
 | Shock | `dog_bite` (`shock/dog_bite.shock`) |
-| Sounds | barks `anml_dog_bark`, `anml_dog_bark_close`, `anml_dog_bark_attack_mid`, `anml_dog_bark_attack_close` (`clientscripts/mp/_dogs.csc` movement-state table: normal every 1–4 s; mid every 0.5–2 s within 1500; close every 0.01–0.1 s within 1000); `anml_dog_attack_fence`, `anml_dog_attack_jump`, `anml_dog_attack_kill_player`, `anml_dog_attack_miss`; `mp_killstreak_dogs` (earned) |
+| Sounds | barks `anml_dog_bark`, `anml_dog_bark_close`, `anml_dog_bark_attack_mid`, `anml_dog_bark_attack_close` (`clientscripts/mp/_dogs.csc` movement-state table: normal every 1-4 s; mid every 0.5-2 s within 1500; close every 0.01-0.1 s within 1000); `anml_dog_attack_fence`, `anml_dog_attack_jump`, `anml_dog_attack_kill_player`, `anml_dog_attack_miss`; `mp_killstreak_dogs` (earned) |
 | HUD | hud / d-pad / kill icon `compass_objpoint_dogs` (image `hud_dogkill`); `hud_dog_melee` (hint `hint_dog_melee`); minimap ping `compassping_dog` (exe string) |
 | Strings | `MP_EARNED_DOGS`, `MP_DOGS_NOT_AVAILABLE`, `MP_DOGS_INBOUND` |
 | Map requirements | actor spawner targetname `dog_spawner`; optional path nodes with `script_noteworthy` `spawn` / `exit` |
@@ -414,7 +414,7 @@ Tags: [V] read directly in data/script/exe, [I] inferred, [U] unknown.
 - There is no bot AI for hardpoints in WaW MP [V].
 - The only bots are dev test clients: `maps/mp/gametypes/_dev.gsc addTestClients()`, driven by `scr_testclients`, which sets `pers["isBot"]`. They spawn but never use hardpoints. No script reads `isBot` for killstreaks (in `GL` it is only checked for class and leaderboard handling).
 - The commented-out `GL testHPs()` gives `radar_mp` every 20 s and is test code only.
-- All the bot rules in sections 1–3 are therefore [I].
+- All the bot rules in sections 1-3 are therefore [I].
 
 ### 5. Unknowns
 
@@ -457,7 +457,7 @@ Tags: [V] read directly in data or script, [I] inferred, [U] unknown or not in t
 - **Round-start delay.** Streaks registered with `delayStreak = true` cannot be used for `level.killstreakRoundDelay` seconds after round start. The delay comes from `scr_<gametype>_killstreakDelayTime` (`gametypes/_weapons.gsc`); the game prints "unavailable for N seconds". [V]
   - Delayed: mortar, napalm, dogs, attack helicopter, M220 TOW.
   - Not delayed: spy plane, counter-spy plane, care package, RC-XD.
-- **XP for use** (`getXPAmountForKillstreak()`), by the streak's kill level: 1–4 kills give 100, 5 gives 150, 6–7 give 200, 8 gives 250, 9 gives 300, 10–11 give 350, 12–15 give 500. RC-XD pays its XP when control starts rather than in `triggerKillstreak`. [V]
+- **XP for use** (`getXPAmountForKillstreak()`), by the streak's kill level: 1-4 kills give 100, 5 gives 150, 6-7 give 200, 8 gives 250, 9 gives 300, 10-11 give 350, 12-15 give 500. RC-XD pays its XP when control starts rather than in `triggerKillstreak`. [V]
 - **"Inbound near you" warning.** Uses a radius of 1.25 × the streak's danger radius, 2D (`pointIsInDangerArea()`). [V]
 
 #### 0.3 Team limits (`_killstreakrules.gsc init()`) [V]
@@ -520,7 +520,7 @@ Registration sites: `_radar.gsc init()`, `gametypes/_supplydrop.gsc init()`, `_r
 - **Loadout picks** (`bot_setKillstreaks()`): 3 random streaks with distinct kill levels.
   - Any bot can draw spy plane, care package or attack helicopter.
   - At rank ≥ 9, or offline, the pool adds turret drops, napalm, counter-spy, mortar, blackbird, airstrike, dogs and RC-XD.
-- **Use loop** (`bot_killstreak_think()`): every 3–5 s, take the top streak. If `isKillstreakAllowed` fails, wait 5 s. Otherwise use it according to type (described per streak below). A fail-safe switches back to `lastNonKillstreakWeapon` if the bot is still holding the streak weapon.
+- **Use loop** (`bot_killstreak_think()`): every 3-5 s, take the top streak. If `isKillstreakAllowed` fails, wait 5 s. Otherwise use it according to type (described per streak below). A fail-safe switches back to `lastNonKillstreakWeapon` if the bot is still holding the streak weapon.
 - **Hardline for bots.** Bots holding perk `specialty_noname` get `specialty_killstreak` set (`bot_revive_think()`).
 
 ---
@@ -541,7 +541,7 @@ See 0.1. The threshold is 3 kills (statstable col 5) [V]. Activation is instant 
 **Flight path** (`generatePlane()`, `rotateUAVRig()`): [V]
 - An invisible rig sits at the centre of the box spanned by the two `minimap_corner` ents, or at (0,0,0) if they are missing. Its start yaw is 115°.
 - It rotates 360° every **60 s**: the spy-plane rig turns clockwise, the counter-spy rig anticlockwise.
-- Each plane links to the rig at a random angle. The horizontal offset is 5000–7000 and the height offset 3000–5000; that offset vector is then normalised and rescaled to a length of 6000–7000.
+- Each plane links to the rig at a random angle. The horizontal offset is 5000-7000 and the height offset 3000-5000; that offset vector is then normalised and rescaled to a length of 6000-7000.
 - Attach yaw is −90 for the spy plane and +90 for the counter-spy plane.
 
 **Minimap reveal, server side** (`_spyplane.gsc UAVTracker()`, `updateTeamUAVStatus()`, `updatePlayersUAVStatus()`; `_radar.gsc setTeamSpyplaneWrapper()`): [V]
@@ -594,7 +594,7 @@ See 0.1. The threshold is 3 kills (statstable col 5) [V]. Activation is instant 
 - **Dev dvar:** `scr_giveradar`. [V]
 
 #### 1.4 Bots
-- **Stock** (`_bot.gsc bot_killstreak_think()`): the bot simply switches to the weapon as soon as it is on top of its stack (3–5 s polling), with no tactical condition. [V]
+- **Stock** (`_bot.gsc bot_killstreak_think()`): the bot simply switches to the weapon as soon as it is on top of its stack (3-5 s polling), with no tactical condition. [V]
 - **Reading radar:** stock bots do not consume radar information, except in wager modes, where a bot with `hasSpyplane` paths to a random live enemy (`bot_wager_think()`). [V]
 - **Suggested rule** [I]:
   - Use immediately when earned unless the team already has one active. A second plane gives only the faster refresh.
@@ -668,10 +668,10 @@ See 0.1. The threshold is 5 kills (statstable col 5) [V]. It is not round-delaye
 | Goal offset | 400 forward (`scr_supplydropOffset`, the rear hatch). |
 | Speed in | `SetSpeed` 125, accel 100, max roll 45. After 3 s it slows to 75 / accel 40, yaw speed 100, and 1 s later max pitch 25 / roll 35. All are dvars (`scr_supplydrop*`). SetSpeed units are engine-side (likely mph). [I] |
 | Drop | At goal + 0.2 s, the crate spawns at the heli origin − 200 z (`scr_supplydropOffsetHeight`) minus the rotated 400 offset (`heliDropCrate()`). |
-| Exit | Speed 150 / accel 40, a 60–120° turn to either side, 15000 units out (`scr_supplydropOutgoingDistance`) with ±150 jitter. Then deleted. |
+| Exit | Speed 150 / accel 40, a 60-120° turn to either side, 15000 units out (`scr_supplydropOutgoingDistance`) with ±150 jitter. Then deleted. |
 | Rule release | When the **chopper** is deleted or destroyed (`refCountDecChopper()`), not when the crate is taken. |
 | Health | `maxhealth` 1500, using the `_helicopter.gsc heli_damage_monitor()` model: bullets × 0.3 (`scr_heli_armor_bulletdamage`); rockets one-shot (`rocketDamageOneShot` = 1501); no chaff. |
-| Shot down (`heliDestroyed()`) | Slows to 25, spins at 180–220°/s, and **still drops the crate** after 0.5–1.5 s, from wherever it is. Then it explodes. Destroying it gives XP `helicopterkill`. |
+| Shot down (`heliDestroyed()`) | Slows to 25, spins at 180-220°/s, and **still drops the crate** after 0.5-1.5 s, from wherever it is. Then it explodes. Destroying it gives XP `helicopterkill`. |
 | SAM turrets | Cannot acquire it until it is within 1500 of the drop point or inside the spawn bounds (`SAMTurretWatcher()`). |
 
 **Crate** (`dropCrate()`, `crateSpawn()`, `cratePhysics()`): [V]
@@ -745,8 +745,8 @@ See 0.1. The threshold is 5 kills (statstable col 5) [V]. It is not round-delaye
   - The bot must be idle: alive, not in last stand, no script goal, no threat.
   - Path lookahead must be ≥ 96 units, view pitch ≥ 7° (looking down), and lookahead yaw within 2° of facing.
   - The point 384 units ahead must have clear sky (sight traces to 2048 above, from that point and from the bot) and solid ground within 32 below.
-  - It then steps 64 forward, switches to the marker and presses Attack (`bot_use_item()`), switches back, and waits up to 10–15 s for its crate (`bot_crate_landed`).
-- **Collecting** (`bot_crate_think()`), every 3–5 s while idle: [V]
+  - It then steps 64 forward, switches to the marker and presses Attack (`bot_use_item()`), switches back, and waits up to 10-15 s for its crate (`bot_crate_landed`).
+- **Collecting** (`bot_crate_think()`), every 3-5 s while idle: [V]
   - Pick a random crate that is not still dropping, with at most 1 bot already assigned.
   - A teammate's crate is skipped 70 % of the time.
   - A crate further than 2048 is ignored unless it is the bot's own.
@@ -797,7 +797,7 @@ See 0.1. The threshold is 3 kills (statstable col 5) [V]. It is not round-delaye
 
 **Other rules:** [V]
 - **Friendly fire:** with FF off only the owner, or inflictors linked to the car, can damage it (`RCCarAllowFriendlyFireDamage()`). In FFA the owner can damage it (`gametypes/_globallogic_vehicle.gsc`).
-- **Enemy scramblers:** an enemy scrambler within the inner radius sets the stunned client flag (`watchForScramblers()`, re-checked every 0.25–0.5 s).
+- **Enemy scramblers:** an enemy scrambler within the inner radius sets the stunned client flag (`watchForScramblers()`, re-checked every 0.25-0.5 s).
 - **Ending control:** exiting the vehicle ends control. Changing team deletes the car.
 
 **Limits:** rcxd, 3 global / 2 per team. In FFA the effective cap is 2. [V]
@@ -844,7 +844,7 @@ See 0.1. The threshold is 6 kills (statstable col 5) [V]. It **is** round-delaye
 - **Ground point:** each point is traced down 1000 units. If the trace falls more than 999 below the start, the owner's z is used instead. The code first lowers each point to the ground under the owner minus 514, so this fallback probably fires often and the owner's height is used. [V]/[I]
 - **Order:** points fire **2.5 s apart** (`scr_timeBetweenMortars`).
 - **Shells per point:** `mortarCanonShellCount` = **2** (tweakable `scr_hardpoint_mortarCanonShellCount`), spaced 1.3 ± 0.2 s (`scr_timeBetweenShells`). Accuracy radius is **0**, so both shells land on the exact point.
-- **Total:** 6 shells in about 6–7 s (`level.mortarShellsInAir` = `mortarCanonCount` 3 × 2).
+- **Total:** 6 shells in about 6-7 s (`level.mortarShellsInAir` = `mortarCanonCount` 3 × 2).
 - **Firing direction:** from `mortar_<team>` map ents if present, else from random origins outside the spawn bounds, choosing the one most behind map centre (`getBestFlakDirection()`).
 - **Ballistics:**
   - Firing position 6000 units back (`scr_mortarDistance`), pitch 75° (`scr_mortarAngle`).
@@ -939,7 +939,7 @@ See 0.1. The threshold is 5 kills (statstable col 5) [V]. It is round-delayed. [
 - **Strings:** `MP_EARNED_NAPALM`, `KILLSTREAK_NAPALM_NOT_AVAILABLE`, `MP_WAR_NAPALM_INBOUND`, `MP_WAR_NAPALM_INBOUND_NEAR_YOUR_POSITION`. [V]
 
 #### 6.4 Bots
-- **Stock** (`bot_killstreak_location(1, weapon)`): one confirm at a random enemy ±512 in X/Y, with a **random yaw** in 0–359. [V]
+- **Stock** (`bot_killstreak_location(1, weapon)`): one confirm at a random enemy ±512 in X/Y, with a **random yaw** in 0-359. [V]
 - **Suggested refinement** [I]: aim the yaw so the 7 × 200 = 1400-unit flame line runs through the most enemy positions, e.g. along a corridor or between two known enemies.
 
 ---
@@ -965,7 +965,7 @@ See 0.1. The threshold is 11 kills (statstable col 5) [V]. It is round-delayed. 
 
 **Spawn and replacement:** [V]
 - The first 4 spawn one after another, waiting `randomfloat(2, 5)` between each.
-- `randomfloat` takes a single argument, so the real wait is probably 0–2 s. [I]
+- `randomfloat` takes a single argument, so the real wait is probably 0-2 s. [I]
 - After that, each dog death spawns one replacement after the same wait, until 8 have spawned.
 - Spawn node: in team modes `dog_pick_node_near_team()`; in FFA `dog_pick_node_away_from_enemy()`.
 
@@ -1042,8 +1042,8 @@ See 0.1. The threshold is 7 kills (statstable col 5) [V]. It is round-delayed. K
 **Flight** (`heli_protect()`): [V]
 - It is in the air for **60 s** (`scr_heli_protect_time`).
 - It flies to the chosen point at the highest node height on its start path, plus 800 for axis, raised to clear no-fly zones.
-- It then hovers **12 s** per spot (`scr_heli_protect_pos_time`), or 2 s when evasive, before moving to a random point **400–1600** from the chosen spot (radius 2000 with a 20 % margin).
-- **Speeds:** normal 30–49 (accel 10–14), evasive 50–69, hover 20. Hover is interrupted by a lock-on.
+- It then hovers **12 s** per spot (`scr_heli_protect_pos_time`), or 2 s when evasive, before moving to a random point **400-1600** from the chosen spot (radius 2000 with a 20 % margin).
+- **Speeds:** normal 30-49 (accel 10-14), evasive 50-69, hover 20. Hover is interrupted by a lock-on.
 - **Leaving:** speed 105 to a random leave node, then deleted, which releases the rule (`heli_leave()`, `destroyHelicopter()`).
 
 **Targeting** (`heli_targeting()`, `canTargetPlayer_turret()`, `update_player_threat()`): [V]
@@ -1095,12 +1095,12 @@ See 0.1. The threshold is 7 kills (statstable col 5) [V]. It is round-delayed. K
 
 #### 8.4 Bots
 - **Using** (`bot_killstreak_location(1, weapon)`): one confirm at a random enemy ±512 in X/Y. [V]
-- **Countering** (`bot_vehicle_think()`): every 1 s, bots other than "easy" ones engage any enemy `script_vehicle` they have line of sight to. That includes helicopters, the supply chopper and the RC-XD. They only engage aircraft if they hold `m72_law_mp`, `strela_mp`, `m202_flash_mp`, `minigun_mp` or `rpg_mp` with ammo, and they keep the vehicle as script enemy for 7–10 s. [V]
+- **Countering** (`bot_vehicle_think()`): every 1 s, bots other than "easy" ones engage any enemy `script_vehicle` they have line of sight to. That includes helicopters, the supply chopper and the RC-XD. They only engage aircraft if they hold `m72_law_mp`, `strela_mp`, `m202_flash_mp`, `minigun_mp` or `rpg_mp` with ammo, and they keep the vehicle as script enemy for 7-10 s. [V]
 - **Suggested addition** [I]: bots without a launcher should break line of sight from an enemy helicopter, i.e. move indoors or under cover.
 
 ---
 
-### 9. Points the engine team should know (summary)
+### 9. Summary for engine work
 - **Spy plane: about 40 s, not 20 s.** Its radar effectively lasts 40 s (20 s orbit plus 20 s exit while still counted). The counter-spy plane jams for 30 s, and its bookkeeping lasts 50 s. [V]
 - **Counter-spy jamming is client-side.** It is a "global scrambler" (`SetEnemyGlobalScrambler`) and does not change server radar state. The compass sweep period and visuals are all engine-side. [U]
 - **Your own spy plane is invisible to your team**, visible only to enemies (`SetVisibleToTeam(otherteam)`). [V]
@@ -1168,7 +1168,7 @@ TDM values (scoreinfo `tdm score` column) [V]:
 **Hardline** (`specialty_earnmoremomentum`) multiplies positive gains by dvar `perk_killstreakMomentumMultiplier`, rounded to the nearest 5 [V `giveplayermomentumnotification()`]. Value [U].
 
 **Momentum cap and looping** [V `_globallogic_score.gsc _setplayermomentum()`, `_giveplayerkillstreakinternal()`]:
-- Momentum is clamped to 0–2000.
+- Momentum is clamped to 0-2000.
 - On each increase, every equipped streak whose cost lies in (old, new] is awarded.
 - If momentum then reaches the most expensive equipped streak's cost, that cost is subtracted and the award check runs again from 0. The three streaks therefore loop within one life.
 
@@ -1232,8 +1232,8 @@ In scorestreak mode [V `_giveplayerkillstreakinternal()`, `_killstreaks.gsc chan
   - The sweep itself (sweep vs constant, refresh period of mode 1 vs 2) is engine compass code, not script: [U] in this data. Mode 2 is named "fastsweep" in `useradaritem()`, which implies a sweeping radar with a faster sweep for two or more UAVs [I].
 - **Plane placement** (cosmetic, but it is the shootable target):
   - The model is a script_model linked to `level.uavrig`. The rig sits at the centre of the two `minimap_corner` ents, 1100 units up (mp_hydro adds +1200 Y).
-  - The rig rotates 360° every 60 s clockwise (`rotateuavrig(1)`) and bobs ±100–200 units over 3–5 s (`swayuavrig()`).
-  - The plane is offset in a random direction: horizontal radius 4000–4999, Z 4000–4999. The offset is normalised and rescaled to a length of 4000–4999.
+  - The rig rotates 360° every 60 s clockwise (`rotateuavrig(1)`) and bobs ±100-200 units over 3-5 s (`swayuavrig()`).
+  - The plane is offset in a random direction: horizontal radius 4000-4999, Z 4000-4999. The offset is normalised and rescaled to a length of 4000-4999.
   - It is visible to everyone **except its own team** (`updatevisibility()`; FFA: everyone except the owner).
   - It is lock-on-able (`target_set`), shows in thermal (`setdrawinfrared`), and makes incoming missiles proximity-detonate.
 - **Health**: `level.u2_maxhealth` = 700. The entity health is a dummy 99999; damage is tracked in `damagetaken` and the plane dies when that exceeds 700.
@@ -1259,7 +1259,7 @@ In scorestreak mode [V `_giveplayerkillstreakinternal()`, `_killstreaks.gsc chan
 - Strings: `KILLSTREAK_EARNED_RADAR`, `KILLSTREAK_RADAR_NOT_AVAILABLE`, `KILLSTREAK_RADAR_INBOUND`.
 
 **Bots**:
-- [V `bots/_bot.gsc bot_update_killstreak()`]: every 1–3 s a bot scans its weapons for any killstreak weapon with ammo that `iskillstreakallowed`. UAV falls into the default case, so the bot simply switches to it and it fires at once. Net effect: a bot uses a UAV as soon as it has one.
+- [V `bots/_bot.gsc bot_update_killstreak()`]: every 1-3 s a bot scans its weapons for any killstreak weapon with ammo that `iskillstreakallowed`. UAV falls into the default case, so the bot simply switches to it and it fires at once. Net effect: a bot uses a UAV as soon as it has one.
 - [V `bot_has_radar()`, `bot_get_enemies(on_radar)`]: while the bot's team has a UAV or satellite, patrol logic uses every enemy as a known position. Without one, it only uses enemies who fired within the last 2 s.
 - [V `_bot_combat.gsc threat_requires_rocket()`]: bots shoot enemy UAVs and CUAVs only with a launcher (SMAW / FHJ-18), and ignore them for 3.5 s when the elevation is outside a band.
   - The check is pitch < 290 in `_bot_combat.gsc bot_best_enemy()`. [I] It reads as "engage only if the target is between level and ~70° above the eye".
@@ -1282,7 +1282,7 @@ In scorestreak mode [V `_giveplayerkillstreakinternal()`, `_killstreaks.gsc chan
 - **Plane**:
   - `veh_t6_drone_cuav` on `level.counteruavrig`, at map centre +1500 Z.
   - The rig rotates 360° every 40 s, counter-clockwise; same sway as the UAV.
-  - Horizontal radius 3000–3999, overall offset length 4000–4999, roll −10°.
+  - Horizontal radius 3000-3999, overall offset length 4000-4999, roll −10°.
 - **Health / destroy**: identical to the UAV (700, projectile one-shot, the same FMJ quirk). Score `destroyed_counter_uav` (100), leader dialog `cuav_destroyed`.
 - **Assist**: the CUAV owner gets `counter_uav_assist` (+10) on each team-mate's non-killstreak kill [V `processkillstreakassists()`].
 - **Limits**: counteruav 20/10, targetableent 32/32.
@@ -1317,13 +1317,13 @@ In scorestreak mode [V `_giveplayerkillstreakinternal()`, `_killstreaks.gsc chan
      - Start: 125 with accel 100, max roll 45, pitch 0.
      - 3 s after spawning: 75 with accel 40, yaw speed 100, pitch/roll limits 25/35 (`speedregulator()`).
      - At the goal: waits 1.2 s, releases the crate, waits 0.7 s, then leaves at 150 with accel 40.
-   - Exit: to a point 15,000 away, turned ±60–120° (`getheliend()`, 5 path tries, then `heli_leave` nodes). It is deleted on arrival.
+   - Exit: to a point 15,000 away, turned ±60-120° (`getheliend()`, 5 path tries, then `heli_leave` nodes). It is deleted on arrival.
    - Air-defence acquisition is enabled only once it is within 1500 of the drop point or inside the spawn bounds (`samturretwatcher()`).
 5. **Heli health** [V `spawn_helicopter()`, `_helicopter.gsc heli_damage_monitor()`]:
    - maxhealth 1500, tracked in `damagetaken`.
    - Bullets ×0.5 (dvar `scr_heli_armor_bulletdamage` default 0.5); FMJ adds +40% before that.
    - Any projectile is a one-shot (1501), except the XM-25, which does raw damage.
-   - When destroyed (`helidestroyed()`) it slows, spins, and **still drops the crate** after 0.5–1.5 s, then explodes. Score `destroyed_helicopter_supply_drop` (125).
+   - When destroyed (`helidestroyed()`) it slows, spins, and **still drops the crate** after 0.5-1.5 s, then explodes. Score `destroyed_helicopter_supply_drop` (125).
 6. **Crate** [V `dropcrate()`, `cratephysics()`, `cratekill()`, `is_touching_crate()`]:
    - Spawned 200 units below the heli (`scr_supplydropOffsetHeight`), then `physicslaunch` with a random force point ±200 XY and vertical velocity ±100.
    - **Crush**: while the crate's per-0.05 s Z delta exceeds 15 units, any living player touching it (bounds +10) takes health+1 damage (`MOD_HIT_BY_OBJECT`, weapon `supplydrop_mp`, attacker = crate owner). Equipment it touches detonates or is deleted; tactical insertions fizzle.
@@ -1375,7 +1375,7 @@ In scorestreak mode [V `_giveplayerkillstreakinternal()`, `_killstreaks.gsc chan
 
 **Bots**:
 - [V `_bot.gsc bot_use_supply_drop()`]: the bot only throws a care package **within 5 s of spawning**. The point 384 units ahead (by yaw) must have open sky 2048 up, from both the point and the bot, and ground within 32 units below. The bot stops, looks at the point for 0.5 s, switches to the marker and presses fire up to 11 times.
-- [V `bot_update_crate()`, called from `_bot_combat.gsc`]: every 1–3 s, if a crate is within `player_useRadius`, the bot crouches and holds use for the capture time + 0.5 s. A bot with the Black Hat (`pda_hack_mp`) also hacks visible friendly-objective crates.
+- [V `bot_update_crate()`, called from `_bot_combat.gsc`]: every 1-3 s, if a crate is within `player_useRadius`, the bot crouches and holds use for the capture time + 0.5 s. A bot with the Black Hat (`pda_hack_mp`) also hacks visible friendly-objective crates.
 - `crateactivate()` notifies `bot_crate_landed` on a bot owner, but nothing listens for it [V grep].
 - [I] Suggested: also walk to its own crate when it lands, since there is no stock pathing to a distant crate.
 
@@ -1521,7 +1521,7 @@ In scorestreak mode [V `_giveplayerkillstreakinternal()`, `_killstreaks.gsc chan
 - **Activation**: model `t6_wpn_turret_sentry_gun`, mode `auto_nonai`, startup sound, head icon 70 units up, spawn influencers.
   - Difficulty "fu": convergence 0.4 s, suppression 3.0 s, accuracy 0.38, aiSpread 2, playerSpread 0.5.
   - After **1.6 s** (`turretinitdelay`) it starts `burst_fire_unmanned`:
-    - While the engine says it is firing, it shoots every **0.112 s** for bursts of **0.5–4.5 s**, with pauses of **0.2–0.7 s**.
+    - While the engine says it is firing, it shoots every **0.112 s** for bursts of **0.5-4.5 s**, with pauses of **0.2-0.7 s**.
     - It plays `mpl_turret_alert` at each burst start.
   - The owner can take manual control via `killstreak_remote_turret_mp` (`_remote_weapons.gsc`). Bots are excluded from the remote trigger.
 - **Turret weapon** `auto_gun_turret_mp` [V def]:

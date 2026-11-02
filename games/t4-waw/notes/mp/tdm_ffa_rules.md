@@ -377,9 +377,9 @@ true if **any** player on `team` can see the point.
 | kills | streak | notes |
 |---|---|---|
 | 3 | `radar_mp` (Recon Plane) | team radar for 30 s (`radarViewTime` `:108`) |
-| 5 | `artillery_mp` | pick a location. 3 cannons × 5 shells (`scr_hardpoint_artilleryCanonCount` 3, `…ShellCount` 5, `_tweakables.gsc:368-369`). Danger radius 300-750, forward push 1.5, oval scale 6. Only one artillery strike at a time (`level.artilleryInProgress`) |
+| 5 | `artillery_mp` | pick a location. 3 cannons × 5 shells (`scr_hardpoint_artilleryCanonCount` 3, `...ShellCount` 5, `_tweakables.gsc:368-369`). Danger radius 300-750, forward push 1.5, oval scale 6. Only one artillery strike at a time (`level.artilleryInProgress`) |
 | 7 | `dogs_mp` | `_dogs.gsc:122-125`: 8 dogs total, at most 4 at once, 60 s, 100 health each. Only one pack at a time (`level.dogs`). Dog kills score 3 |
-| 10, 15, 20… | streak notify only | `:1345-1348` |
+| 10, 15, 20... | streak notify only | `:1345-1348` |
 
 How streaks work:
 - **Thresholds** are hard-coded in `giveHardpointItemForStreak` (`:1328-1372`). Nothing below 3.
@@ -402,7 +402,7 @@ How streaks work:
   - It auto-assigns a team, then on every spawn picks a random stock class (`TestClient` `:553-581`).
   - There is no movement or aim logic: they stand still.
 - `_dev::init` is wrapped in a dev-only `/# #/` block (`_globallogic.gsc:4560-4562`), so it doesn't run in a ship build.
-- `_spawnlogic.gsc:1368-1450` `loopbotspawns` (`scr_killbots`) randomly kills players named "bot…" to test spawns.
+- `_spawnlogic.gsc:1368-1450` `loopbotspawns` (`scr_killbots`) randomly kills players named "bot..." to test spawns.
 - `isBot` only skips some setup and the stats path (`_globallogic.gsc:4983`, `:7123`).
 
 So bots for M4 have to be ours. BO1 is the reference: see §7.
@@ -507,7 +507,7 @@ Helicopter 7, Valkyrie Rockets 7, Blackbird 8, Rolling Thunder 8, Chopper Gunner
   One in the Chamber overrides fu's reaction and ADS times, and hard/fu's sprint distance (`:515-527`).
 
 These dvars are a ready-made difficulty spec for our bot brain. What the engine does with each one is in
-[bo1_bots.md](../../../t5-bo1/notes/mp/bots.md).
+[bots.md](../../../t5-bo1/notes/mp/bots.md).
 
 ### BO2 (T6) [I, not checked against files]
 

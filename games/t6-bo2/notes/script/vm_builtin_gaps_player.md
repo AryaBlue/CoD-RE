@@ -1,6 +1,6 @@
 # Script VM gaps: player, hud, sound, fx, weapon, stats and misc builtins
 
-This is the player-side half of the builtin gap work. The full inventory is [t6_vm_builtin_gaps.md](vm_builtin_gaps.md).
+This is the player-side half of the builtin gap work. The full inventory is [vm_builtin_gaps.md](vm_builtin_gaps.md).
 
 The code lives in three files:
 - `src/script/PlayerBuiltins.cpp`: player state.

@@ -104,7 +104,7 @@ tiling scale**, times the vertex colour.
 | (0,0,1) | 2 |
 | (1,1,1) | 1 |
 
-**Values for the zombies PaP camo on nuked** (`camo_dsr50`, `camo_m14`… set 3) [V]:
+**Values for the zombies PaP camo on nuked** (`camo_dsr50`, `camo_m14`... set 3) [V]:
 - `shaderConsts` = (2, 4, 0, 0): the camo tiles 2× in u and 4× in v, and the gloss is all camo (z 0).
 - useColorMap 0, useNormalMap 1, useSpecularMap 0.
 

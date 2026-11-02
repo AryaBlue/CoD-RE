@@ -21,7 +21,7 @@ Greyhound (`XPAKCache.cpp`, `DBGameFiles.h`); the implementation in
 `Offset` is **relative to DataOffset**, so the real file offset of a blob is
 `DataOffset + Entry.Offset`. `Size` is the compressed/stored size.
 
-## Index table  (at IndexOffset) — self-describing text metadata, per entry
+## Index table  (at IndexOffset) - self-describing text metadata, per entry
 ```
 { u64 Key; u32 TextLen; u32 reserved; char Text[TextLen] }
 ```
@@ -48,7 +48,7 @@ After a group's commands are consumed, align the read position **up** to the nex
 
 ## Observed in practice
 Many large textures are stored **raw** (`flag 0x0`), in groups of 8 blocks of
-`0x7FF0` bytes per `0x40000` region — e.g. `BC7_SRGB` 1024×1024, `levels=1`
+`0x7FF0` bytes per `0x40000` region - e.g. `BC7_SRGB` 1024×1024, `levels=1`
 (single mip), blob ≈ `1048576` raw + framing. BO3 uses **LZ4** (not Oodle) for its
 compressed blocks; a stock BO3 install ships no `oo2core` DLL, consistent with no
 Oodle on this title. Later CoD titles that reuse the XPAK container do use Oodle

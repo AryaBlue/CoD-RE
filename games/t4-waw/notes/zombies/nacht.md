@@ -62,10 +62,10 @@ The line numbers in this doc are for the original zone scripts. Where the patch 
 | repair rewards | logic unchanged; Sleight speeds up the repair, but Nacht has no perks | blockers `:604-716`, `:863-898` |
 
 The 4 "inside the map" boxes are:
-- (361, 591, −11)–(1068, 1031, 235)
-- (−288, 591, −11)–(361, 1160, 235)
-- (−272, 120, −11)–(370, 591, 235)
-- (−272, −912, −11)–(273, 120, 235)
+- (361, 591, −11)-(1068, 1031, 235)
+- (−288, 591, −11)-(361, 1160, 235)
+- (−272, 120, −11)-(370, 591, 235)
+- (−272, −912, −11)-(273, 120, 235)
 
 Unchanged by the patch: score, power-ups, weapons (box list identical), round loop, health, counts and the HUD. The
 patch xanims are only weapon and revive anims, so the zombie anim timings stand.

@@ -371,7 +371,7 @@ Caveats:
 | xensik gsc-tool | GPL-3 (https://raw.githubusercontent.com/xensik/gsc-tool/dev/LICENSE; also ACTS's `licenses/licenses.md`, "GPL-3 dependencies") **[V]** | Yes, with attribution. This is the best reference for the T6 disassembler, operand alignment and IW-family VM semantics. Only the local binary is present, not the source. |
 | atian-cod-tools (ACTS) | Dual GPL-3 or MIT (ACTS `licenses/licenses.md:1`); its GPL-3 build pulls in xensik/gsc **[V]** | Yes, but there is little T6 code to reuse (§3). Its T7+ VM and decompiler are useful as design references. |
 | CoD-RE | GPL-3 (`LICENSE`, README line 5) **[V]** | Yes. It is our own work; credit the sources per CoD-RE `CREDITS.md`. |
-| Game scripts, dumps, decompiled output | Activision copyright **[I]** | Never commit or ship them. Load them at runtime from the user's install, the same as the other assets. |
+| Game scripts, dumps, decompiled output | Activision copyright **[I]** | Never commit or ship them. Load them at runtime from our install, the same as the other assets. |
 | Plutonium, retail exes | Closed **[I]** | Facts and names only (e.g. the tsv), no copied code. |
 
 ---

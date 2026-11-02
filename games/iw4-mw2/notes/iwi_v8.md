@@ -50,4 +50,4 @@ for the pixels. E115 has dev modes for each (`--iwd-textures` and `--zone-images
 
 ## Related
 
-- [iw4_x64_and_world.md](x64_and_world.md): the 2026 64-bit update and the world data.
+- [x64_and_world.md](x64_and_world.md): the 2026 64-bit update and the world data.

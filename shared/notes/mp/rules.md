@@ -26,7 +26,7 @@ Tags:
 - **[V]**: read in the source, with path:line.
 - **[I]**: inferred, or from general knowledge.
 
-T4 and T5 detail lives in [mp_t4_tdm_ffa.md](../../../games/t4-waw/notes/mp/tdm_ffa_rules.md) (cited as "TDM doc §n"), and the BO1 bot brain in [bo1_bots.md](../../../games/t5-bo1/notes/mp/bots.md). This
+T4 and T5 detail lives in [tdm_ffa_rules.md](../../../games/t4-waw/notes/mp/tdm_ffa_rules.md) (cited as "TDM doc §n"), and the BO1 bot brain in [bots.md](../../../games/t5-bo1/notes/mp/bots.md). This
 page adds the cross-game view and the new reads below. No script text is copied.
 
 Sources:
@@ -189,7 +189,7 @@ T6: [I] no damage perks besides Flak Jacket.
 - **T4:** none. Only dev testclients that stand still [V TDM doc §5].
 - **T5:** Combat Training. Script picks the goals; the engine moves, aims and fires, tuned by `sv_bot*` dvars per
   difficulty (easy / normal / hard / fu) [V `_bot.gsc:402-528`].
-  - The full dvar table is in the TDM doc §7, and the engine behaviour in [bo1_bots.md](../../../games/t5-bo1/notes/mp/bots.md).
+  - The full dvar table is in the TDM doc §7, and the engine behaviour in [bots.md](../../../games/t5-bo1/notes/mp/bots.md).
   - What difficulty changes: reaction time, fire bursts, yaw/pitch speed, fov, crouch, lead bias, strafe chance,
     grenades on or off, sprint distance, melee distance and help distance.
 - **T6:** Combat Training carries over [I]. The scripts are compiled, so the difficulty table isn't read.

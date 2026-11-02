@@ -41,7 +41,7 @@ surface[surfaceCount]:
     string material           material asset name (a leading "," is stripped)
     u8  lightmapIndex, reflectionProbeIndex, primaryLightIndex, flags   (0s fine)
     f32 mins[3], maxs[3]
-(staticModelCount = 0 → nothing more; the file must END here — trailing bytes are an error)
+(staticModelCount = 0 → nothing more; the file must END here - trailing bytes are an error)
 ```
 
 Packing helper for a unit normal n: use `s = 255` (byte 3), so scale = 447/32385; then bytes x, y, z = round(n.i / scale + 127), clamped to 0..255.

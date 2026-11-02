@@ -6,7 +6,7 @@ Sources: the decompiled t6 `maps/mp/bots/_bot.gsc`, `_bot_combat.gsc` and the pe
 
 - [V] `bot_main` wakes every `think_interval`: easy 0.5 s, normal 0.25 s, hard 0.2 s, fu 0.1 s (`bot_spawn_init`). On each wake it runs combat_think (which runs failsafe, crouch and crate first), then patrol, lookat, killstreak, **wander**, the c4, launcher and weapon updates, the tosses, and finally the gametype think.
 - [V] tdm and dm have no gametype think (`gametype_void`). Their bots only patrol and wander.
-- [V] Each `update_*` timer starts 1–3 s after spawn (`randomintrange(1000, 3000)`).
+- [V] Each `update_*` timer starts 1-3 s after spawn (`randomintrange(1000, 3000)`).
 
 ## Goals
 
@@ -17,7 +17,7 @@ The engine keeps named goals with priorities (`addgoal(node, radius, priority, n
 | wander | 1 | `bot_update_wander` |
 | enemy_patrol | 2 (periodic) / 4 (hurt, or lost sight) | `bot_patrol_near_enemy`, combat_think |
 | enemy_patrol (hold) | 3 | combat_think, lost a far enemy: stands there first |
-| cover / flee | — | combat (rocket threats etc.) |
+| cover / flee | - | combat (rocket threats etc.) |
 | failsafe | over all [I] | `botsetfailsafenode` |
 
 - [V] **wander**:
@@ -25,7 +25,7 @@ The engine keeps named goals with priorities (`addgoal(node, radius, priority, n
   - The spawns (`level.spawn_all`, otherwise spawnpoints or start spawns) are sorted by distance from the bot. It picks `randomintrange(size/2, size)`, a random one in the **far half**.
   - The goal is that spawn's nearest node.
 - [V] **patrol** (`bot_update_patrol`):
-  - Every 5–10 s it goes to the node nearest the **closest enemy on radar** (`getnearestnode`, otherwise the first of `getnodesinradiussorted(origin, 1024, 0, 512, "Path", 8)`).
+  - Every 5-10 s it goes to the node nearest the **closest enemy on radar** (`getnearestnode`, otherwise the first of `getnodesinradiussorted(origin, 1024, 0, 512, "Path", 8)`).
   - If that enemy is within 512 of the bot and more than 128 from the current patrol goal, the goal is dropped and the timer reset.
   - Easy bots only look; they never patrol.
 - [V] **on radar** (`bot_get_enemies(1)`):
@@ -104,12 +104,12 @@ All the objective goals are named goals in the same table as the hunt goals. The
 
 Against the hunt goals, priority 3 beats the patrol (2) and the wander (1). It ties a hurt patrol (4) only when the mode goal is itself priority 4.
 
-`update_objective` throttles the dom, hq and ctf thinks to one every 500–1500 ms. It starts 1–3 s after the spawn, as do `update_lookat` and `update_objective_patrol` [V `_bot.gsc` bot_spawn_init].
+`update_objective` throttles the dom, hq and ctf thinks to one every 500-1500 ms. It starts 1-3 s after the spawn, as do `update_lookat` and `update_objective_patrol` [V `_bot.gsc` bot_spawn_init].
 
 ### dom (`_bot_dom.gsc`)
 - **At its `dom_flag` goal:** `bot_capture_flag` on the closest flag.
   - Not its team's flag yet: it holds where it stands (addgoal self.origin, 24, priority 3).
-  - On each lookat (1.5–3 s), if any flag is taken, a coin toss with no team mate within 384 makes it go prone, and the hold becomes priority 4.
+  - On each lookat (1.5-3 s), if any flag is taken, a coin toss with no team mate within 384 makes it go prone, and the hold becomes priority 4.
   - Its team's flag: the goal is cancelled.
 - **Closest flag not its team's, within 384 (2D), and not already its goal:** it goes there.
 - **Otherwise it picks a flag:**
@@ -125,7 +125,7 @@ Against the hunt goals, priority 3 beats the patrol (2) and the wander (1). It t
 - **Patrol:** when its team owns the radio and no enemy is within `node_radius`:
   - it guards a node the radio can see (`getvisiblenodes` of a random radio node);
   - the node must have no team mate's hq_radio within 128 and no hq_patrol within 256;
-  - it stays 3–6 s, or until the spot no longer sees the radio.
+  - it stays 3-6 s, or until the spot no longer sees the radio.
 - **Otherwise:** it goes to a random radio node that no team mate's hq_radio is within 64 of, then holds there (priority 3).
 
 ### koth / hardpoint (`_bot_koth.gsc`)
@@ -139,17 +139,17 @@ Against the hunt goals, priority 3 beats the patrol (2) and the wander (1). It t
 - **Patrol (`bot_should_patrol_flag`):**
   - The carrier patrols when its own flag is away.
   - Anyone else patrols when its flag is home, the enemy flag is over 512 away, and no team mate's ctf_flag_patrol is within 1024 of home.
-  - The patrol spot sees `base_nearest_node`, has no team mate's patrol within 256, and is held for 3–6 s.
+  - The patrol spot sees `base_nearest_node`, has no team mate's patrol within 256, and is held for 3-6 s.
 - **Defend:** its own flag is away and it isn't the carrier.
   - **Dropped:** back to it (priority 4) when at most one team mate is already on it.
   - **Carried:** after it when the enemy flag isn't home, or when the bot is over 500 (2D) from the enemy's home. Otherwise it waits at the enemy's home.
 - **Capture:**
   - The carrier goes home (priority 4).
-  - Escorts take one of 8 nodes 64–512 from the carrier. They keep that spot while it is within 768 of the carrier.
+  - Escorts take one of 8 nodes 64-512 from the carrier. They keep that spot while it is within 768 of the carrier.
   - The rest go for the enemy flag, at most a pair at once (≤1 team mate within 16).
-- **No path to a spot (`bot_ctf_add_goal`):** a node within 384 that sees the spot, and the next think waits 3–5 s longer.
+- **No path to a spot (`bot_ctf_add_goal`):** a node within 384 that sees the spot, and the next think waits 3-5 s longer.
 - **Respawn wait [V]:** `patch_mp` `mp/gamesettings_ctf.cfg` sets `playerrespawndelay 7.5` over the default cfg's 0, and `_globallogic_spawn.gsc` `timeuntilspawn` reads it. Reforged waits 7.5 s in t6 ctf; before this it waited its 2.5 s, so a carrier met a base refilled every few seconds. In hq, `gamesettings_hq.cfg` `playerObjectiveHeldRespawnDelay 60` with `delayPlayer 0` makes the holders wait until the radio goes (`hq.gsc` `getrespawndelay`).
-- **Support [V]:** the escorts are as the script has them: nodes 64–512 from the carrier, set on each think once a team mate has the flag. In the sims they are set, but the runs start at home, 2000–3700 away, and the carrier dies 1–3 s after its grab, before they get there. There is nothing more in `_bot_ctf.gsc` to port.
+- **Support [V]:** the escorts are as the script has them: nodes 64-512 from the carrier, set on each think once a team mate has the flag. In the sims they are set, but the runs start at home, 2000-3700 away, and the carrier dies 1-3 s after its grab, before they get there. There is nothing more in `_bot_ctf.gsc` to port.
 
 ### sd (`_bot_sd.gsc`, unused by retail as above)
 - **Once planted, both teams defend the planted site:**
@@ -158,13 +158,13 @@ Against the hunt goals, priority 3 beats the patrol (2) and the wander (1). It t
 - **Attackers:**
   - **The bomb at its start:** one attacker fetches it (no team mate's sd_pickup within 64).
   - **A dropped bomb:** every attacker goes for it (priority 4).
-  - **The carrier:** every 2.5–5 s it plants with odds equal to the round fraction gone. Once 85% of the round is gone it always plants, at priority 4.
+  - **The carrier:** every 2.5-5 s it plants with odds equal to the round fraction gone. Once 85% of the round is gone it always plants, at priority 4.
     - The plant spot is 32 ahead of or behind the bomb spot, or 48 to either side: the first one it can reach.
   - **Other attackers:** 30% guard the carrier, at a node within 256 of its plant spot.
 - **Defenders before the plant:** a random site each think. They take the highest visible node of it that:
   - is at least 256 away from the bot;
   - has no team mate's sd_defend within 256.
-  - They leave it on a coin toss every 2.5–5 s, or when their hunt patrol is within 512 of the closest site.
+  - They leave it on a coin toss every 2.5-5 s, or when their hunt patrol is within 512 of the closest site.
 - **Plant and defuse:** within 48 of the spot it presses use for the plant or defuse time plus 1 s. The `wait` blocks bot_main, so it does nothing else meanwhile. The goal is then cancelled whether or not the plant or defuse took.
 
 ### What Reforged infers

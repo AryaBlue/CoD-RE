@@ -200,7 +200,7 @@ The engine does this from the weapon file: `damage` up to `maxDamageRange`, fall
 |---|---|---|---|---|---|
 | zombie_colt | 20 → 20 | 425 → 1000 | 3.5 / 3.5 | 1.25 / 1.1 | 0.85 |
 | kar98k | 100 → 80 | 1200 → 2200 | 3.5 / 3.5 | 1.8 / 1.7 | 1 |
-| thompson | 120 → 80 | 800 → 1800 | 4 / – | 1 / – | – |
+| thompson | 120 → 80 | 800 → 1800 | 4 / - | 1 / - | - |
 
 The full data is in weapons.json, below. The linear falloff is the standard CoD4-line rule
 [I].
@@ -249,7 +249,7 @@ Gibs are cheap: an attach or model swap plus an anim set. `zombie_gib_on_damage`
    |---|---|
    | torso | guts, right arm |
    | arm | that arm |
-   | leg | that leg ×3 or no_legs ×1 — only if the hit kills |
+   | leg | that leg ×3 or no_legs ×1 - only if the hit kills |
    | other | any of the above |
 
    For grenades and projectiles, the closest gib tag decides.
@@ -606,7 +606,7 @@ The timings for every anim named here are in §7. This section adds which anim g
 speed class (walk/run/sprint) is set first (§1). Then within the class it's uniform random, and **each move variant
 fixes the zombie's death anim**:
 
-| class | variant (`level.scr_anim["zombie"][…]`, `_zombiemode.gsc:347-355`) | death anim |
+| class | variant (`level.scr_anim["zombie"][...]`, `_zombiemode.gsc:347-355`) | death anim |
 |---|---|---|
 | walk (1 in 4) | `walk1` `ai_zombie_walk_v1` | `ch_dazed_a_death` |
 | | `walk2` `ai_zombie_walk_v2` | `ch_dazed_b_death` |

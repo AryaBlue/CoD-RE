@@ -448,7 +448,7 @@ All three maps share one design: a buy trigger, a throw-switch model found by li
 
 ### 4. Bridges and zone management
 
-#### 4.1 Shi No Numa "bridge riser" — dead code
+#### 4.1 Shi No Numa "bridge riser" - dead code
 
 - `nazi_zombie_sumpf_bridge.gsc` defines `initBridgeRiser` for `br_nw` / `br_se` / `br_sw` (buy, blockers rise 82 units, 20/24/17 s open, insta-gib zombies left on it) [V] sumpf maps/nazi_zombie_sumpf_bridge.gsc:9-151.
 - Nothing calls `initBridgeRiser`; the include remains [V] grep of sumpf maps and clientscripts; nazi_zombie_sumpf.gsc:14. The map has no `br_*` ents; only audio step triggers mention "bridge" [V] sumpf ents#1207-1209.
@@ -666,7 +666,7 @@ Nacht's door code: the door's `target` adds new spawners, and there is no flag o
 
 ### Open points
 
-- Whether every Verrückt north spawner carries the matching script_string (decides if they ever deactivate) — needs an ent pass over all asylum spawners.
+- Whether every Verrückt north spawner carries the matching script_string (decides if they ever deactivate) - needs an ent pass over all asylum spawners.
 - The real damage of Verrückt's two-argument random int in the explosive branch.
 - Exact zipline run time: the per-hop timing is computed [I]; confirm in game or with an engine trace.
 - The client side of the teleporter notifies `pw`, `tp`, `tpw`, `tpc`, `scd`, `pac`, `TRf`/`TRs`, `pap1` was not read in detail (FX/lights only).
@@ -774,7 +774,7 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
   - Otherwise an ash trail: `fx_zombie_dog_ash_trail`, loop sound `dog_trail_fire_breath`.
   - Fire dogs explode on death (`a.nodeath`): FX `dog_gib` = `fx_zombie_dog_explosion` and sound `zombie_dog_death`, then the corpse is deleted [V factory :682, :725-744].
 - Other sounds:
-  - `hellhound_stalk` loops every 1–4 s while stalking (factory) [V factory :943-954].
+  - `hellhound_stalk` loops every 1-4 s while stalking (factory) [V factory :943-954].
   - `zdog_close` plays when the dog is behind a player more than 100 units away, checked every 0.25 s [V factory :774-797].
 
 #### Dog-round intro and outro
@@ -824,7 +824,7 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
   - The active list is `targetname` = `zombie_spawner_dog_init` [V factory maps/_zombiemode_dogs.gsc:78-95].
 - **Sumpf (spawner per location):**
   - 112 `actor_zombie_dog` ents (`spawnflags` 3, `script_forcespawn` 1). Each targets a `script_struct` used as the FX point [V sumpf ents :28510-30650] [V factory maps/_zombiemode_dogs.gsc:296-303 comment].
-  - 6 start active with targetname `zombie_spawner_dog_init` [V sumpf ents :29168…].
+  - 6 start active with targetname `zombie_spawner_dog_init` [V sumpf ents :29168...].
   - The rest are grouped by area targetname and renamed to `zombie_spawner_dog_init` when that area opens (`add_area_dog_spawners`) [V sumpf maps/nazi_zombie_sumpf_zone_management.gsc:407-416] [V sumpf maps/nazi_zombie_sumpf_magic_box.gsc:62-177]:
 
 | Area targetname | Ents |
@@ -843,17 +843,17 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
     - not the previous point;
     - between 200 and 700 units from the target;
     - within 100 units of the target's height.
-  - Factory's copy of the sumpf picker uses 400–800 instead [V factory :350].
+  - Factory's copy of the sumpf picker uses 400-800 instead [V factory :350].
 - **Factory (one spawner, many structs):**
   - One `actor_zombie_dog` with targetname `zombie_spawner_dog_init` at (379.1, 1221.9, 77.1) [V factory ents :15097-15106].
   - Locations are 95 `script_struct`s named `<zone volume target>_dog` [V factory ents :15106-15235]. Examples: `tp_south_spawners_dog`, `receiver_zone_spawners_dog`, `wnuen_bridge_spawners_dog`, `warehouse_top_spawners_dog`.
   - The zone manager reads them per zone [V factory maps/_zombiemode_zone_manager.gsc:112]. It adds a zone's structs to `level.enemy_dog_locations` when the zone becomes active and removes them when it goes inactive [V :463-473, :526-535].
-  - `dog_spawn_factory_logic` shuffles them and takes the first one that is not the previous point and is 400–1000 units from the target. Otherwise it uses the first one [V factory maps/_zombiemode_dogs.gsc:377-398].
+  - `dog_spawn_factory_logic` shuffles them and takes the first one that is not the previous point and is 400-1000 units from the target. Otherwise it uses the first one [V factory maps/_zombiemode_dogs.gsc:377-398].
   - Special dogs use the targetname `special_dog_spawner` [V factory ents :15090].
 - **Shared implementation [I]:** treat dog spawn points as an abstract list of positions per zone.
   - Sumpf: positions are the spawner origins/structs from area-named groups, unlocked by door flags.
   - Factory: positions are `*_dog` structs tied to zone volumes.
-  - Use one spawner template and per-map distance bands (sumpf 200–700 plus a height check of 100; factory 400–1000).
+  - Use one spawner template and per-map distance bands (sumpf 200-700 plus a height check of 100; factory 400-1000).
 
 ---
 
@@ -944,24 +944,24 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
 
 | Weapon | Damage | Clip | Max ammo | Fire (s) | Explosive | Reload (s) |
 |---|---|---|---|---|---|---|
-| zombie_colt | 20/20 | 8 | 80 | 0.075 | – | 1.9 |
-| …_upgraded | 1000/0, projectile | 6 | 40 | 0.8 | 1200 inner / 75 outer, r200 | 1.9 |
-| zombie_mp40 | 100/60 | 32 | 192 | 0.112 | – | 2.3 |
-| …_upgraded | 200/120 | 64 | 192 | 0.1 | – | 2.3 |
-| zombie_thompson | 120/80 | 20 | 200 | 0.08 | – | 2.1 |
-| …_upgraded | 200/120 | 40 | 250 | 0.065 | – | 2.1 |
-| zombie_ppsh | 100/60 | 71 | 355 | 0.048 | – | 2.1 |
-| …_upgraded | 150/80 | 115 | 700 | 0.038 | – | 2.1 |
-| zombie_mg42 | 130/90 | 125 | 500 | 0.064 | – | 4.5 |
-| …_upgraded | 130/90 | 125 | 750 | 0.044 | – | 4.5 |
-| zombie_shotgun | 160/15 | 6 | 60 | 0.283 | – | 0.6 |
-| …_upgraded | 300/30 | 10 | 60 | 0.283 | – | 0.6 |
+| zombie_colt | 20/20 | 8 | 80 | 0.075 | - | 1.9 |
+| ..._upgraded | 1000/0, projectile | 6 | 40 | 0.8 | 1200 inner / 75 outer, r200 | 1.9 |
+| zombie_mp40 | 100/60 | 32 | 192 | 0.112 | - | 2.3 |
+| ..._upgraded | 200/120 | 64 | 192 | 0.1 | - | 2.3 |
+| zombie_thompson | 120/80 | 20 | 200 | 0.08 | - | 2.1 |
+| ..._upgraded | 200/120 | 40 | 250 | 0.065 | - | 2.1 |
+| zombie_ppsh | 100/60 | 71 | 355 | 0.048 | - | 2.1 |
+| ..._upgraded | 150/80 | 115 | 700 | 0.038 | - | 2.1 |
+| zombie_mg42 | 130/90 | 125 | 500 | 0.064 | - | 4.5 |
+| ..._upgraded | 130/90 | 125 | 750 | 0.044 | - | 4.5 |
+| zombie_shotgun | 160/15 | 6 | 60 | 0.283 | - | 0.6 |
+| ..._upgraded | 300/30 | 10 | 60 | 0.283 | - | 0.6 |
 | ray_gun | 1000, projectile | 20 | 160 | 0.33 | 1500 inner, r64 | 3 |
-| …_upgraded | 1000, projectile | 40 | 200 | 0.33 | 2000 inner / 300 outer, r64 | 3 |
+| ..._upgraded | 1000, projectile | 40 | 200 | 0.33 | 2000 inner / 300 outer, r64 | 3 |
 | panzerschrek_zombie | 600 | 1 | 20 | 0.33 | 600, r256 | 2.85 |
-| …_upgraded | 1000 | 3 | 30 | 0.33 | 1200, r400 | 2.85 |
+| ..._upgraded | 1000 | 3 | 30 | 0.33 | 1200, r400 | 2.85 |
 | tesla_gun | see §3 | 3 | 15 | 1 | r110 | 6 |
-| …_upgraded | see §3 | 6 | 30 | 1 | r150 | 4.7 |
+| ..._upgraded | see §3 | 6 | 30 | 1 | r150 | 4.7 |
 
 - [V factory weapons/<name> fields `damage`, `minDamage`, `clipSize`, `maxAmmo`, `fireTime`, `reloadTime`, `explosionInnerDamage`, `explosionOuterDamage`, `explosionRadius`, `weaponType`.]
 - The upgraded Colt changes weapon class:
@@ -1041,7 +1041,7 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
 
 **Per-jump delay**
 - For arc_num > 1, the kill waits `RandomFloat(0.2, 0.6) × arc_num` [V :221-224].
-- RandomFloat takes one argument in this engine, so the second value is probably ignored, giving 0–0.2 × arc_num [I].
+- RandomFloat takes one argument in this engine, so the second value is probably ignored, giving 0-0.2 × arc_num [I].
 - The bolt FX moves over 0.5 s [V :385].
 
 **Damage**
@@ -1153,7 +1153,7 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
   - panzerschrek_zombie, ray_gun.
 - All weights are equal; no ray gun gating or boost [V asylum :741-799].
 - `m7_launcher_zombie` is included but never registered, so it is not in the pool [I from V].
-- **Teddy chance:** `chest_accessed` < 5 gives chance 0, but the test is `rand ≤ chance` with rand 0–99. So it is 1 % even on early pulls [V asylum :852-864]. [I] This is the bug later maps fixed with −1.
+- **Teddy chance:** `chest_accessed` < 5 gives chance 0, but the test is `rand ≤ chance` with rand 0-99. So it is 1 % even on early pulls [V asylum :852-864]. [I] This is the bug later maps fixed with −1.
   - From then on the chance is (chest_accessed + 4) % [I from `+3` and `≤`].
 - **Move:**
   - next index in the array, skipping same-origin entries [V asylum :597-607];
@@ -1188,9 +1188,9 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
 | `chest_accessed` | Chance |
 |---|---|
 | < 4 | 0 (−1 sentinel) |
-| 4–7 | 15 % |
+| 4-7 | 15 % |
 | ≥ 8, before the first move | 100 % |
-| 8–12, after the first move | 30 % |
+| 8-12, after the first move | 30 % |
 | ≥ 13, after the first move | 50 % |
 
 - **Box move** [V weapons_sumpf.gsc:745-800] [V sumpf maps/nazi_zombie_sumpf_magic_box.gsc:10-33, :184-210]:
@@ -1204,7 +1204,7 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
 - Sumpf also blocks box use while the player is drinking [V :468-473, :539].
 
 #### Factory (Der Riese)
-- Weighted: cycles 1–39 use the unweighted picker; only the final cycle (the result) uses `treasure_chest_ChooseWeightedRandomWeapon` [V factory weapons.gsc:1381-1387].
+- Weighted: cycles 1-39 use the unweighted picker; only the final cycle (the result) uses `treasure_chest_ChooseWeightedRandomWeapon` [V factory weapons.gsc:1381-1387].
 - Weighting functions are per weapon through `include_weapon(name, in_box, func)` [V factory maps/_zombiemode_utility.gsc:1898-1904] [V weapons.gsc:162-183]. The default weight is 1.
 - Pool [V factory nazi_zombie_factory.gsc:453-536, cross-checked with weapons.gsc:185-320]:
 
@@ -1230,7 +1230,7 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
 | `chest_accessed` | Chance |
 |---|---|
 | < 4 | 0 (`chest_min_move_usage` = 4) |
-| 4–7 | 15 % |
+| 4-7 | 15 % |
 | ≥ 8 | 100 % |
 
   - So the box is guaranteed to move by the 9th spin at one location [I].
@@ -1238,7 +1238,7 @@ Research draft for a clean-room reimplementation. Sources are the dumped scripts
   - The chest array is shuffled at start, keeping `start_chest` out of index 0, and the box starts at `start_chest` (unless `random_pandora_box_start` is set) [V weapons.gsc:519-550, :590-622].
   - On a move, the index goes up by 1. At the end the array is reshuffled, avoiding the same name twice [V :1103-1126].
   - There is no open-area check, so the box can move to rooms not yet opened [I from V; verify call commented out :1128].
-- Chests (6): `start_chest`, `chest1`–`chest5`, each with a `_rubble` ent [V factory ents :8840-15349].
+- Chests (6): `start_chest`, `chest1`-`chest5`, each with a `_rubble` ent [V factory ents :8840-15349].
 
 #### Cymbal monkey (factory)
 - Box-only (weights above). There is no wall buy; the 2000 in `add_zombie_weapon` is unused for the box [V weapons.gsc:302].

@@ -1,6 +1,6 @@
 # BO2 Xbox 360 symbol builds: getting them readable
 
-How we turned the BO2 Xbox 360 builds (`CoDMP.exe`, `CoDSP.exe` and their `.map` files, from the user's own copy) into
+How we turned the BO2 Xbox 360 builds (`CoDMP.exe`, `CoDSP.exe` and their `.map` files, from our own copy) into
 something we could read: a flat decrypted image for scripted table dumps, and a Ghidra project with the `.map` names.
 Marks are explained in the [notes index](../../../../NOTES.md).
 
@@ -43,4 +43,4 @@ Marks are explained in the [notes index](../../../../NOTES.md).
 ## Credits
 
 - XEXLoaderWV by zeroKilo (Warranty Voider), Ghidra by the NSA, capstone for the x86 spot reads.
-- The symbol builds and the PC server pdb are the user's own files; nothing from them is published here.
+- The symbol builds and the PC server pdb are our own files; nothing from them is published here.

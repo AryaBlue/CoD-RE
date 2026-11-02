@@ -23,10 +23,10 @@ the XPAK mesh stream key (see §4).
 | Extra seed / XOR | **none** | plain FNV-1a, no salt |
 
 - **Greyhound `BO4CalculateHash` (RIPPER-VERIFIED):** `Result = 0xCBF29CE484222325; for each
-  byte: Result ^= b; Result *= 0x100000001B3; return Result & 0xFFFFFFFFFFFFFFF;` — i.e. FNV-1a
+  byte: Result ^= b; Result *= 0x100000001B3; return Result & 0xFFFFFFFFFFFFFFF;` - i.e. FNV-1a
   with a **60-bit** mask. Greyhound's BO4 pool loader also masks the stored pointer:
   `Asset.NamePtr &= 0xFFFFFFFFFFFFFFF;`. Because Greyhound provably resolves real BO4 model
-  names via its `fnv1a_xmodels.wni` using exactly this, **60-bit is the correct width** — a
+  names via its `fnv1a_xmodels.wni` using exactly this, **60-bit is the correct width** - a
   63-bit or unmasked compare leaves stray high bits and causes exactly the false/missed matches
   seen (this is almost certainly the "wrong variant" bug).
 - **ACTS `hash::Hash64` (UNLINKER-SOURCE):** same FNV-1a core (`FNV1A_PRIME` basis, `IV_DEFAULT`
@@ -34,7 +34,7 @@ the XPAK mesh stream key (see §4).
   helper) before hashing, and its generic `Hash64` masks to **63 bits** (`MASK63 =
   0x7FFFFFFFFFFFFFFF`). The 63-bit mask is ACTS's cross-game default; for BO4 the real stored
   width is 60-bit, so use 60. Take the **normalisation from ACTS** (lowercase + backslash) and
-  the **60-bit mask from Greyhound** — this is the safe union. (Greyhound skips normalisation
+  the **60-bit mask from Greyhound** - this is the safe union. (Greyhound skips normalisation
   only because its `.wni` names are already lower-case; feeding any upper-case/`\` name without
   normalising would mis-hash.)
 
@@ -43,12 +43,12 @@ the XPAK mesh stream key (see §4).
 1. Hash the **bare asset name as stored** (e.g. `p7_zm_escape_tacsit_table`), **not** a full
    path and **no** added prefix/extension. (The `xmodel/` virtual prefix etc. is not part of the
    hashed string.)
-2. **Lower-case** ASCII `A`–`Z` → `a`–`z`.
+2. **Lower-case** ASCII `A`-`Z` → `a`-`z`.
 3. Convert every backslash `\` → forward slash `/`.
 4. Hash the resulting bytes (ASCII/UTF-8 single bytes) with FNV-1a, then mask 60-bit.
 
-Steps 2–3 are no-ops for already-lower-case, slash-free model names (the common case), which is
-why Greyhound's un-normalised function still matches — but keep them for correctness.
+Steps 2-3 are no-ops for already-lower-case, slash-free model names (the common case), which is
+why Greyhound's un-normalised function still matches - but keep them for correctness.
 
 ## 3. Reference implementation (self-contained Python)
 
@@ -72,28 +72,28 @@ def bo4_xmodel_name_hash(name: str) -> int:
     return h & MASK60
 
 def matches_zone_namePtr(name: str, stored_namePtr: int) -> bool:
-    # ALWAYS mask the stored field too — the zone value carries a top-nibble tag.
+    # ALWAYS mask the stored field too - the zone value carries a top-nibble tag.
     return bo4_xmodel_name_hash(name) == (stored_namePtr & 0x0FFFFFFFFFFFFFFF)
 ```
 
-## 4. CRITICAL: XModel name hash vs XPAK data-key — DIFFERENT (flag)
+## 4. CRITICAL: XModel name hash vs XPAK data-key - DIFFERENT (flag)
 
 **They are not the same value.** (confidence: HIGH for models; the function is only *reused* for
 image keys, not model-mesh keys.)
 - The **XModel asset-name hash** (this doc) identifies the asset in the zone's XModel pool.
-- The **XPAK mesh stream key** is the model LOD's `LODStreamKey` — an opaque per-LOD content/
+- The **XPAK mesh stream key** is the model LOD's `LODStreamKey` - an opaque per-LOD content/
   stream key stored in the LOD struct and looked up directly in the `.xpak` hash table
   (`BO3XPakHashEntry.Key`). A single model has several LODs each with its *own* distinct key, so
   it **cannot** be the model-name hash. Do **not** try to match xmodel folder names via any xpak
   key.
 - Caveat / nuance: XPAK **image** entries *are* keyed by the 60-bit FNV-1a of the image **name**
   (the same core function as §1, via the index `name:` property masked `& 0x0FFF...F`). So the
-  function is reused for image keys — but that is images, not model meshes, and still is a hash
+  function is reused for image keys - but that is images, not model meshes, and still is a hash
   of a *name*, not a model's mesh stream key. For the xmodel-matching task, use §3 only.
 
 ## 5. Test vectors (verify your implementation)
 
-**5a. Core FNV-1a-64 (unmasked) — official FNV reference vectors**, independently reproduced by
+**5a. Core FNV-1a-64 (unmasked) - official FNV reference vectors**, independently reproduced by
 Zig/Go/Rust/Boost test suites. Use these to prove your FNV-1a core (basis/prime, XOR-then-mul)
 is right before masking:
 
@@ -103,20 +103,20 @@ is right before masking:
 | `"a"` | `0xAF63DC4C8601EC8C` | `0x0F63DC4C8601EC8C` |
 | `"foobar"` | `0x85944171F73967E8` | `0x05944171F73967E8` |
 
-(All three inputs are already lower-case and slash-free, so normalisation is a no-op — they
+(All three inputs are already lower-case and slash-free, so normalisation is a no-op - they
 isolate the FNV core + the 60-bit mask. The 60-bit column = clear the top hex nibble.)
-Sanity guard: FNV-1 (non-"a") of `"a"` is `0xAF63BD4C8601B7BE` — if you get that, you wrongly
+Sanity guard: FNV-1 (non-"a") of `"a"` is `0xAF63BD4C8601B7BE` - if you get that, you wrongly
 implemented FNV-1 (multiply-then-XOR) instead of FNV-1a.
 
 **5b. Ground-truth for REAL model names:** cross-check against Greyhound's own
 `package_index/fnv1a_xmodels.wni` (a binary hash→name index of actual BO4 models; 60-bit keys).
-That file is the authoritative "source/test data" for live model-name↔hash pairs — pick any
+That file is the authoritative "source/test data" for live model-name↔hash pairs - pick any
 entry, feed its name through §3, and confirm you reproduce its stored 60-bit key. (I did not
-read the binary `.wni` here — it is the recommended on-disk verification set for the worker.)
+read the binary `.wni` here - it is the recommended on-disk verification set for the worker.)
 
 ## 6. Sources (read-only; nothing cloned or run)
 
-- Scobalula/Greyhound @ `22c3d17`, `src/WraithXCOD/WraithXCOD/GameBlackOps4.cpp` —
+- Scobalula/Greyhound @ `22c3d17`, `src/WraithXCOD/WraithXCOD/GameBlackOps4.cpp` -
   `BO4CalculateHash` (L738-751, 60-bit mask) + pool loader `NamePtr &= 0xFFFFFFFFFFFFFFF`
   (L779) + `.wni` cache load (L2586-2593).
   https://github.com/Scobalula/Greyhound/blob/master/src/WraithXCOD/WraithXCOD/GameBlackOps4.cpp

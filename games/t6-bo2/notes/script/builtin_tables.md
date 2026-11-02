@@ -1,7 +1,7 @@
 # BO2 script built-in tables (360 CoDMP)
 
 Where the GSC/CSC built-in tables sit in the BO2 Xbox 360 MP build, what an entry looks like, and how many each
-holds. Read from the decrypted image ([t6_360_xex_route.md](../engine/xbox360_symbol_builds.md)) and named from `CoDMP.map`. Marks
+holds. Read from the decrypted image ([xbox360_symbol_builds.md](../engine/xbox360_symbol_builds.md)) and named from `CoDMP.map`. Marks
 are explained in the [notes index](../../../../NOTES.md).
 
 ## Entry layout
@@ -32,7 +32,7 @@ are explained in the [notes index](../../../../NOTES.md).
 - [M] About 2,070 built-ins in all. Some names appear twice with different handlers (e.g. `setvehgoalpos` and
   `setneargoalnotifydist` exist for helicopters and for ground vehicles); the receiver's entity class picks one.
 - [I] Addresses are for this Sep 2013 devkit build only. The PC `t6zm.exe` registers its table with a push/call
-  sequence instead (see [t6_sound_playsound.md](../engine/sound_playsound.md)).
+  sequence instead (see [sound_playsound.md](../engine/sound_playsound.md)).
 
 ## Built-ins that matter for zombies visuals on the client
 
@@ -56,4 +56,4 @@ script functions or decompile artefacts: `entrance`, `player`, `get_closest_dama
 
 ## Credits
 
-Ghidra (NSA) with zeroKilo's XEXLoaderWV; the symbol builds are the user's own.
+Ghidra (NSA) with zeroKilo's XEXLoaderWV; the symbol builds are our own.

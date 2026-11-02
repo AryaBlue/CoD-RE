@@ -243,7 +243,7 @@ door group, and `script_flag` = the zone flag it sets (10). The flags: `magic_bo
 a flag are the electric ones (§4). Door groups: `backstage_door`, `vip_top_door`, `foyer_top_door`, `foyer_bottom_door`,
 `dress_door`, `dining_room_door`, `alleyway_fencedoor`, `alley_door2`, `theater_to_foyer_door`.
 
-Field: `blockers = {{"zombie_door","zombie_debris"}, "script_flag", "zombie_cost", …}` already holds (T5).
+Field: `blockers = {{"zombie_door","zombie_debris"}, "script_flag", "zombie_cost", ...}` already holds (T5).
 
 ## 9. Zones (T5 rule, KI adjacency)
 
@@ -281,7 +281,7 @@ Fields: `zones = {"info_volume", "_barriers"}` exists (T5). The adjacency table 
   - A `find_flesh` struct makes it chase instead of going for a window (spawner:398-401, 422-431).
 
 Fields: `zombieSpawners` (`actor_`, `zombie_spawner`, dog class `actor_zombie_dog`) and `risers = {"script_string",
-"riser", 100, "zombie_rise", "_rise", …, "find_flesh", "zombie_chaser"}` already match Kino [V]. Both T5.
+"riser", 100, "zombie_rise", "_rise", ..., "find_flesh", "zombie_chaser"}` already match Kino [V]. Both T5.
 
 ## 11. Dogs (T5)
 
@@ -325,7 +325,7 @@ Suggested per-map fields: `quadRounds.every = 3`, `zones = {foyer, theater, stag
 
 ## 13. Windows (T5)
 
-There are 22 `script_struct exterior_goal`s, each `target` = a 7-piece `script_brushmodel` group (`pf37_auto1`…
+There are 22 `script_struct exterior_goal`s, each `target` = a 7-piece `script_brushmodel` group (`pf37_auto1`...
 `pf67_auto1`) [M ents:7557]. That fits T5's board-and-clip pattern (6 boards + clip) [I: the pieces weren't split by
 key here].
 
@@ -334,7 +334,7 @@ Field: `windows = {"exterior_goal", "script_brushmodel", "clip"}` exists (T5).
 ## 14. Wall buys, Bowie, Claymore (T5)
 
 - 10 `trigger_use weapon_upgrade`, with `zombie_weapon_upgrade` = the weapon (`ithaca_zm`, `mp5k_zm`, `m14_zm`, `mp40_zm`,
-  `m16_zm`, `frag_grenade_zm`, `rottweil72_zm`, `pm63_zm`, …) and `target` = the chalk model [V ents:17].
+  `m16_zm`, `frag_grenade_zm`, `rottweil72_zm`, `pm63_zm`, ...) and `target` = the chalk model [V ents:17].
 - 1 `claymore_purchase` (`claymore_zm`, ents:77).
 - 1 `bowie_upgrade` (`script_noteworthy` = `knife_bowie`, ents:108).
 - No cost key: the prices come from `mp/zombiemode.csv` (the existing `uses.price*`).

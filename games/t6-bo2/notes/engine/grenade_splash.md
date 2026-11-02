@@ -47,5 +47,5 @@ Server-side missile and splash behaviour and the actor pathing rules, read in th
 
 ## Credits
 
-Ghidra (NSA) with zeroKilo's XEXLoaderWV, capstone for the x86 reads; the symbol builds and server pdb are the user's
+Ghidra (NSA) with zeroKilo's XEXLoaderWV, capstone for the x86 reads; the symbol builds and server pdb are our
 own.

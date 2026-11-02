@@ -24,8 +24,8 @@ What BO2's sky material does, read from its own shaders. Material: `mc/mtl_dlc0_
 | constant | value | used by |
 |---|---|---|
 | skyBoxRotation | (0.743145, 0.669131, -0.743145, 8000) | VS: cube lookup rotation |
-| skyColorParm | (1, 6, 1, 1) | PS: HDR flag, scale, —, fog weight |
-| cloudsUVMad1/2, cloudsUVMul1/2, skyBoxCloudW, cloudsHeight, cloudsFeather | — | not bound by this technique |
+| skyColorParm | (1, 6, 1, 1) | PS: HDR flag, scale, -, fog weight |
+| cloudsUVMad1/2, cloudsUVMul1/2, skyBoxCloudW, cloudsHeight, cloudsFeather | - | not bound by this technique |
 
 T5 zombie_theater `mc/mtl_skybox_zombie_theater` (`mc_sky_cubemap_hdr`) has skyBoxRotation
 (-8.74228e-08, -1, 8.74228e-08, -8000) **[V-data]**.

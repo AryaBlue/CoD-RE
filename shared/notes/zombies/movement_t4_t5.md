@@ -40,7 +40,7 @@
 <!-- /toc -->
 
 What drives a zombie's feet: the speed class, the move cycles, windows, melee, traversals and the crawler switch. It's for
-the engine's native zombies and its NavActors. It fills the gaps in [zombies_t4_nacht_ai.md](../../../games/t4-waw/notes/zombies/nacht_ai.md), which already has the
+the engine's native zombies and its NavActors. It fills the gaps in [nacht_ai.md](../../../games/t4-waw/notes/zombies/nacht_ai.md), which already has the
 lifecycle (§1), the gibs (§3) and the per-anim timings (§7 and "which xanim plays when"). Facts that are already there
 are only linked, not repeated.
 
@@ -410,13 +410,13 @@ Extra source roots for this half:
 **Same as Der Riese:**
 - **Roll.** Each zombie rolls once at spawn: a random int in [S, S+35). It walks at ≤35, runs at ≤70, otherwise sprints
   (`bo1:maps/_zombiemode_spawner.gsc:274-289`, `waw:maps/_zombiemode_spawner.gsc:244-262`) [V].
-- **S.** It starts at 1 (`bo1:maps/_zombiemode.gsc:451`; `waw:…spawner.gsc:9`) [V]. At the end of each round, S = round × mult, and
-  then the round number goes up (`bo1:…_zombiemode.gsc:2739-2740`, `waw:…_zombiemode.gsc:2096-2098`) [V]. So during round N
+- **S.** It starts at 1 (`bo1:maps/_zombiemode.gsc:451`; `waw:...spawner.gsc:9`) [V]. At the end of each round, S = round × mult, and
+  then the round number goes up (`bo1:..._zombiemode.gsc:2739-2740`, `waw:..._zombiemode.gsc:2096-2098`) [V]. So during round N
   (N ≥ 2), S = (N−1) × mult [I].
 
 | | WaW | BO1 |
 |---|---|---|
-| multiplier | hard-coded 8 (`waw:…_zombiemode.gsc:2096`) [V] | `zombie_move_speed_multiplier` read from csv via the difficulty column (`bo1:…_zombiemode.gsc:480`). EASY 6, MEDIUM/HARD/VET 8 (`bo1:mp/zombiemode.csv:15`) [V]. Default difficulty uses MEDIUM, so 8 (see `zombies_t5_vs_t4.md`) |
+| multiplier | hard-coded 8 (`waw:..._zombiemode.gsc:2096`) [V] | `zombie_move_speed_multiplier` read from csv via the difficulty column (`bo1:..._zombiemode.gsc:480`). EASY 6, MEDIUM/HARD/VET 8 (`bo1:mp/zombiemode.csv:15`) [V]. Default difficulty uses MEDIUM, so 8 (see `zombies_t5_vs_t4.md`) |
 | cap | none. Once S ≥ 71 every zombie sprints [I] | none [V: no clamp at `:2739`] |
 | all sprint from | round 10 (S=72) [I] | round 10 on MEDIUM. EASY: round 13 [I] |
 
@@ -424,22 +424,22 @@ Odds per round with mult 8, computed [I]. They are the same in both games:
 
 | round | walk | run | sprint |
 |---|---|---|---|
-| 1 | 100% | – | – |
-| 2 | 80% | 20% | – |
-| 3 | 57% | 43% | – |
-| 4 | 34% | 66% | – |
-| 5 | 11% | 89% | – |
-| 6 | – | 89% | 11% |
-| 7 | – | 66% | 34% |
-| 8 | – | 43% | 57% |
-| 9 | – | 20% | 80% |
-| 10+ | – | – | 100% |
+| 1 | 100% | - | - |
+| 2 | 80% | 20% | - |
+| 3 | 57% | 43% | - |
+| 4 | 34% | 66% | - |
+| 5 | 11% | 89% | - |
+| 6 | - | 89% | 11% |
+| 7 | - | 66% | 34% |
+| 8 | - | 43% | 57% |
+| 9 | - | 20% | 80% |
+| 10+ | - | - | 100% |
 
 **Last-zombie sprint:**
 
 | | WaW | BO1 |
 |---|---|---|
-| rounds | every round > 3 (`waw:…_zombiemode.gsc:1624-1638`) [V] | only rounds 4-9: started when round < 10, returns at once if ≤ 3 (`bo1:…_zombiemode.gsc:2169-2172, 2266-2270`) [V] |
+| rounds | every round > 3 (`waw:..._zombiemode.gsc:1624-1638`) [V] | only rounds 4-9: started when round < 10, returns at once if ≤ 3 (`bo1:..._zombiemode.gsc:2169-2172, 2266-2270`) [V] |
 | starts when | the spawn loop has finished | `zombie_total ≤ 4`, then ≤ 3 alive. Both are polled every 2 s (`:2276-2286`) [V] |
 | who | the one remaining zombie, if it has legs. Re-checked every 0.5 s | same. BO1 counts `GetAiSpeciesArray("axis","all")`, so dogs and specials count too (`:2287-2297`) [V] |
 | anim | `sprint1..3` at random | same. It sets the run anim directly and doesn't change `zombie_move_speed` (`:2291-2293`) [V] |
@@ -450,8 +450,8 @@ Odds per round with mult 8, computed [I]. They are the same in both games:
 
 **Per-zombie overrides (BO1 only):**
 - **`set_zombie_run_cycle( new_move_speed )`.** It takes an optional forced class. Without one it rolls and stores
-  `zombie_move_speed_original`. Either way it sets `needs_run_update` (`bo1:…spawner.gsc:241-253`) [V]. WaW has no
-  parameter (`waw:…spawner.gsc:211`) [V].
+  `zombie_move_speed_original`. Either way it sets `needs_run_update` (`bo1:...spawner.gsc:241-253`) [V]. WaW has no
+  parameter (`waw:...spawner.gsc:211`) [V].
 - **Freeze gun.** It downgrades the class by the share of health the freeze gun has dealt (`bo1:maps/_zombiemode_weap_freezegun.gsc:270-291`) [V]:
   - at 66% or more: walk
   - at 33% or more: sprint becomes run, run becomes walk
@@ -463,7 +463,7 @@ Odds per round with mult 8, computed [I]. They are the same in both games:
 
 Der Riese already has the 8/6/4-entry tables, and so does BO1. **Variant pick:** `randomintrange(1,8)` for walk,
 `(1,6)` for run and `(1,4)` for sprint, so the last entry of each table is **never** used
-(`bo1:…spawner.gsc:255-272`, `waw:…spawner.gsc:224-241`) [V].
+(`bo1:...spawner.gsc:255-272`, `waw:...spawner.gsc:224-241`) [V].
 
 | key | WaW Der Riese (`waw:maps/_zombiemode.gsc:682-751`) | BO1 (`bo1:maps/_zombiemode.gsc:739-758`) |
 |---|---|---|
@@ -478,7 +478,7 @@ Der Riese already has the 8/6/4-entry tables, and so does BO1. **Variant pick:**
 
 - **The one table difference:** BO1 drops `walk_v8` and uses `walk_v9` for 1/7 of walkers [V].
 - **Death anim** (already a Der Riese change from Nacht). It's a uniform pick from `ch_dazed_a..d_death`, **not tied to
-  the variant** (`bo1:…spawner.gsc:253-254`, `waw:…spawner.gsc:213-215`) [V].
+  the variant** (`bo1:...spawner.gsc:253-254`, `waw:...spawner.gsc:213-215`) [V].
 - **Playback rate (BO1).**
   - `moveplaybackrate` = 1 for every zombie, and all run-anim calls pass it (`bo1cz:animscripts/zombie_init.gsc:317-321`,
     `zombie_run.gsc:164-165`) [V].
@@ -492,23 +492,23 @@ Der Riese already has the 8/6/4-entry tables, and so does BO1. **Variant pick:**
   (`bo1cz:animscripts/zombie_move.gsc:66-71`) [V].
 - **Sidestep code** exists (`zombie_move.gsc:121-290`). It is gated on `zombie_can_sidestep`, which nothing in `bo1:maps`
   sets, so it's off for normal zombies (it's for the Spetsnaz DLC zombies) [V for the gate, I for the DLC].
-- **`PushPlayer(true)`.** WaW sets it at spawn and again when entering (`waw:…spawner.gsc:90, 2899`) [V]. **BO1's zombie
+- **`PushPlayer(true)`.** WaW sets it at spawn and again when entering (`waw:...spawner.gsc:90, 2899`) [V]. **BO1's zombie
   framework never calls it** (grep of `bo1:maps/_zombiemode*.gsc`) [V]. The effect on player blocking is not checked [I].
 
 ## 3. Windows and barriers
 
 **Window pick** (`zombie_think`):
 - WaW: `script_forcegoal` → the single closest goal to the target. Otherwise the 3 closest to the target (or to self), with
-  the 500-unit drop rule and a random pick (`waw:…spawner.gsc:301-349`) [V].
+  the 500-unit drop rule and a random pick (`waw:...spawner.gsc:301-349`) [V].
 - BO1: **any spawner with a non-empty `target`** gets the single closest goal to that target, with no random pick
-  (`bo1:…spawner.gsc:347-356`) [V]. Untargeted spawners use the 3-closest + 500 rule from their own origin (`:375-403`) [V].
+  (`bo1:...spawner.gsc:347-356`) [V]. Untargeted spawners use the 3-closest + 500 rule from their own origin (`:375-403`) [V].
 - BO1 skips teardown when the rise struct says `find_flesh` or the spawner's `script_string` is `zombie_chaser`
   (`:290-303, 359-375`) [V].
 - WaW's Der Riese-only `riser_door` branch is gone [V].
 - `zombie_assure_node` is unchanged (2 s, then the 20 closest, then death after 20 s). BO1 also counts
-  `zombies_timeout_spawn` (`bo1:…:493-553`) [V].
+  `zombies_timeout_spawn` (`bo1:...:493-553`) [V].
 
-**Tear loop** (`tear_into_building`, `bo1:…spawner.gsc:583-748` vs `waw:…:614-720`):
+**Tear loop** (`tear_into_building`, `bo1:...spawner.gsc:583-748` vs `waw:...:614-720`):
 
 | | WaW | BO1 |
 |---|---|---|
@@ -521,7 +521,7 @@ Der Riese already has the 8/6/4-entry tables, and so does BO1. **Variant pick:**
 | after tear | clip `connectpaths` only (`waw:486`) | clip `disable_trigger` + `connectpaths` (if not already disabled). Then it waits for `zombie_start_traverse` / `zombie_end_traverse` before flagging "completed emerging" (`bo1:467-491`) [V] |
 | `crash_into_building` | present, unused [I] | removed [V] |
 
-**Which chunk next** (BO1 `get_closest_non_destroyed_chunk`, `bo1:…_zombiemode_utility.gsc:1588-1625`) [V]:
+**Which chunk next** (BO1 `get_closest_non_destroyed_chunk`, `bo1:..._zombiemode_utility.gsc:1588-1625`) [V]:
 - **Chunks need `script_team` plus `script_parameters`, or they are never picked:**
   - `classic_boards` + `board`
   - `new_barricade` + `repair_board`
@@ -535,7 +535,7 @@ Der Riese already has the 8/6/4-entry tables, and so does BO1. **Variant pick:**
 - **[I] Porting WaW maps:** their chunks lack `script_team`, so the BO1 rules would never pick them. A profile must map them
   to `classic_boards`.
 
-**Tear anim** (`get_tear_anim`, `bo1:…spawner.gsc:1430-2127` vs `waw:…:1023-1311`):
+**Tear anim** (`get_tear_anim`, `bo1:...spawner.gsc:1430-2127` vs `waw:...:1023-1311`):
 - **Same in both:** standing zombies with a `script_noteworthy` 1-6 use `ai_zombie_boardtear_{m,r,l}_{1..6}`, with
   m/r/l = attack spot 0/1/2. Crawlers use `ai_zombie_boardtear_crawl_{m,r,l}_{1..6}` [V].
 - **WaW fallback** (no noteworthy): by height. Over 70 high, under 40 low, otherwise left/right at random. Crawlers:
@@ -554,11 +554,11 @@ Der Riese already has the 8/6/4-entry tables, and so does BO1. **Variant pick:**
 - The crawler fallback (`attack_crawl` / `_lunge`) sits in an else-if whose condition can never be true, so it's
   dead code (`:2114-2120`) [V].
 
-**Notetracks during tear** (`zombie_tear_notetracks`, `bo1:…:938-1123`). WaW only listens for `board` [V]. BO1:
+**Notetracks during tear** (`zombie_tear_notetracks`, `bo1:...:938-1123`). WaW only listens for `board` [V]. BO1:
 - `board`: remove the chunk, plus horizontal splinter FX for noteworthy 1/4/5/6 or vertical for the rest.
 - `bar_bend`: noteworthy 3/5 swap in a bent-bar model until it's repaired.
 - `bar`: remove the chunk.
-- Each removes via `remove_chunk(…, zomb)`, which sets the state to `mid_tear` and makes the chunk non-solid
+- Each removes via `remove_chunk(..., zomb)`, which sets the state to `mid_tear` and makes the chunk non-solid
   (`bo1:maps/_zombiemode_blockers.gsc:1301-1324`) [V].
 
 **Reach-in attack through the boards** (`should_attack_player_thru_boards`, `bo1:773-852` vs `waw:749-813`):
@@ -574,7 +574,7 @@ Der Riese already has the 8/6/4-entry tables, and so does BO1. **Variant pick:**
 - Taunt: the same 5% dvar. BO1 uses `ForceTeleport` back to the start origin instead of `teleport`, and adds a vocal
   (`bo1:749-771`) [V].
 - New barrier types (BO1): `repair_board` with glass/metal `unbroken_section`, `bar`, `grate`, `window_shutter`, and the
-  `noBoards` mutator. Details are in `zombies_t5_vs_t4.md` §3 (`bo1:…blockers.gsc:862-968`) [V].
+  `noBoards` mutator. Details are in `zombies_t5_vs_t4.md` §3 (`bo1:...blockers.gsc:862-968`) [V].
   - The glass section has health 99999 and breaks on the **first** damage from a valid or downed player (`:970-984`) [V].
 
 ## 4. Melee
@@ -582,13 +582,13 @@ Der Riese already has the 8/6/4-entry tables, and so does BO1. **Variant pick:**
 | | WaW Der Riese | BO1 |
 |---|---|---|
 | script | `animscripts/melee.gsc`, shared with human AI (`waw:animscripts/melee.gsc`) | `animscripts/zombie_melee.gsc`, zombie-only (`bo1cz:`) [V] |
-| range | `meleeAttackDist` 64, `anim.meleeRange` 64 | same: 64 / 64. `chargeRangeSq` 200² (`bo1cz:animscripts/zombie_init.gsc:1063-1067`; `bo1:…spawner.gsc:3268-3269`) [V] |
-| facing gate | – (not compared) | 60° to start, 110° to keep going (`zombie_melee.gsc:370`) [V] |
+| range | `meleeAttackDist` 64, `anim.meleeRange` 64 | same: 64 / 64. `chargeRangeSq` 200² (`bo1cz:animscripts/zombie_init.gsc:1063-1067`; `bo1:...spawner.gsc:3268-3269`) [V] |
+| facing gate | - (not compared) | 60° to start, 110° to keep going (`zombie_melee.gsc:370`) [V] |
 | throttle | at most 3 zombies start a swing per network frame (`waw:animscripts/melee.gsc:13-23, 122-135`) [V] | **none** (`zombie_melee.gsc:13-225`) [V] |
 | swing | `fire` → `melee()`; `stop` → `CanContinueToMelee`; `end` breaks | same loop (`:141-182`) [V]. Adds: an exit when `marked_for_death` is set, and a `melee_miss_func` per AI or per level |
 | anim knob | blend 0.2, rate 1 | same (`:141`) [V] |
 
-**Anim pick** (the `pick_zombie_melee_anim` logic is the same: Der Riese `waw:animscripts/melee.gsc:714-745`, BO1 `bo1cz:…zombie_melee.gsc:680-711`) [V]:
+**Anim pick** (the `pick_zombie_melee_anim` logic is the same: Der Riese `waw:animscripts/melee.gsc:714-745`, BO1 `bo1cz:...zombie_melee.gsc:680-711`) [V]:
 - Walkers: base + walk set.
 - Runners and sprinters: base + run set.
 - `no_legs`: stumpy set.
@@ -630,11 +630,11 @@ So a BO1 walker picks from 10 anims (6 + 4), and a runner from 9 (6 + 3) [I].
     - So the 0.4 only scales the engine's own melee damage, which the script then throws away.
     - The engine damage comes from the `ai_meleeDamage` dvar: int, default 100, range 0-1000, at `0x1bd9b44`
       (`0x7e1b84-0x7e1b8b`). It's read at `0x5848be`. [I] So without the script override, a hit would be 100 × 0.4 = 40.
-- **Same-attacker immunity:** 0.4 s (`level.ignore_enemy_timer`), the same as WaW (`bo1:…_zombiemode.gsc:3147-3160`,
-  `waw:…_zombiemode.gsc:2555-2568`) [V].
+- **Same-attacker immunity:** 0.4 s (`level.ignore_enemy_timer`), the same as WaW (`bo1:..._zombiemode.gsc:3147-3160`,
+  `waw:..._zombiemode.gsc:2555-2568`) [V].
 - **Reach-in hits** go through the same override, so 60 [I].
 - **Failsafe:** a zombie touching its player for 5 s+ without moving 60 units kills the player, unless the player has
-  Jugg. This is the same as Der Riese (`bo1:…spawner.gsc:191-240`) [V].
+  Jugg. This is the same as Der Riese (`bo1:...spawner.gsc:191-240`) [V].
 
 ## 5. Traversals
 
@@ -642,12 +642,12 @@ So a BO1 walker picks from 10 anims (6 + 4), and a runner from 9 (6 + 3) [I].
 
 | | WaW | BO1 |
 |---|---|---|
-| shared script | `animscripts/traverse/shared.gsc`: `advancedTraverse` (window) and `DoTraverse` (jumps) | `animscripts/traverse/zombie_shared.gsc`, `DoTraverse` only, for every zombie traverse (`bo1cz:…:72-189`) [V] |
-| height alignment | `DoTraverse` teleports by (start node `traverse_height` − start z − anim height) unless the anim has a `traverse_align` note. `advancedTraverse` always offsets by 39.875 (`waw:animscripts/traverse/shared.gsc:6-60, 148-151, 230-238`) [V] | **`DoTraverse` never aligns.** `handleTraverseAlignment` only runs from `zombie_wall_crawl_drop` (`bo1cz:…zombie_shared.gsc:282-292`; `traverse/zombie_wall_crawl_drop.gsc`) [V] |
-| gravity | `advancedTraverse`: at `gravity on`, else after a fixed 1.23 − 0.2 s (`waw:…shared.gsc:38-55`) [V] | no gravity for the whole anim, back on at the end (`:100, 157`). Generic `gravity on` / `gravity off` / `gravity code` notes switch AnimMode (`bo1cz:animscripts/zombie_shared.gsc:180-182, 274-289`) [V] |
+| shared script | `animscripts/traverse/shared.gsc`: `advancedTraverse` (window) and `DoTraverse` (jumps) | `animscripts/traverse/zombie_shared.gsc`, `DoTraverse` only, for every zombie traverse (`bo1cz:...:72-189`) [V] |
+| height alignment | `DoTraverse` teleports by (start node `traverse_height` − start z − anim height) unless the anim has a `traverse_align` note. `advancedTraverse` always offsets by 39.875 (`waw:animscripts/traverse/shared.gsc:6-60, 148-151, 230-238`) [V] | **`DoTraverse` never aligns.** `handleTraverseAlignment` only runs from `zombie_wall_crawl_drop` (`bo1cz:...zombie_shared.gsc:282-292`; `traverse/zombie_wall_crawl_drop.gsc`) [V] |
+| gravity | `advancedTraverse`: at `gravity on`, else after a fixed 1.23 − 0.2 s (`waw:...shared.gsc:38-55`) [V] | no gravity for the whole anim, back on at the end (`:100, 157`). Generic `gravity on` / `gravity off` / `gravity code` notes switch AnimMode (`bo1cz:animscripts/zombie_shared.gsc:180-182, 274-289`) [V] |
 | variants | one anim per script | `traverseAnim` may be an array, picked uniformly (`:136-139`). Supports a trans-in, a sequence and a trans-out (`:192-241`) [V] |
-| end | – | sets the run anim (blend 0.2), waits 0.2 s, then notifies `zombie_end_traverse`. `zombie_start_traverse` fires at the start (`:78, 183-188`) [V] |
-| death mid-traverse | – (not compared) | the `traverse_death` notetrack plus a ragdoll thread (`:260-300, 357+`) [V] |
+| end | - | sets the run anim (blend 0.2), waits 0.2 s, then notifies `zombie_end_traverse`. `zombie_start_traverse` fires at the start (`:78, 183-188`) [V] |
+| death mid-traverse | - (not compared) | the `traverse_death` notetrack plus a ragdoll thread (`:260-300, 357+`) [V] |
 
 **Window climb:**
 - **Der Riese** ents use `"animscript" "wall_hop"` ×28 (`waw:maps/nazi_zombie_factory.d3dbsp.ents`) [V]. That resolves to
@@ -675,34 +675,34 @@ So a BO1 walker picks from 10 anims (6 + 4), and a runner from 9 (6 + 3) [I].
 
 | node animscript | zombie | crawler | in WaW Der Riese |
 |---|---|---|---|
-| `zombie_jump_down_40` | `ai_zombie_jump_down_40` | **same anim, no crawler branch** | – |
+| `zombie_jump_down_40` | `ai_zombie_jump_down_40` | **same anim, no crawler branch** | - |
 | `zombie_jump_down_72` | `jump_down_72` | `crawl_jump_down_72` | yes |
-| `zombie_jump_down_96` | – (not in BO1 common) | – | yes: `jump_down_96` / `crawl_jump_down_97` |
+| `zombie_jump_down_96` | - (not in BO1 common) | - | yes: `jump_down_96` / `crawl_jump_down_97` |
 | `zombie_jump_down_120` (Kino) | `jump_down_120` (quads: `quad_jump_down_128`) | `crawl_jump_down_120` | yes |
 | `zombie_jump_down_127` | `jump_down_127` | `crawl_jump_down_127` | yes |
 | `zombie_jump_down_184` | `jump_down_184` | `crawl_jump_down_184` | yes |
 | `zombie_jump_down_190` | `jump_down_190` | `crawl_jump_down_189` | yes |
-| `zombie_jump_down_222` | `jump_down_222` | `crawl_jump_down_222` | – |
-| `zombie_jump_down_240` | `jump_down_240` | `crawl_jump_down_240` | – |
-| `zombie_jump_down_286` (Kino) | `jump_down_286` | `crawl_jump_down_286` | – |
-| `zombie_jump_up_222` | `jump_up_222` | `crawl_jump_up_222` | – |
-| `zombie_jump_up_to_climb` | – | – | yes: `jump_up_2_climb` / `crawl_jump_up_2_climb` |
-| `zombie_wall_crawl_drop`, `_quick` (Kino) | quad wall-crawl intro (walk vs other speed), then `quad_wall_jump_off`, with its own wall-death anims | – | – |
+| `zombie_jump_down_222` | `jump_down_222` | `crawl_jump_down_222` | - |
+| `zombie_jump_down_240` | `jump_down_240` | `crawl_jump_down_240` | - |
+| `zombie_jump_down_286` (Kino) | `jump_down_286` | `crawl_jump_down_286` | - |
+| `zombie_jump_up_222` | `jump_up_222` | `crawl_jump_up_222` | - |
+| `zombie_jump_up_to_climb` | - | - | yes: `jump_up_2_climb` / `crawl_jump_up_2_climb` |
+| `zombie_wall_crawl_drop`, `_quick` (Kino) | quad wall-crawl intro (walk vs other speed), then `quad_wall_jump_off`, with its own wall-death anims | - | - |
 
 Kino node counts: `jump_down` 40 ×1, 72 ×3, 120 ×1, 127 ×1, 190 ×5, 240 ×2, 286 ×2; `wall_crawl_drop` ×5; `_quick` ×7
-(`bo1th:…ents`) [V].
+(`bo1th:...ents`) [V].
 
 Dogs use `dog_jump_down(h, 7)` / `dog_jump_up(h, 7)`, as in WaW [V].
 
 ## 6. Gibbing and crawlers
 
-**Should-gib gate** (`zombie_should_gib`, `bo1:…spawner.gsc:2532-2597` vs `waw:…:1739-1812`):
+**Should-gib gate** (`zombie_should_gib`, `bo1:...spawner.gsc:2532-2597` vs `waw:...:1739-1812`):
 
 | rule | WaW Der Riese | BO1 |
 |---|---|---|
 | melee | Bowie (`specialty_altmelee`) gibs 75% of the time (`waw:1761-1766`) | **never**. The Bowie line is commented out (`bo1:2565-2568`; `bo1cz:maps/_zombiemode_spawner.gsc:3084-3093`) [V] |
 | bullet filter | no weapon, or **any pistol class** | no weapon, or **`m1911_zm` only** (`bo1:2577`). Other pistols can gib [V] |
-| extra blocks | – | `is_mature()` off, `no_gib`, freeze-gun damage (`:2534-2547`) [V] |
+| extra blocks | - | `is_mature()` off, `no_gib`, freeze-gun damage (`:2534-2547`) [V] |
 | threshold | the hit ≥ 10% of the health before it | same (`:2587-2594`) [V] |
 
 **Head gib** (`head_should_gib` / `zombie_head_gib`, `bo1:2141-2289` vs `waw:1326-1485`):
@@ -741,10 +741,10 @@ Dogs use `dog_jump_down(h, 7)` / `dog_jump_up(h, 7)`, as in WaW [V].
   capsule (radius 15, height 24).
 - **Unchanged:** the stand → crawl transition (`ai_zombie_shot_leg_right_2_crawl` in the stand set,
   `_left_2_crawl` in the crouch set, `bo1cz:animscripts/zombie_combat.gsc:97, 110, 151`), crawl idles
-  (`:149-150`), and `ai_gib_bothlegs_gib` when the legs go on the killing hit (`bo1:…spawner.gsc:2810-2812`) [V].
+  (`:149-150`), and `ai_gib_bothlegs_gib` when the legs go on the killing hit (`bo1:...spawner.gsc:2810-2812`) [V].
 - **Limb models:** BO1 swaps the torso and legs to the character's `torsoDmgN` / `legDmgN` and throws gib pieces by piece
   index (`bo1cz:animscripts/zombie_death.gsc:1508-1600`) [V]. WaW used per-model attaches [I, not compared in depth].
-- **`make_crawler()`** (`bo1:…spawner.gsc:3933-4038`) forces a random right/left leg crawler. Nothing in `bo1:maps`
+- **`make_crawler()`** (`bo1:...spawner.gsc:3933-4038`) forces a random right/left leg crawler. Nothing in `bo1:maps`
   calls it [V].
 
 ## BO1 xanim timings [M]

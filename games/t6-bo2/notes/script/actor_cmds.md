@@ -90,4 +90,4 @@ engine code.
 
 ## Credits
 
-Ghidra (NSA), zeroKilo's XEXLoaderWV, capstone; the BO2 symbol builds and PC server pdb are the user's own.
+Ghidra (NSA), zeroKilo's XEXLoaderWV, capstone; the BO2 symbol builds and PC server pdb are our own.

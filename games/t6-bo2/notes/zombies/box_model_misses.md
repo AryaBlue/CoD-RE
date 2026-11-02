@@ -46,7 +46,7 @@ maps, with a fix for each. Researched 2026-10-27 from the `convert_misses.txt` f
 - In `zm_buried.ff` and `zm_tomb.ff` the four `t6_wpn_zmb_raygun2_*` xmodels are **references** (OAT lists them as `,t6_wpn_zmb_raygun2_world`). zonedump skips references.
 - The defined assets are in **`patch_zm.ff`** (all four: view, world, upg_view, upg_world).
 - **Reproduced:**
-  - `e115_zonedump zm_tomb.ff --game … --xmodel t6_wpn_zmb_raygun2_world` → "xmodel t6_wpn_zmb_raygun2_world isn't defined in the loaded zones";
+  - `e115_zonedump zm_tomb.ff --game ... --xmodel t6_wpn_zmb_raygun2_world` → "xmodel t6_wpn_zmb_raygun2_world isn't defined in the loaded zones";
   - the same with `--load patch_zm.ff` → exported (4 surfaces, 3812 tris, 7 textures).
 - **Cause:** `GameProfile::weaponDependencyZones` returns nothing for t6 zombies, so the box-model jobs load no shared zone.
 - **Fix:**
@@ -61,7 +61,7 @@ maps, with a fix for each. Researched 2026-10-27 from the `convert_misses.txt` f
   - gunModel `viewmodel_knife_bowie`;
   - raise `viewmodel_zombie_bowie`;
   - idle/lower `viewmodel_zombie_perksacola_*`.
-- **The job:** the convert plans `--xanim … "viewmodel_usa_marine_arms,viewmodel_knife_bowie@tag_weapon"`, and zonedump stopped with **"xmodel viewmodel_knife_bowie has no skin to animate"**.
+- **The job:** the convert plans `--xanim ... "viewmodel_usa_marine_arms,viewmodel_knife_bowie@tag_weapon"`, and zonedump stopped with **"xmodel viewmodel_knife_bowie has no skin to animate"**.
 - **Why:** `viewmodel_knife_bowie` is in `nazi_zombie_factory.ff`, but it is a rigid T4 model: one surface, 490 verts, no bones. So `toModelData` makes no skin, and `exportXAnims` rejected any skinless part.
 - **Fix (tree, tools/zonedump/ExportAnim.cpp):**
   - a skinless part that's attached to a tag of a model before it now gets `rigidSkin` (one joint of its own under that tag, the helper the t6 attachments already use) and no hit boxes, instead of the error;

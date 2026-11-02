@@ -59,7 +59,7 @@ WaW `mp_airfield` and BO1 `mp_nuked` [M]. The two games agree on every bit seen:
 | player move (alive / dead) | `0x281C011` / `0x810011` | (table above) | client `0x665cc4`; server `0x4e8945` uses the ent clipmask `+0x1b8`, set to `0x281C011` at `0x67c283` |
 | actor move | `0x2820011` | AI clip `0x20000` instead of player clip | ent clipmask set at `0x4b49ba` |
 | AI sight [I: that it's sight] | `0x280D803` | `0x2`, sky, no-sight `0x1000`, `0x4000`, `0x8000`, `0x800000`, body; no glass, water or weapon `0x2000` | pushed in actor function `0x4def20` at `0x4df012` and `0x4df0e7` |
-| MP spawn sight (`isspawnpointvisible`) | `0x806833` | | t4mp, see [mp_t4_tdm_ffa.md](../../../games/t4-waw/notes/mp/tdm_ffa_rules.md) |
+| MP spawn sight (`isspawnpointvisible`) | `0x806833` | | t4mp, see [tdm_ffa_rules.md](../../../games/t4-waw/notes/mp/tdm_ffa_rules.md) |
 
 - Others seen but not identified: `0x820011`, `0x280E091`.
 - **What bullets pass and hit:** bullets pass player clip (`0x10000`), missile clip (`0x80`) and the no-sight bits

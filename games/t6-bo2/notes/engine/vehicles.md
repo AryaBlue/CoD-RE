@@ -142,7 +142,7 @@ Researched 2026-10-27.
 - **`BUS_START`** (rotate, the depot, yaw 180) starts the main loop. That path is a closed ring.
 - **Stops:** `script_notify "reached_stop_point"` + `script_noteworthy` = stop name.
   - Stops: depot, diner, farm, power, town; plus `power2town`.
-  - The stop nodes carry `script_float` 18–19 (the leaving speed) and `script_accel` 10.
+  - The stop nodes carry `script_float` 18-19 (the leaving speed) and `script_accel` 10.
 - **Ambush points:** `script_notify "reached_ambush_point"` at forest, tunnel and cornfield.
 - **Speed markers:** `slow_down` (12 nodes), `resume_speed` (13) and `emp_stop_point` (20), with `script_float` overriding script's default speeds.
   - Also: `start_lava` / `stop_lava`, `enter_transition`, `arriving`, `bus_scrape`, `turn_signal_left/right`.
@@ -155,14 +155,14 @@ Researched 2026-10-27.
 | `getvehiclenode(value, key)` | `0x663bd0` | 2 | node lookup by key (`targetname`, `script_noteworthy`) |
 | `getvehiclenodearray(value, key)` | `0x663ca0` | 2 | the same lookup, returning all matches |
 | `attachpath(node)` | `0x666450` | 1 | puts the vehicle on the path at that node; clears a path flag (+0x2d0 bit 4) and the path-progress state [V] |
-| `startpath()` | `0x666750` | 0 | starts driving. Errors "Can't start path on a vehicle that hasn't…" (no path attached) and "Can't start physics vehicles on path unt…" [V] |
-| `setspeed(mph, accel, decel)` | `0x667160` → `0x667040` | 1–3 | see below |
-| `setspeedimmediate(mph, accel, decel)` | `0x6671a0` | 1–3 | same as setspeed, and also sets the current speed at once [I: it calls the setspeed body, then writes the current-speed state] |
-| `resumespeed(accel)` | `0x667720` | 1 | — |
+| `startpath()` | `0x666750` | 0 | starts driving. Errors "Can't start path on a vehicle that hasn't..." (no path attached) and "Can't start physics vehicles on path unt..." [V] |
+| `setspeed(mph, accel, decel)` | `0x667160` → `0x667040` | 1-3 | see below |
+| `setspeedimmediate(mph, accel, decel)` | `0x6671a0` | 1-3 | same as setspeed, and also sets the current speed at once [I: it calls the setspeed body, then writes the current-speed state] |
+| `resumespeed(accel)` | `0x667720` | 1 | - |
 | `getspeed()` | `0x667380` | 0 | the current speed, in inches/s [I] |
 | `getspeedmph()` | `0x6673d0` | 0 | the current speed, in mph |
-| `setvehmaxspeed(mph)` | `0x66a980` | 1 | — |
-| `setbrake`, `setacceleration`, `setvehgoalpos` (`0x66bfc0`), `cancelaimove` | — | — | present; transit doesn't use them |
+| `setvehmaxspeed(mph)` | `0x66a980` | 1 | - |
+| `setbrake`, `setacceleration`, `setvehgoalpos` (`0x66bfc0`), `cancelaimove` | - | - | present; transit doesn't use them |
 
 **setspeed** (`0x667040`) [V]:
 - Sets the "script speed" flag (+0x4e4 = 1).
@@ -172,7 +172,7 @@ Researched 2026-10-27.
 - An accel or decel ≤ 0 errors "Acceleration/deceleration must be > 0" and sets both to 17.6 (1 mph/s).
 - So the units are mph and mph per second.
 
-**Node events** (the per-frame path step, around `0x65a4a0`–`0x65a650`) [V]:
+**Node events** (the per-frame path step, around `0x65a4a0`-`0x65a650`) [V]:
 - The vehicle keeps its current node, next node and distance along the segment.
 - When the distance passes the segment length, the remainder carries over, the node advances, and the engine sends **`reached_node`** to the vehicle with the node as its one argument.
 - At the path's end it sends **`reached_end_node`**.
@@ -214,12 +214,12 @@ Researched 2026-10-27.
 - `setclientplayerpushamount` (`0x5e89b0`) writes client field 10 [I: player-vs-player push strength, turned off inside].
 - Objects (powerups, grenades, weapons) use `getgroundent()` up to two levels deep against the same names.
 
-**Clinging:** `zm_transit_cling` links the player to a linked position ent with `playerlinktodelta(pos, "tag_origin", 1, …view clamps…, 120, 1)` (`0x61dba0`), then `unlink()` [V].
+**Clinging:** `zm_transit_cling` links the player to a linked position ent with `playerlinktodelta(pos, "tag_origin", 1, ...view clamps..., 120, 1)` (`0x61dba0`), then `unlink()` [V].
 
 ## 4. Collision and the linked parts
 
 - **The bus body:** the vehicle entity's own collision, with contents `0x812080` [V] from its xmodel/vehicle collision [U: which shape; the vehicle def wasn't dumped].
-- **Linked parts:** the bus walls, roof, doors and plow are separate map entities that script `linkto(bus, "", worldtolocalcoords(origin), angles…)`. Each linked solid gets `setmovingplatformenabled(1)` so players can stand on it [V]:
+- **Linked parts:** the bus walls, roof, doors and plow are separate map entities that script `linkto(bus, "", worldtolocalcoords(origin), angles...)`. Each linked solid gets `setmovingplatformenabled(1)` so players can stand on it [V]:
   - `bus_path_blocker` (several) and `cow_catcher_path_blocker`;
   - the door blockers;
   - `hatch_clip`;
@@ -278,7 +278,7 @@ Researched 2026-10-27.
   | speed | `0x20000` | **mph × 17.6** (in/s) |
   | lookahead | `0x40000` | as is |
   | radius | `0x80000` | as is |
-  | (rotate node) | `0x10000` | — |
+  | (rotate node) | `0x10000` | - |
 
   The node array caps at 2000 (`0x7d0`). Records are at `0x23d4ad0 + i×0x50`.
 - **Sampling:** each step, the path sampler (`0x660930` / `0x660dd0`) lerps **speed, lookahead and radius** between the current node and the next by the segment fraction. It also computes the rotate weight (item 4) into the vehicle's path sample.
@@ -288,7 +288,7 @@ Researched 2026-10-27.
   |---|---|---|---|
   | 1 | `setspeed` | the script speed | script accel/decel |
   | 2 | `resumespeed(accel)` | the **sampled path speed** | script accel/decel; returns to mode 0 once the current speed reaches the target |
-  | 0 | — | **sampled path speed** if path flag 4 is set, else the vehicle def's default speed | def accel; decel = 0.5 × accel |
+  | 0 | - | **sampled path speed** if path flag 4 is set, else the vehicle def's default speed | def accel; decel = 0.5 × accel |
 
   - In every mode the current speed (+0x4f4) moves toward the target by accel×dt (decel×dt when slowing) without overshooting.
 - **Path flag 4:**
@@ -308,7 +308,7 @@ Researched 2026-10-27.
 
 **Pose history:** each listed mover has a history object, found in a pointer-keyed tree at `0x332b2dc` (finder `0x965070`). `0x964bd0(history, time, &origin, &angles)` evaluates the mover's pose at any given time [I: a history of past poses].
 
-**AdjustMovers** (`0x965430(isServer, …, time, relink)`):
+**AdjustMovers** (`0x965430(isServer, ..., time, relink)`):
 1. For every listed mover, saves its current origin (+0x134) and angles (+0x140) into side arrays (`0x332a8b0` / `0x332acb0`).
 2. Evaluates its pose at `time` from the history.
 3. Writes that pose into the entity.
@@ -329,7 +329,7 @@ So *what is rewound* is every moving platform that moved this frame, set to its 
   - pm_type is 1 or 0xb.
   - Otherwise **it stays the player's mover for 2 s after leaving its surface**, so a jump on the moving bus still travels with it.
   - Pm_flags & 0xc skips the update.
-- **Carry:** `0x965780(isServer, …, mover, ps.commandTime, cmd.serverTime, &ps.origin, &angleDelta)`:
+- **Carry:** `0x965780(isServer, ..., mover, ps.commandTime, cmd.serverTime, &ps.origin, &angleDelta)`:
   1. Evaluates the mover's pose at the **old** command time and at the **new** server time, from the history.
   2. Turns both into axes (`0x74ea90`).
   3. Moves the player's origin through the inverse of the old pose and then the new pose. So the player keeps their position in the mover's local frame: translation **and** rotation about the mover.
@@ -337,7 +337,7 @@ So *what is rewound* is every moving platform that moved this frame, set to its 
 - **View:**
   - `ps.delta_angles[YAW] (+0x9c) += AngleDelta(yaw change)`, in full;
   - `ps.delta_angles[PITCH] (+0x98) += pitch change × bg_movingPlatformPitchScale`;
-  - the dvar defaults to **0** (range 0–1; "the scale to apply to pitch from the moving platform"), so by default the view follows the platform's yaw but not its pitch.
+  - the dvar defaults to **0** (range 0-1; "the scale to apply to pitch from the moving platform"), so by default the view follows the platform's yaw but not its pitch.
   - The roll change isn't applied.
 - **Then, collision against the moved platforms:**
   1. AdjustMovers to `cmd.serverTime`.
@@ -392,7 +392,7 @@ So *what is rewound* is every moving platform that moved this frame, set to its 
 - **Physics block** (`nitrous_*`, the physics-vehicle tuning):
   - body mass 700, wheel radius 21.8, all-wheel drive, steer angle max 0.82;
   - bbox min (−200, −60, 80), max (200, 60, 15) as dumped [U: z min > max, so the OAT field order may be swapped].
-- **Path vs physics:** `startpath` refuses physics vehicles that haven't been set up (the "Can't start physics vehicles on path…" check on the vehicle def). The bus drives as a path vehicle [I: the bus never hits that error].
+- **Path vs physics:** `startpath` refuses physics vehicles that haven't been set up (the "Can't start physics vehicles on path..." check on the vehicle def). The bus drives as a path vehicle [I: the bus never hits that error].
 - **Collision shape:**
   - the entity collides with its **xmodel's collision**; the model dump gives `collLod 1`, so traces use LOD 1's mesh;
   - the walls, roof and floor players actually stand on are the separate linked clip entities (section 4) [I].

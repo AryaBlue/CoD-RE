@@ -11,7 +11,7 @@ or run, **[I]** inferred, **[U]** unknown.
   as 8 bytes instead of 4, so a 32-bit loader reads them wrongly.
 - The base game is now fully installed (about 12 GB): roughly 100 English zones (4.5 GB), 16 multiplayer maps, about
   17 campaign zones and about 28 Spec Ops zones. A previous recon of an IW4x-only install is out of date.
-- Images and loaded sounds are in the `.iwd` archives, not the zones (see [iw4_iwi_v8.md](iwi_v8.md)).
+- Images and loaded sounds are in the `.iwd` archives, not the zones (see [iwi_v8.md](iwi_v8.md)).
 
 ## How we load it [V]
 

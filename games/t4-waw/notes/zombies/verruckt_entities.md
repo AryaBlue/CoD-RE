@@ -309,7 +309,7 @@ Suggested fields:
 
 | classname | targetname | count | where [M] |
 |---|---|---|---|
-| `script_struct` | `zombie_rise` | 32 | all in the courtyard: x −384…576, y −240…280, z 54-56 |
+| `script_struct` | `zombie_rise` | 32 | all in the courtyard: x −384...576, y −240...280, z 54-56 |
 | spawners with `script_string` `riser` | (various) | 25 | across the map (all 13 `zombie_spawner_init`, 3 `zombie_spawner_north_door`, 2 each in 4 more groups, 1 `auto204`) |
 
 Rule [V spawner:386, :2377-2420]:

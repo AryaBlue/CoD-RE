@@ -123,11 +123,11 @@ The other dvars are `cg_tracerScaleMinDist`, `cg_tracerScaleDistRange`, `cg_trac
 | field | `zombie_colt` | `kar98k` | `thompson` |
 |---|---|---|---|
 | fire (3p / plr) | `weap_colt_fire` / `_plr` | `weap_kar98k_fire` / `_plr` | `weap_thompson_fire` / `_plr` |
-| last shot | same as fire | same as fire | — |
+| last shot | same as fire | same as fire | - |
 | empty fire | `dryfire_pistol` / `_plr` | `dryfire_rifle` / `_plr` | `dryfire_smg` / `_plr` |
 | reload 3p | `gr_pistol_reload_notempty_3p`; empty: `gr_pistol_reload_empty_3p` | start `gr_rifle_open_3p`, each round `gr_rifle_round_in_3p`, end `gr_rifle_close_3p` | `gr_smg_reload_notempty_3p` / `_empty_3p` |
-| reload plr | `gear_player` (the real 1p sounds are the notetracks below) | — (notetracks) | — (notetracks) |
-| rechamber | — | `gr_rifle_rechamber_3p` | — |
+| reload plr | `gear_player` (the real 1p sounds are the notetracks below) | - (notetracks) | - (notetracks) |
+| rechamber | - | `gr_rifle_rechamber_3p` | - |
 | melee swipe / hit | `melee_swing_small` / `_plr`; `melee_hit` | `melee_swing` / `_plr`; `melee_hit` | same as kar98k |
 | raise / first raise / putaway | `weap_raise` / `_plr`, `weap_putaway` / `_plr` | same | same |
 | pickup / ammo pickup | `weap_pickup` / `_plr`, `ammo_pickup` / `_plr` | same | same |

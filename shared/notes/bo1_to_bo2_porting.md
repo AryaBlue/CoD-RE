@@ -108,7 +108,7 @@ For the four world assets, the converter has to read them from OAT's in-memory s
 | Count | Class | Port action |
 |---|---|---|
 | 1460 | `node_pathnode` | keep the data in PathData. The ents copy is only for reference |
-| 501 | `script_struct` | **needed later** for gameplay scripts (spawns, box, perks…) |
+| 501 | `script_struct` | **needed later** for gameplay scripts (spawns, box, perks...) |
 | 275 | `script_brushmodel` | doors and debris. They reference `*N` collision submodels |
 | 108 | `script_model` | keep |
 | 73 / 54 / 14 / 2 | `trigger_use` / `trigger_multiple` / `trigger_once` / `trigger_damage` | **T6 needs MapTriggers built for these** (§4.6) |
@@ -300,7 +300,7 @@ Minimum: just the sun as light 0. That keeps GfxWorld's `sunPrimaryLightIndex` v
 There is no source map and no T6 compiler, so the realistic path is a **T5 → T6 world converter built on OAT**: a small fork, or a separate exe linking OAT's libraries.
 1. Load `zombie_theater.ff` with OAT's T5 ZoneLoading. This gives the in-memory T5 structs, the same ones OAT already loads with 0 errors.
 2. Convert:
-   - clipMap_t, GameWorldSp → Mp and ComWorld (straightforward, §4.1–4.3);
+   - clipMap_t, GameWorldSp → Mp and ComWorld (straightforward, §4.1-4.3);
    - then GfxWorld (§4.4);
    - then MapEnts (§4.5).
 3. Port the xmodels, materials and images through the existing ZM Workshop GLB path, with a **techset remap table** (T5 technique name → T6 techset borrowed from zm_nuked / common_zm).
@@ -331,9 +331,9 @@ Fallback that works today: the existing Maps-tab method. It loads Kino's geometr
 - Column 11 is the **map pack index**, filtered by the owned-content check `0x515410`. It **must be 0**: 7 hid the entry.
 - Columns 16/17 are the globe position. Column 16 is also the sort key.
 - `zm/gametypestable.csv` needs:
-  - a startloc row (`5,16,zm_kino,kino,…`);
-  - a startloc_gamemode_map row (`6,20,zm_kino,kino,zclassic,0,…`), whose map pack index must also be 0.
-- Test entry: `zm_kino,…,-45,58,0,top`, built by `build_globe_mod.py` into `mods/zm_workshop/mod.ff`.
+  - a startloc row (`5,16,zm_kino,kino,...`);
+  - a startloc_gamemode_map row (`6,20,zm_kino,kino,zclassic,0,...`), whose map pack index must also be 0.
+- Test entry: `zm_kino,...,-45,58,0,top`, built by `build_globe_mod.py` into `mods/zm_workshop/mod.ff`.
 - It's not yet part of the tool: a sound rebuild in the tool overwrites it.
 
 ---

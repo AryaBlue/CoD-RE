@@ -30,7 +30,7 @@ One asset per barrier kind. Sizes were computed from the OAT header for the 32-b
 | `taunts`, `zombieTauntAnimState` | whether zombies taunt at it, and the animstate (`zm_taunt`) |
 | `reachThroughAttacks`, `zombieReachThroughAnimState` | whether zombies swipe through it, and the animstate (`zm_window_melee`) |
 | `autoHideOpenPieces` | hide a piece once it's open |
-| `generalRepairSound1/2`, `upgraded…`, `delayBetweenRepSounds…` | rebuild sounds (alias hashes) |
+| `generalRepairSound1/2`, `upgraded...`, `delayBetweenRepSounds...` | rebuild sounds (alias hashes) |
 | `earthquakeOnRepair` + min/max scale, duration, radius | the camera shake on rebuild |
 
 `ZBarrierBoard`, per piece:
@@ -41,7 +41,7 @@ One asset per barrier kind. Sizes were computed from the OAT header for the 32-b
 | `pTearAnim` | the piece's own anim when torn off (`o_zombie_board_N_pull`) |
 | `pBoardAnim` | the piece's anim when rebuilt (`o_zombie_board_N_repair`) |
 | `zombieBoardTearStateName` | the zombie's animstate for this piece (`zm_zbarrier_board_tear`) |
-| `zombieBoardTearSubStateName` | the piece's substate token (`horz_1`, `vert_1`, …) |
+| `zombieBoardTearSubStateName` | the piece's substate token (`horz_1`, `vert_1`, ...) |
 | `numRepsToPullProBoard` | the extra tear loops for an upgraded piece (3) |
 | `repairEffect1/2`, offsets, `boardRepairSound`, hover sound, pause min/max | rebuild fx and sound |
 
@@ -93,7 +93,7 @@ Counts [M]:
 
 | map | ents | windows (exterior_goal → zbarrier) | other zbarriers |
 |---|---|---|---|
-| zm_nuked | 1533 | **0**, and no `exterior_goal` at all | 5 `zbarrier_zmcore_MagicBox` (script_noteworthy `start_chest1_zbarrier`, …) |
+| zm_nuked | 1533 | **0**, and no `exterior_goal` at all | 5 `zbarrier_zmcore_MagicBox` (script_noteworthy `start_chest1_zbarrier`, ...) |
 | zm_transit | 8102 | **38**: 34 BasicWoodBarrier + 4 _hide_pieces, every one linked | 6 MagicBox, 10 bus windows (9 BusWindow5, 1 BusWindow0), not linked to a goal |
 
 - All 38 transit windows have `zbarriernumboards` 6.
@@ -144,8 +144,8 @@ From `zm_transit_basic.asd`. The other maps' `.asd` weren't read [I: the same na
 | state (+`_crawl`) | substate | xanim |
 |---|---|---|
 | `zm_zbarrier_board_tear_in` | `spot_S_piece_P` | `ai_zombie_[crawl_]boardtear_aligned_<m,r,l>_<1..6>_grab` |
-| `zm_zbarrier_board_tear_loop` | same | `…_hold` |
-| `zm_zbarrier_board_tear_out` | same | `…_pull` |
+| `zm_zbarrier_board_tear_loop` | same | `..._hold` |
+| `zm_zbarrier_board_tear_out` | same | `..._pull` |
 
 - S 0/1/2 → m/r/l.
 - P → index: `horz_1` 1, `vert_1` 2, `vert_2` 3, `horz_2` 4, `horz_3` 5, `horz_4` 6. That's board order, so board N
@@ -155,7 +155,7 @@ From `zm_transit_basic.asd`. The other maps' `.asd` weren't read [I: the same na
 | state | xanims |
 |---|---|
 | `zm_window_melee` | `ai_zombie_window_attack_arm_l_out`, `ai_zombie_window_attack_arm_r_out` |
-| `zm_taunt` | `ai_zombie_taunts_4`, `_7`, `_9`, `_5b`…`_5f` |
+| `zm_taunt` | `ai_zombie_taunts_4`, `_7`, `_9`, `_5b`...`_5f` |
 | `zm_barricade_enter` (+`_crawl`) | walk m `ai_zombie_barricade_enter_m_v1/v2`, run m `_m_v5`, sprint m `_m_v6/v7`; r: `_enter_r` / `_enter_run_r` / `_enter_sprint_r`; l the same with `_l` |
 | `zm_zbarrier_bus_board_tear_*` | the bus set (`ai_zombie_bus_boardtear_<l,r>_<1..5>_<grab,hold,pull>`) |
 

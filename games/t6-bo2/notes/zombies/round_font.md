@@ -36,4 +36,4 @@ Which font asset the zombies HUD's round number uses, and whether PC has it. Mar
 ## Credits
 
 OpenAssetTools' Unlinker to list and dump the zones; ate47's atian-cod-tools `luad` was tried on the bytecode but
-stopped on an unknown constant type. The zones are the user's own install; no script text is reproduced.
+stopped on an unknown constant type. The zones are our own install; no script text is reproduced.

@@ -71,7 +71,7 @@ Com_Frame_Try_Block_Function                    main loop, once per frame
          │  └─ RB_ExecuteRenderCommandsLoop     table dispatch per command id
          ├─ Sys_RenderCompleted
          └─ RB_EndFrame
-            └─ RB_SwapBuffers -> IDXGISwapChain::Present   <- what the user sees
+            └─ RB_SwapBuffers -> IDXGISwapChain::Present   <- what the player sees
 ```
 
 ### Is there a render thread?

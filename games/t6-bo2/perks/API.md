@@ -139,11 +139,15 @@ Differences from standard Lua:
 ## How it runs
 
 `runtime/zm_workshop_perks.gsc` is the support library. ZM Workshop bundles it with every compiled perk into one
-script in Plutonium's `scripts\zm` folder. Custom perks are tracked by the runtime itself rather than with engine
-perk slots, so there is no limit on how many you have. They still count towards the map's perk limit, are lost
-when you go down (Who's Who keeps them, as it does stock perks), and work with the tool's give/take. Use
-`specialties` for engine effects. HUD icons are drawn by the runtime in rows above the stock icons; set the dvar
-`zmw_perk_hud "x y size gap per_row"` to move them.
+script in Plutonium's `scripts\zm` folder.
+
+- Custom perks are tracked by the runtime, not by engine perk slots, so there is no limit on how many you have.
+- They still count towards the map's perk limit and are lost when you go down. Who's Who keeps them, as it does
+  stock perks.
+- They work with the tool's give and take.
+- Use `specialties` for engine effects.
+- HUD icons are drawn by the runtime in rows above the stock icons. Set the dvar `zmw_perk_hud "x y size gap per_row"`
+  to move them.
 
 ### Loading into a running match
 

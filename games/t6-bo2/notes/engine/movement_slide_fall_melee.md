@@ -17,7 +17,7 @@ field names come from matching offsets to OpenAssetTools' T6 header. Marks are e
   9. A stance-like field above 1 halves it.
 - [V] Landing with damage between 1 and 99: if a player flag (0x40000000) and surface flag bit 2 are both clear, it
   sets the move timer to 500 + 35 × damage ms (at most 2000), sets a move flag (0x80), and scales horizontal velocity
-  down to about 15–30%. Otherwise velocity is scaled by about 0.67. Then it sends a fall-damage event with the ground
+  down to about 15-30%. Otherwise velocity is scaled by about 0.67. Then it sends a fall-damage event with the ground
   surface type and the damage value.
 - [V] Landing with no damage: below 4 units nothing happens; below 8 a light land event; below 12 a medium one; above
   that the velocity is scaled by about 0.67 and the land event carries the ground surface type. Above 12 units it also
@@ -62,4 +62,4 @@ field names come from matching offsets to OpenAssetTools' T6 header. Marks are e
 ## Credits
 
 Ghidra (NSA) with zeroKilo's XEXLoaderWV; OpenAssetTools' T6 asset header for field names; the symbol builds are
-the user's own.
+our own.

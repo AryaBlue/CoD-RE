@@ -73,6 +73,17 @@ code is not published here.
 | [zbarrier_t6.md](../../../games/t6-bo2/notes/e115/zbarrier_t6.md) | BO2 zbarrier (boards / box / perk machine pieces) |
 | [zombies_t6_struct_spawns.md](../../../games/t6-bo2/notes/e115/zombies_t6_struct_spawns.md) | BO2 zombies struct-based spawns |
 
+BO2 Xbox 360 symbol build notes — [`games/t6-bo2/notes/`](../../../games/t6-bo2/notes/):
+
+| Note | Topic |
+| --- | --- |
+| [t6_360_xex_route.md](../../../games/t6-bo2/notes/t6_360_xex_route.md) | decrypting and loading the BO2 Xbox 360 symbol builds (XEX2, devkit key, Ghidra + .map names) |
+| [t6_script_builtin_tables.md](../../../games/t6-bo2/notes/t6_script_builtin_tables.md) | BO2 script built-in table layout, addresses and counts (360 CoDMP), CSC visual built-ins |
+| [t6_actor_cmds.md](../../../games/t6-bo2/notes/t6_actor_cmds.md) | actor/entity/zbarrier built-in behaviour and the T6 entity-type enum |
+| [t6_zm_round_font.md](../../../games/t6-bo2/notes/t6_zm_round_font.md) | the zombies round number font: Morris = extraBigFont |
+| [t6_movement_slide_fall_melee.md](../../../games/t6-bo2/notes/t6_movement_slide_fall_melee.md) | fall damage, slick-surface sliding, melee timing and lunge |
+| [t6_grenade_splash.md](../../../games/t6-bo2/notes/t6_grenade_splash.md) | grenade splash falloff, explode and bounce; actor repath and bad_path rules |
+
 ### MW2 / IW4 — [`games/iw4-mw2/`](../../../games/iw4-mw2/)
 
 | Note | Topic |

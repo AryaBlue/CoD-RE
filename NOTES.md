@@ -86,6 +86,7 @@ Folder: [`games/t6-bo2/`](games/t6-bo2/)
 | Rendering | [techniques.md](games/t6-bo2/notes/render/techniques.md) | T6 (BO2) techniques, vertex formats and shader arguments |
 | Rendering | [weapon_camo.md](games/t6-bo2/notes/render/weapon_camo.md) | T6 weapon camo (pack-a-punch): what the swapped material draws |
 | Scripting | [actor_cmds.md](games/t6-bo2/notes/script/actor_cmds.md) | BO2 actor, entity and zombie built-ins: what the handlers do |
+| Scripting | [builtin_coverage.md](games/t6-bo2/notes/script/builtin_coverage.md) | BO2 server built-ins the stock zombies maps call, by call site count |
 | Scripting | [builtin_tables.md](games/t6-bo2/notes/script/builtin_tables.md) | BO2 script built-in tables (360 CoDMP) |
 | Scripting | [gsc_vm_semantics.md](games/t6-bo2/notes/script/gsc_vm_semantics.md) | T6 GSC bytecode and VM semantics |
 | Scripting | [vm_builtin_gaps.md](games/t6-bo2/notes/script/vm_builtin_gaps.md) | Script VM gaps: builtins the T6 zm scripts call that the VM doesn't register |
@@ -126,6 +127,14 @@ Folder: [`games/iw4-mw2/`](games/iw4-mw2/)
 | --- | --- | --- |
 | General | [iwi_v8.md](games/iw4-mw2/notes/iwi_v8.md) | IW4 (MW2) IWI version 8 images |
 | General | [x64_and_world.md](games/iw4-mw2/notes/x64_and_world.md) | IW4 (MW2): the 2026 64-bit Steam update, loading zones, clipmap brushes |
+
+## Advanced Warfare (S1)
+
+Folder: [`games/s1-aw/`](games/s1-aw/)
+
+| Topic | Note | Title |
+| --- | --- | --- |
+| Assets and formats | [zones.md](games/s1-aw/notes/assets/zones.md) | Advanced Warfare (S1, PC x64) fastfile and asset layouts |
 
 ## Cross-game
 

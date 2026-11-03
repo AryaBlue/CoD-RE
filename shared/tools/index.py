@@ -16,6 +16,7 @@ GAMES = [
     ('games/t7-bo3', 'BO3', 'Black Ops III (T7)'),
     ('games/t8-bo4', 'BO4', 'Black Ops 4 (T8)'),
     ('games/iw4-mw2', 'MW2', 'Modern Warfare 2 (IW4)'),
+    ('games/s1-aw', 'AW', 'Advanced Warfare (S1)'),
     ('shared', 'Shared', 'Cross-game'),
 ]
 TOPICS = {

@@ -471,6 +471,11 @@ Attachments (`weapons.json` `attach`):
   leaves off the other slots [I].
 - An `--attach` name missing from the zones is an error.
 
+AW (s1) has no info strings: `--s1 <zone> --weapons <out.json>` reads the binary defs
+([zones.md](../../../games/s1-aw/notes/assets/zones.md), section 8). Its defs carry no `fields`. They add
+`gameplay.anims` and `gameplay.sounds` (fireSound, fireSoundPlayer) read from the def, and a raw `animSlots` (slot
+index -> clip name). Misses are left out, never guessed.
+
 ## Effects: `fx/<name>.json`
 
 `zonedump <zone.ff> [--load <zone.ff>]... --game <install> --fx <name[,name]|*> <dir>` writes each t4 `FxEffectDef`

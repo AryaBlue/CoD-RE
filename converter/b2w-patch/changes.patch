@@ -1,5 +1,5 @@
 diff --git a/src/waw2bo2/all2raw.py b/src/waw2bo2/all2raw.py
-index 7158b0d..031c215 100644
+index 7158b0d..65c7614 100644
 --- a/src/waw2bo2/all2raw.py
 +++ b/src/waw2bo2/all2raw.py
 @@ -18,6 +18,21 @@ import uuid
@@ -33,7 +33,23 @@ index 7158b0d..031c215 100644
          if ff.stem == 'code_post_gfx':
              return 'rawfile,image,lightdef'
          # Keep scripts and a complete definition index. Other stock payloads
-@@ -512,6 +527,8 @@ def _rank(name: str) -> tuple[int, str]:
+@@ -214,7 +229,14 @@ def parallel_zones(zones, extract, *, label: str, workers: int | None = None):
+ 
+ def digest(path: Path) -> str:
+     with path.open('rb') as stream:
+-        return hashlib.file_digest(stream, 'sha256').hexdigest()
++        file_digest = getattr(hashlib, 'file_digest', None)
++        if file_digest is not None:
++            return file_digest(stream, 'sha256').hexdigest()
++        # Python < 3.11 fallback: same bytes, same hash.
++        sha = hashlib.sha256()
++        for chunk in iter(lambda: stream.read(1 << 20), b''):
++            sha.update(chunk)
++        return sha.hexdigest()
+ 
+ 
+ def stamp(path: Path) -> list[int]:
+@@ -512,6 +534,8 @@ def _rank(name: str) -> tuple[int, str]:
  
  def stock_zones(game: Path, engine: str) -> list[Path]:
      zones = (game / 'zone').rglob('*.ff')
@@ -42,7 +58,7 @@ index 7158b0d..031c215 100644
      if engine == 'T6':
          # Nuketown donors and its always-loaded Zombies framework. The basic
          # wooden barrier is defined in prison, not in Nuketown's magic box.
-@@ -564,7 +581,7 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
+@@ -564,7 +588,7 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
      zones = stock_zones(game, engine)
      if not zones:
          raise FileNotFoundError(f'No installed fastfiles found in {game / "zone"}')
@@ -51,7 +67,7 @@ index 7158b0d..031c215 100644
          require_waw_extractor(tool)
      inputs = inventory(game, tool, engine)
      tool_hash = inputs['tool']
-@@ -579,7 +596,7 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
+@@ -579,7 +603,7 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
              folder, data = extract_zone(ff, tool, zone_root,
                  search_paths((ff.parent, game / 'zone/all', game / 'main', game / 'sound', game)),
                  assets=stock_assets(engine, ff),
@@ -60,7 +76,7 @@ index 7158b0d..031c215 100644
                  dependencies=archives, refresh=refresh)
              if engine == 'T6' and ff.stem == 'zm_prison':
                  data = trim_barrier_payload(folder, data)
-@@ -633,7 +650,8 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
+@@ -633,7 +657,8 @@ def prepare(game: Path, tool: Path, root: Path, *, engine: str, refresh: bool =
  
  def extract_all(settings, *, refresh=False, cache_paths: CachePaths | None = None) -> tuple[Path, Path]:
      paths = cache_paths or CachePaths.for_settings(settings)
@@ -70,7 +86,7 @@ index 7158b0d..031c215 100644
      bo2 = prepare(Path(settings.bo2), Path(settings.t6) / 'Unlinker.exe', paths.bo2, engine='T6', refresh=refresh)
      if settings.fastfile and Path(settings.fastfile).is_file():
          source_dumps(settings, paths, refresh=refresh)
-@@ -662,6 +680,12 @@ def source_dumps(settings, paths: CachePaths, *, refresh=False) -> dict[str, Pat
+@@ -662,6 +687,12 @@ def source_dumps(settings, paths: CachePaths, *, refresh=False) -> dict[str, Pat
                            'localized_' + source.stem + '_patch'}
              extras = [ff for ff in extras if ff.stem in companions]
          selected += [('extra:' + ff.stem, ff) for ff in extras if ff not in expected]
@@ -83,7 +99,7 @@ index 7158b0d..031c215 100644
          selected = [(role, ff) for role, ff in selected if ff.is_file()]
          unique = list(dict.fromkeys(ff for _, ff in selected))
          # ":short-staging" retires custom-map dumps published before exports
-@@ -670,7 +694,7 @@ def source_dumps(settings, paths: CachePaths, *, refresh=False) -> dict[str, Pat
+@@ -670,7 +701,7 @@ def source_dumps(settings, paths: CachePaths, *, refresh=False) -> dict[str, Pat
          def extract(ff):
              print(f'Extract All: custom map starting {ff.name}', flush=True)
              output, data = extract_zone(ff, tool, root / key(str(ff)),
@@ -107,7 +123,7 @@ index d0a25f8..0befc86 100644
          raise weapons.WeaponError('weapon sound notifications require a raw v17 animation')
      frames = struct.unpack_from('<H', raw, 2)[0]
 diff --git a/src/waw2bo2/builddriver.py b/src/waw2bo2/builddriver.py
-index 9f3963e..5d38c10 100644
+index 9f3963e..5ad50a5 100644
 --- a/src/waw2bo2/builddriver.py
 +++ b/src/waw2bo2/builddriver.py
 @@ -8,11 +8,47 @@ import shutil
@@ -115,7 +131,7 @@ index 9f3963e..5d38c10 100644
  import subprocess
  
 -from . import all2raw, modelhitboxes, progress
-+from . import all2raw, modelhitboxes, progress, stagecache
++from . import all2raw, modelhitboxes, modzone, progress, stagecache
  from .launcher import BuildPaths, Settings, cli_command
  from .resources import resource_root
  
@@ -159,7 +175,55 @@ index 9f3963e..5d38c10 100644
  def run(command: list[str], log: Path | None = None) -> None:
      if log is None:
          result = subprocess.run(command, check=False)
-@@ -61,7 +97,7 @@ def build(settings: Settings, *, redump: bool = False, root: Path | None = None,
+@@ -42,6 +78,47 @@ def world_name(dump: Path, stem: str) -> str:
+     return stem     # no world dumped: staging reports the missing world files
+ 
+ 
++def _sha256(path: Path) -> str:
++    import hashlib
++    digest = hashlib.sha256()
++    with path.open('rb') as stream:
++        for block in iter(lambda: stream.read(1 << 20), b''):
++            digest.update(block)
++    return digest.hexdigest()
++
++
++def shader_check_dump(mod: Path, ff: Path) -> Path | None:
++    """build-mod's material,techniqueset dump of the final mod.ff, when it is
++    provably a dump of ``ff`` itself: activate_mod_shaders unlinked
++    shader_out/mod.ff and copied those bytes to ``ff``. Anything else (no shader
++    activation, an older dump, a different file) returns None."""
++    if ff.resolve() != (mod / 'out/mod.ff').resolve():
++        return None
++    check, linked = mod / 'shader_check', mod / 'shader_out/mod.ff'
++    try:
++        meta = json.loads((mod / 'shader_activation.json').read_text(encoding='utf-8'))
++        if Path(meta['output']).resolve() != ff.resolve() or not (check / 'materials').is_dir():
++            return None
++        if linked.stat().st_size != ff.stat().st_size or _sha256(linked) != _sha256(ff):
++            return None
++        if (mod / 'shader_check.log').stat().st_mtime < linked.stat().st_mtime:
++            return None
++    except (OSError, ValueError, KeyError):
++        return None
++    return check
++
++
++def json_only_model_args(unlinker: Path) -> list[str]:
++    """Unlinker args that dump xmodel json without the LOD mesh files, when this
++    Unlinker build has that mode (our optimized fork). The hitbox audit reads
++    only the json; skipping ~a thousand mesh files matters on slow disks."""
++    try:
++        proc = subprocess.run([str(unlinker), '-?'], capture_output=True, text=True, timeout=60)
++    except (OSError, subprocess.SubprocessError):
++        return []
++    return ['--model-format', 'NONE'] if 'GLB, NONE' in proc.stdout + proc.stderr else []
++
++
+ def ensure_laa(linker: Path) -> None:
+     data = bytearray(linker.read_bytes())
+     if len(data) < 64 or data[:2] != b'MZ':
+@@ -61,7 +138,7 @@ def build(settings: Settings, *, redump: bool = False, root: Path | None = None,
      # Prepare only missing/stale caches before acquiring the read locks.
      # prepare() owns the extraction lock itself and resumes cached zones.
      for game, tool, cache, engine in (
@@ -168,7 +232,7 @@ index 9f3963e..5d38c10 100644
              (Path(settings.bo2), Path(settings.t6) / 'Unlinker.exe', caches.bo2, 'T6')):
          try:
              all2raw.ready(game, tool, cache, engine=engine)
-@@ -91,7 +127,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+@@ -91,7 +168,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
      t6 = Path(settings.t6) / 'Unlinker.exe'
      # Builds never extract or list a stock FF. Extract All owns every static
      # asset, index, sound driver and API cache.
@@ -177,7 +241,7 @@ index 9f3963e..5d38c10 100644
      stock = all2raw.ready(bo2, t6, caches.bo2, engine='T6')
      stage, mod = paths.stage, paths.mod
      # Stage in the worker as well: standalone CLI and Wine builds do not
-@@ -102,7 +138,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+@@ -102,7 +179,7 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
          folder.mkdir(parents=True, exist_ok=True)
      shutil.copy2(stock / 't6api_cache.json', stage / 't6api_cache.json')
      print('== 0. reusing shared game assets and preparing cached map sources', flush=True)
@@ -186,7 +250,7 @@ index 9f3963e..5d38c10 100644
      source = Path(settings.fastfile).resolve()
      project = settings.project
      mapraw = sources['map']
-@@ -136,16 +172,50 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+@@ -136,16 +213,50 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
      if settings.source_fx:
          args += ['--waw-mod-tools', settings.waw_tools, '--waw-source-fx',
                   '--waw-source-dumps', str(caches.waw / 'source')]
@@ -243,8 +307,28 @@ index 9f3963e..5d38c10 100644
      print('== 6. auditing built material arguments', flush=True)
      for ff in (stage / 'zone_out' / project / (project + '.ff'), mod / 'out/mod.ff'):
          if not ff.is_file():
+@@ -157,9 +268,16 @@ def _build(settings: Settings, *, redump: bool = False, root: Path | None = None
+             shutil.rmtree(audit)
+         model_source = stage / 'zone_raw' / project
+         audit_hitboxes = ff.stem == project and modelhitboxes.has_authored_hitboxes(model_source)
+-        run([str(t6), '--no-color', '--search-path', str(bo2 / 'zone/all'), '--include-assets',
+-             'material,techniqueset' + (',xmodel' if audit_hitboxes else ''),
+-             '--output-folder', str(audit), str(ff)], stage / (audit.name + '.log'))
++        reused = shader_check_dump(mod, ff) if modzone.fast_link_enabled() else None
++        if reused is not None:
++            # build-mod already dumped material,techniqueset of these exact bytes
++            print(f'WAW2BO2_FAST_LINK: auditing {ff.name} from the build-mod shader check dump', flush=True)
++            audit = reused
++        else:
++            model_args = json_only_model_args(t6) if audit_hitboxes and modzone.fast_link_enabled() else []
++            run([str(t6), '--no-color', '--search-path', str(bo2 / 'zone/all'), '--include-assets',
++                 'material,techniqueset' + (',xmodel' if audit_hitboxes else ''), *model_args,
++                 '--output-folder', str(audit), str(ff)], stage / (audit.name + '.log'))
+         from .launcher import python_command
+         run(python_command() + [str(resource_root() / 'tools/audit_material_args.py'), str(audit), str(stock)])
+         if audit_hitboxes:
 diff --git a/src/waw2bo2/cli.py b/src/waw2bo2/cli.py
-index c256284..1c1eb34 100644
+index c256284..23c34f0 100644
 --- a/src/waw2bo2/cli.py
 +++ b/src/waw2bo2/cli.py
 @@ -292,6 +292,10 @@ def _stage_bridge(args: argparse.Namespace) -> int:
@@ -258,7 +342,7 @@ index c256284..1c1eb34 100644
      return 1 if report.errors else 0
  
  
-@@ -417,6 +421,23 @@ def parser() -> argparse.ArgumentParser:
+@@ -417,6 +421,25 @@ def parser() -> argparse.ArgumentParser:
      desktop_p.add_argument('--waw-cache-root', type=Path)
      desktop_p.add_argument('--bo2-cache-root', type=Path)
      desktop_p.set_defaults(func=_build_map)
@@ -273,6 +357,8 @@ index c256284..1c1eb34 100644
 +    import_p.add_argument('--remaster', action='store_true', help='draw ported BO2 materials with their original BO2 material')
 +    import_p.add_argument('--redump', action='store_true', help='force a fresh stock re-dump')
 +    import_p.add_argument('--verbose', action='store_true', help='name each asset as it is staged')
++    import_p.add_argument('--fast-link', action='store_true',
++                          help='WAW2BO2_FAST_LINK: reuse cached stock ipak images and build-mod\'s shader dump')
 +    import_p.set_defaults(func=_import_map)
 +    check_p = sub.add_parser('check', help='fast pre-check: report which installs/tools a WaW import needs are missing')
 +    check_p.add_argument('--folder', help='also check that this folder holds a single resolvable map .ff')
@@ -282,7 +368,7 @@ index c256284..1c1eb34 100644
      extract_p = sub.add_parser('all2raw', help='Extract All installed WaW/BO2 zones once into shared caches')
      extract_p.add_argument('--settings-json', required=True)
      extract_p.add_argument('--waw-cache-root', type=Path)
-@@ -596,6 +617,76 @@ def _translate_shader(args: argparse.Namespace) -> int:
+@@ -596,6 +619,78 @@ def _translate_shader(args: argparse.Namespace) -> int:
      return 0
  
  
@@ -298,6 +384,8 @@ index c256284..1c1eb34 100644
 +    the env var propagates to the stage-bridge subprocess, which honours it."""
 +    import os
 +    os.environ.setdefault("WAW2BO2_ALLOW_STAGE_ERRORS", "1")
++    if getattr(args, "fast_link", False):
++        os.environ["WAW2BO2_FAST_LINK"] = "1"
 +    from .launcher import ProcessRunner, perform_import, resolve_import_settings
 +    settings = resolve_import_settings(folder=args.folder, fastfile=args.fastfile,
 +                                       project=args.project, work=args.work,
@@ -360,7 +448,7 @@ index c256284..1c1eb34 100644
      from .builddriver import build
      from .launcher import Settings, preflight
 diff --git a/src/waw2bo2/compat/_waw2bo2_compat.gsc b/src/waw2bo2/compat/_waw2bo2_compat.gsc
-index 0d808a9..1e4f2dd 100644
+index 0d808a9..ee12962 100644
 --- a/src/waw2bo2/compat/_waw2bo2_compat.gsc
 +++ b/src/waw2bo2/compat/_waw2bo2_compat.gsc
 @@ -52,6 +52,10 @@ init()
@@ -414,7 +502,42 @@ index 0d808a9..1e4f2dd 100644
  }
  
  // WaW keeps a boarded window shut to path-finding: its clip brush
-@@ -2315,3 +2352,440 @@ waw_playerpositionvalid( ent )
+@@ -944,6 +981,34 @@ waw_anim_end( notifyname )
+     self notify( notifyname, "end" );
+ }
+ 
++// WaW/BO1 animscripted( notify, origin, angles, anim [, mode, root, rate, blend] )
++// is T6 animscripted( origin, angles, anim [, ...] ): passed through unchanged
++// the notify lands in origin and nothing plays (Kino's stage curtain). T6
++// does not send the caller's notify either, so "end" is sent here. The WaW
++// rate is not applied yet (T6's extra arguments are AI animstate substates),
++// so the animation and its "end" run at rate 1.
++waw_animscripted( notifyname, origin, angles, animname, mode, root, rate, blend )
++{
++    if ( isvec( notifyname ) )
++    {
++        // already T6 form: ( origin, angles, anim or animstate [, substate] )
++        if ( isdefined( animname ) )
++            self animscripted( notifyname, origin, angles, animname );
++        else
++            self animscripted( notifyname, origin, angles );
++        return;
++    }
++    self animscripted( origin, angles, animname );
++    self thread waw_animscripted_end( notifyname, getanimlength( animname ) );
++}
++
++waw_animscripted_end( notifyname, length )
++{
++    self endon( "death" );
++    wait max( length, 0.05 );
++    self notify( notifyname, "end" );
++}
++
+ // ---- sounds / visions ----
+ 
+ // Converted WaW aliases live in the map's own bank as "waw/<alias>" so they
+@@ -2315,3 +2380,440 @@ waw_playerpositionvalid( ent )
  {
      return 1;
  }
@@ -892,7 +1015,7 @@ index de74fe6..6872322 100644
 +    wait 0.01;
 +}
 diff --git a/src/waw2bo2/compat/gsc_api.json b/src/waw2bo2/compat/gsc_api.json
-index 8b97c05..e8d40ad 100644
+index 8b97c05..35252f8 100644
 --- a/src/waw2bo2/compat/gsc_api.json
 +++ b/src/waw2bo2/compat/gsc_api.json
 @@ -178,6 +178,8 @@
@@ -904,6 +1027,14 @@ index 8b97c05..e8d40ad 100644
      "gettagorigin",
      "newhudelem",
      "newclienthudelem",
+@@ -215,6 +217,7 @@
+     "getweaponammoclip",
+     "getweaponammostock",
+     "getcurrentweapon",
++    "animscripted",
+     "setactionslot",
+     "getweaponslistprimaries",
+     "getweaponmodel",
 diff --git a/src/waw2bo2/constraints.py b/src/waw2bo2/constraints.py
 index 92f9982..3a4aa99 100644
 --- a/src/waw2bo2/constraints.py
@@ -931,7 +1062,7 @@ index 92f9982..3a4aa99 100644
  
  def stage_entities(project: Path) -> dict:
 diff --git a/src/waw2bo2/gscport.py b/src/waw2bo2/gscport.py
-index 15fc2b0..263f823 100644
+index 15fc2b0..fef8c2c 100644
 --- a/src/waw2bo2/gscport.py
 +++ b/src/waw2bo2/gscport.py
 @@ -417,6 +417,20 @@ def rename_level_fields(tokens: list[gsc.Token]) -> int:
@@ -955,7 +1086,7 @@ index 15fc2b0..263f823 100644
  def level_fields_read(tokens: list[gsc.Token], start: int = 2, end: int | None = None) -> set[str]:
      """``level.<field>`` names (lower-case) used in tokens[start:end]."""
      end = len(tokens) if end is None else end
-@@ -878,6 +892,149 @@ def lower_hud_fields(tokens: list[gsc.Token]) -> int:
+@@ -878,6 +892,159 @@ def lower_hud_fields(tokens: list[gsc.Token]) -> int:
      return changed
  
  
@@ -1058,13 +1189,23 @@ index 15fc2b0..263f823 100644
 +
 +def guard_spinning_loops(project_root: Path, project: str) -> int:
 +    """Loop watchdog calls (compat waw_loop_guard) in the map's ported and
-+    generated server and client scripts; the watchdog files themselves excepted."""
-+    targets = [(p, LOOP_GUARD_SERVER) for p in (project_root / "maps/mp/waw").rglob("*.gsc")
-+               if p.name != "_waw2bo2_compat.gsc"]
-+    targets += [(p, LOOP_GUARD_CLIENT) for p in (project_root / "clientscripts/mp/waw").rglob("*.csc")
-+                if p.name != "_waw2bo2_environment.csc"]
-+    targets += [(project_root / "maps/mp" / f"{project}.gsc", LOOP_GUARD_SERVER),
-+                (project_root / "clientscripts/mp" / f"{project}.csc", LOOP_GUARD_CLIENT)]
++    generated server and client scripts; the watchdog files themselves excepted.
++
++    The watchdog lives in the compat/environment scripts, so only inject a guard
++    whose defining script is actually bundled: a native MP->ZM port (port_mp)
++    carries neither, and a call to an absent waw_loop_guard would be an
++    unresolved external that shuts the map down on load."""
++    have_server = (project_root / "maps/mp/waw/_waw2bo2_compat.gsc").is_file()
++    have_client = (project_root / "clientscripts/mp/waw/_waw2bo2_environment.csc").is_file()
++    targets: list[tuple[Path, str]] = []
++    if have_server:
++        targets += [(p, LOOP_GUARD_SERVER) for p in (project_root / "maps/mp/waw").rglob("*.gsc")
++                    if p.name != "_waw2bo2_compat.gsc"]
++        targets.append((project_root / "maps/mp" / f"{project}.gsc", LOOP_GUARD_SERVER))
++    if have_client:
++        targets += [(p, LOOP_GUARD_CLIENT) for p in (project_root / "clientscripts/mp/waw").rglob("*.csc")
++                    if p.name != "_waw2bo2_environment.csc"]
++        targets.append((project_root / "clientscripts/mp" / f"{project}.csc", LOOP_GUARD_CLIENT))
 +    total = 0
 +    for path, guard in targets:
 +        if not path.is_file():
@@ -1105,7 +1246,7 @@ index 15fc2b0..263f823 100644
  def lower_zombie_weapon_keys(tokens: list[gsc.Token]) -> int:
      """`GetArrayKeys( level.zombie_weapons )` -> the WaW-registered keys only
      (compat waw_zombie_weapon_keys): the WaW box chooser offers every key, and
-@@ -1194,6 +1351,7 @@ class Translator:
+@@ -1194,6 +1361,7 @@ class Translator:
              self._split_main(script)
          self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
          self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
@@ -1113,7 +1254,7 @@ index 15fc2b0..263f823 100644
          self.report.rewrites["WaW deathanim assignments kept BO2's (ASD state)"] += keep_bo2_deathanims(tokens)
          defs = {fn.start for fn in script.functions.values()}
          for name, fn in script.functions.items():
-@@ -1202,6 +1360,9 @@ class Translator:
+@@ -1202,6 +1370,9 @@ class Translator:
                  self.report.rewrites["map functions named like T6 builtins renamed (waw_*)"] += 1
          self.resolve_refs(tokens, script, where_file, included_bo2, defs,
                            neutralized_ranges=neutralized_ranges)
@@ -1123,7 +1264,7 @@ index 15fc2b0..263f823 100644
          self.report.rewrites["WaW contact-kill monitors own AI attacks"] += bridge_contact_kill_attacks(tokens, script)
          self.report.rewrites["WaW being_revived reads bridged to T6 revive state"] += bridge_revive_reads(tokens)
          self.report.rewrites["WaW session stat reads bridged to T6 counters"] += bridge_player_stat_reads(tokens)
-@@ -1456,6 +1617,7 @@ class Translator:
+@@ -1456,6 +1627,7 @@ class Translator:
          where = self.sources.origin.get(core + ".gsc", core)
          self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
          self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
@@ -1131,7 +1272,7 @@ index 15fc2b0..263f823 100644
          self.report.rewrites["WaW deathanim assignments kept BO2's (ASD state)"] += keep_bo2_deathanims(tokens)
          self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=core)
          self.report.extracted.append(f"{core}::{init} (level state)")
-@@ -1586,6 +1748,7 @@ class Translator:
+@@ -1586,6 +1758,7 @@ class Translator:
          tokens[0].pre = f"\n// {core}::{function}: the map's leading rules, as a BO2 damage callback\n"
          self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
          self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
@@ -1139,7 +1280,7 @@ index 15fc2b0..263f823 100644
          self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=core)
          self.report.extracted.append(f"{core}::{function} (map prelude -> damage callback)")
          self.level_state_parts.append(gsc.emit(tokens) + f"\n{name}_register()\n{{\n"
-@@ -1641,6 +1804,7 @@ class Translator:
+@@ -1641,6 +1814,7 @@ class Translator:
          tokens[0].pre = f"\n// {core}::{function}: the source round count formula, as BO2's max_zombie_func\n"
          self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
          self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
@@ -1147,7 +1288,7 @@ index 15fc2b0..263f823 100644
          self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=core)
          self.report.extracted.append(f"{core}::{function} (round count formula -> max_zombie_func)")
          self.level_state_parts.append(gsc.emit(tokens) + f"\n{name}_register()\n{{\n"
-@@ -1803,6 +1967,7 @@ class Translator:
+@@ -1803,6 +1977,7 @@ class Translator:
          self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
          self.source_lowerings(tokens)
          self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
@@ -1155,7 +1296,7 @@ index 15fc2b0..263f823 100644
          self.report.rewrites["WaW deathanim assignments kept BO2's (ASD state)"] += keep_bo2_deathanims(tokens)
          self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=core)
          self.report.rewrites["WaW HUD network font scales decoded"] += bridge_font_scales(tokens)
-@@ -1892,6 +2057,7 @@ class Translator:
+@@ -1892,6 +2067,7 @@ class Translator:
                        *copy.deepcopy(body), gsc.Token(gsc.PUNCT, "}", "\n"), gsc.Token(gsc.EOF, "")]
              self.report.rewrites["syntax fixes (T6 compiler)"] += fix_syntax(tokens)
              self.report.rewrites["WaW-owned level fields renamed (level.waw_*)"] += rename_level_fields(tokens)
@@ -1163,7 +1304,7 @@ index 15fc2b0..263f823 100644
              self.resolve_refs(tokens, script, where, set(CORE_INCLUDES), {0}, extracting=ZOMBIEMODE)
              tokens[-2].text = tail + tokens[-2].text
              self.level_state_parts.append(gsc.emit(tokens))
-@@ -2916,6 +3082,10 @@ def waw_pack_a_punch_source(source: str, path: str) -> tuple[str, set[str]] | No
+@@ -2916,6 +3092,10 @@ def waw_pack_a_punch_source(source: str, path: str) -> tuple[str, set[str]] | No
      kept = []
      for start, end in top_level_statements(toks, init.body_open, init.body_close):
          text = "".join(t.low for t in toks[start:end])
@@ -1174,7 +1315,7 @@ index 15fc2b0..263f823 100644
          relays = [script.functions[n] for n in callees(start, end) if n != "init"]
          if any(m in text for m in PACK_A_PUNCH_MARKERS) or \
                  (relays and all(_power_relay(script, fn) for fn in relays) and "thread" in text):
-@@ -3250,6 +3420,71 @@ def ensure_owned_client_bootstrap(out_root: Path, bo2_root: Path) -> Path:
+@@ -3250,6 +3430,71 @@ def ensure_owned_client_bootstrap(out_root: Path, bo2_root: Path) -> Path:
      return destination
  
  
@@ -1385,10 +1526,10 @@ index 6457309..83e2d78 100644
      failures = [c for c in preflight(settings) if c.required and not c.ready]
      if failures:
 diff --git a/src/waw2bo2/lighting.py b/src/waw2bo2/lighting.py
-index 66df08a..3865d9f 100644
+index 66df08a..49cf44e 100644
 --- a/src/waw2bo2/lighting.py
 +++ b/src/waw2bo2/lighting.py
-@@ -113,7 +113,37 @@ def read_grid(path: Path) -> LightGrid:
+@@ -113,7 +113,47 @@ def read_grid(path: Path) -> LightGrid:
      return grid
  
  
@@ -1401,6 +1542,9 @@ index 66df08a..3865d9f 100644
 +# (0.31 0.33 0.34) at k = 46.5. Taken as RGB bytes the same words come out
 +# green, which is how the converted map's models looked.
 +T5_GRID_CHROMA_SCALE = 46.5
++# how much of the (over-saturated) BO1 grid chroma to keep; the rest blends to luma-grey so
++# bright samples never zero a channel and tint red-albedo models green (see t5_grid_sample_to_t6)
++T5_GRID_SATURATION = 0.4
 +# linear light per brightness unit; keeps the grid's overall level where the
 +# WaW reading left it (models matched the world brightness, only the hue was wrong)
 +T5_GRID_BRIGHTNESS = 1.0 / 512.0
@@ -1413,7 +1557,14 @@ index 66df08a..3865d9f 100644
 +    blue = (word & 63) / T5_GRID_CHROMA_SCALE
 +    green = max(0.0, 1.0 - red - blue)
 +    # chromaticity shares sum to 1; neutral grey is 1/3 each, so 3 * share keeps luma
-+    return tuple(min(255, round(255 * math.sqrt(max(0.0, 3 * share * luma) / 32))) for share in (red, green, blue))
++    chans = [min(255, round(255 * math.sqrt(max(0.0, 3 * share * luma) / 32))) for share in (red, green, blue)]
++    # The share model over-saturates on bright directional samples: when the red field is
++    # near zero the red channel is zeroed, so red-albedo models (the stair carpet) lose their
++    # red and read green. We cannot fully invert BO1's 24-bit sample, so desaturate toward the
++    # sample's own luma-grey; this keeps brightness and a hint of hue while never zeroing a
++    # channel, so model albedo shows through instead of a green cast.
++    grey = sum(chans) / 3.0
++    return tuple(int(round(grey + (c - grey) * T5_GRID_SATURATION)) for c in chans)
 +
 +
 +def t5_palette_to_t6(colors: bytes) -> bytes:
@@ -1427,7 +1578,7 @@ index 66df08a..3865d9f 100644
      """Stage T6's packed grid, preserving positions and directional samples.
  
      Native T6 sub_755810 decodes bytes as 32*(c/255)^2. WaW's model
-@@ -130,13 +160,17 @@ def stage_grid(source: Path, destination: Path) -> dict:
+@@ -130,13 +170,17 @@ def stage_grid(source: Path, destination: Path) -> dict:
      for color, primary, needs_trace in struct.iter_unpack("<HBB", grid.entries):
          entries.extend(struct.pack("<HBB", color, primary, 255 if primary else 0))
          trace_points += bool(needs_trace)
@@ -1717,6 +1868,45 @@ index a065f50..1ff7512 100644
          bindings.update({'loadscreen:' + suffix: 'large' for suffix in ('zclassic_default', 'zclassic_')})
          for folder in ('materials', 'images'):
              (root / folder).mkdir(parents=True, exist_ok=True)
+diff --git a/src/waw2bo2/modelhitboxes.py b/src/waw2bo2/modelhitboxes.py
+index d1890ec..2712cfb 100644
+--- a/src/waw2bo2/modelhitboxes.py
++++ b/src/waw2bo2/modelhitboxes.py
+@@ -6,18 +6,29 @@ import math
+ from pathlib import Path
+ 
+ 
++HITBOX_TYPES = ('animated', 'viewhands')
++
++
++def _hitbox_model(path: Path) -> dict | None:
++    # Rigid world models are most of the bytes (collision trees); a type that is
++    # never spelled in the file cannot match, so skip the full parse for those.
++    text = path.read_text()
++    if not any(f'"{kind}"' in text for kind in HITBOX_TYPES):
++        return None
++    model = json.loads(text)
++    return model if model.get('boneInfo') and model.get('type') in HITBOX_TYPES else None
++
++
+ def has_authored_hitboxes(source: Path) -> bool:
+-    return any(model.get('boneInfo') and model.get('type') in ('animated', 'viewhands')
+-               for path in (source / 'xmodel').rglob('*.json')
+-               for model in [json.loads(path.read_text())])
++    return any(_hitbox_model(path) for path in (source / 'xmodel').rglob('*.json'))
+ 
+ 
+ def audit(source: Path, built: Path) -> dict:
+     models = bones = 0
+     errors = []
+     for path in sorted((source / 'xmodel').rglob('*.json')):
+-        original = json.loads(path.read_text())
+-        if not original.get('boneInfo') or original.get('type') not in ('animated', 'viewhands'):
++        original = _hitbox_model(path)
++        if original is None:
+             continue
+         target = built / path.relative_to(source)
+         if not target.is_file():
 diff --git a/src/waw2bo2/modzone.py b/src/waw2bo2/modzone.py
 index d4bd102..96a815b 100644
 --- a/src/waw2bo2/modzone.py
@@ -1956,7 +2146,7 @@ index 59f82ed..85f2b2c 100644
              home = ex.dump(Path(zone), "material,techniqueset,image")
              rel = techsets.oat_material_path(material)
 diff --git a/src/waw2bo2/shaderruntime.py b/src/waw2bo2/shaderruntime.py
-index 2902bc4..228be47 100644
+index 2902bc4..2103b54 100644
 --- a/src/waw2bo2/shaderruntime.py
 +++ b/src/waw2bo2/shaderruntime.py
 @@ -8,12 +8,14 @@ from __future__ import annotations
@@ -2470,7 +2660,17 @@ index 2902bc4..228be47 100644
      return techniques[index] if index is not None else None
  
  
-@@ -1119,7 +1328,7 @@ def apply_source_pass_states(source_material, output_material, runtime):
+@@ -1094,6 +1303,9 @@ def source_technique(original, source_name, slot):
+ # output straight or premultiplied colour exactly as their WaW state expects.
+ PASS_STATE_FIELDS = ('srcBlendRgb', 'dstBlendRgb', 'blendOpRgb', 'srcBlendAlpha',
+                      'dstBlendAlpha', 'blendOpAlpha', 'alphaTest')
++# Source alpha tests the T6 Linker rejects (it takes disabled/gt0/lt128/ge128):
++# BO1's ge255 keeps only fully opaque texels, the nearest T6 test is ge128.
++T6_ALPHA_TEST = {'ge255': 'ge128'}
+ 
+ 
+ def _additive(state):
+@@ -1119,13 +1331,15 @@ def apply_source_pass_states(source_material, output_material, runtime):
      for slot in SLOTS:
          if slot >= len(entries) or not 0 <= entries[slot] < len(states):
              continue
@@ -2479,7 +2679,15 @@ index 2902bc4..228be47 100644
          if index is None:
              continue
          wanted, native = src_states[src_entries[index]], states[entries[slot]]
-@@ -1161,11 +1370,11 @@ def _write_program(project_root, stage, code, source, contract, info):
+         if slot not in waw_slots and not (_additive(wanted) and not _additive(native)):
+             continue
+         update = {k: wanted[k] for k in PASS_STATE_FIELDS if k in wanted}
++        if 'alphaTest' in update:
++            update['alphaTest'] = T6_ALPHA_TEST.get(update['alphaTest'], update['alphaTest'])
+         if all(native.get(k) == v for k, v in update.items()):
+             continue
+         merged = {**native, **update}
+@@ -1161,11 +1375,11 @@ def _write_program(project_root, stage, code, source, contract, info):
      name = 'waw/runtime_' + hashlib.sha256(code).hexdigest()[:20]
      path = project_root / 'shader_bin' / f'{stage}_{name}.cso'
      path.parent.mkdir(parents=True, exist_ok=True)
@@ -2494,7 +2702,7 @@ index 2902bc4..228be47 100644
      return name
  
  
-@@ -1199,7 +1408,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
+@@ -1199,7 +1413,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
      original = json.loads(source_file.read_text())
      pristine = json.loads(native_file.read_text())
      native = copy.deepcopy(pristine)
@@ -2503,7 +2711,7 @@ index 2902bc4..228be47 100644
          target = native['techniques'][slot]
          source = source_technique(original, source_name, slot)
          if not target or not source:
-@@ -1396,7 +1605,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
+@@ -1396,7 +1610,7 @@ def bind_material(source_material, output_material, roots, project_root, native_
          native['name'] = ts_name
          path = project_root / 'techniquesets' / f'{ts_name}.json'
          path.parent.mkdir(parents=True, exist_ok=True)
@@ -3834,7 +4042,7 @@ index b1537b0..9eb3931 100644
      table = {w: (b if w in runtime or w in replacements or w.lower() in ENGINE_WEAPONS else "")
               for w, b in table.items()}
 diff --git a/tests/test_builddriver.py b/tests/test_builddriver.py
-index 79003dd..8ab0ca2 100644
+index 79003dd..70cc3af 100644
 --- a/tests/test_builddriver.py
 +++ b/tests/test_builddriver.py
 @@ -150,6 +150,79 @@ if __name__ == '__main__':
@@ -3917,6 +4125,70 @@ index 79003dd..8ab0ca2 100644
  class WorldNameTests(unittest.TestCase):
      def test_map_world_found_inside_mod_ff(self):
          with tempfile.TemporaryDirectory() as tmp:
+@@ -168,3 +241,63 @@ class WorldNameTests(unittest.TestCase):
+                 (maps / f'{name}.d3dbsp.gfx.bin').write_bytes(b'')
+             with self.assertRaisesRegex(RuntimeError, 'several map worlds'):
+                 builddriver.world_name(Path(tmp), 'mod')
++
++
++class ShaderCheckReuseTests(unittest.TestCase):
++    """WAW2BO2_FAST_LINK step 6 reuses build-mod's dump only for the same bytes."""
++
++    def _mod(self, root):
++        import time
++        mod = root / 'mod_build'
++        (mod / 'shader_out').mkdir(parents=True)
++        (mod / 'out').mkdir()
++        (mod / 'shader_check/materials').mkdir(parents=True)
++        (mod / 'shader_out/mod.ff').write_bytes(b'linked zone')
++        (mod / 'out/mod.ff').write_bytes(b'linked zone')
++        (mod / 'shader_activation.json').write_text(json.dumps({'output': str(mod / 'out/mod.ff')}))
++        later = time.time() + 5
++        (mod / 'shader_check.log').write_text('')
++        os.utime(mod / 'shader_check.log', (later, later))
++        return mod
++
++    def test_reuses_dump_of_identical_zone(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            mod = self._mod(Path(tmp))
++            self.assertEqual(builddriver.shader_check_dump(mod, mod / 'out/mod.ff'), mod / 'shader_check')
++
++    def test_changed_zone_is_dumped_again(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            mod = self._mod(Path(tmp))
++            (mod / 'out/mod.ff').write_bytes(b'linker zone')   # same size, other bytes
++            self.assertIsNone(builddriver.shader_check_dump(mod, mod / 'out/mod.ff'))
++
++    def test_no_shader_activation_or_other_zone(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            mod = self._mod(Path(tmp))
++            self.assertIsNone(builddriver.shader_check_dump(mod, Path(tmp) / 'zm_map.ff'))
++            (mod / 'shader_activation.json').unlink()
++            self.assertIsNone(builddriver.shader_check_dump(mod, mod / 'out/mod.ff'))
++
++    def test_stale_check_is_not_reused(self):
++        with tempfile.TemporaryDirectory() as tmp:
++            mod = self._mod(Path(tmp))
++            os.utime(mod / 'shader_check.log', (1, 1))
++            self.assertIsNone(builddriver.shader_check_dump(mod, mod / 'out/mod.ff'))
++
++
++class JsonOnlyModelArgsTests(unittest.TestCase):
++    def help_text(self, text):
++        return patch.object(builddriver.subprocess, 'run',
++                            return_value=builddriver.subprocess.CompletedProcess([], 0, stdout=text, stderr=''))
++
++    def test_unlinker_with_none_mode_skips_meshes(self):
++        with self.help_text('Valid values are: XMODEL_EXPORT, XMODEL_BIN, OBJ, GLTF, GLB, NONE'):
++            self.assertEqual(builddriver.json_only_model_args(Path('Unlinker.exe')), ['--model-format', 'NONE'])
++
++    def test_older_unlinker_gets_no_extra_args(self):
++        with self.help_text('Valid values are: XMODEL_EXPORT, XMODEL_BIN, OBJ, GLTF, GLB'):
++            self.assertEqual(builddriver.json_only_model_args(Path('Unlinker.exe')), [])
++
++    def test_missing_unlinker_gets_no_extra_args(self):
++        with patch.object(builddriver.subprocess, 'run', side_effect=OSError):
++            self.assertEqual(builddriver.json_only_model_args(Path('missing.exe')), [])
 diff --git a/tests/test_launcher.py b/tests/test_launcher.py
 index f3d2c11..9b866e0 100644
 --- a/tests/test_launcher.py
@@ -4543,12 +4815,42 @@ index 7141906..614c6d9 100644
              TriggerModel model{};
              model.firstHull = static_cast<uint16_t>(hulls.size());
 diff --git a/vendor/OpenAssetToolsT6/src/ObjWriting/Game/T6/Maps/MapEntsDumperT6.cpp b/vendor/OpenAssetToolsT6/src/ObjWriting/Game/T6/Maps/MapEntsDumperT6.cpp
-index 830c78e..5b5624e 100644
+index 830c78e..0009a85 100644
 --- a/vendor/OpenAssetToolsT6/src/ObjWriting/Game/T6/Maps/MapEntsDumperT6.cpp
 +++ b/vendor/OpenAssetToolsT6/src/ObjWriting/Game/T6/Maps/MapEntsDumperT6.cpp
-@@ -391,6 +391,135 @@ namespace
+@@ -390,7 +390,165 @@ namespace
+             OUTF("\n");
          }
      }
++    // Full path graph in the BSP linker's BSP/paths.json schema (GameWorldMpLinker::LoadPaths)
++    void DumpPathsJson(std::ostream& out, const PathData& path, const ZoneScriptStrings& strings)
++    {
++        const auto str = [&strings](const unsigned idx) -> std::string { return idx && idx < strings.Count() ? strings.Value(idx) : std::string(); };
++        nlohmann::json nodes = nlohmann::json::array();
++        for (auto i = 0u; i < path.nodeCount; i++)
++        {
++            const auto& c = path.nodes[i].constant;
++            nlohmann::json links = nlohmann::json::array();
++            for (auto l = 0u; l < c.totalLinkCount; l++)
++            {
++                const auto& link = c.Links[l];
++                links.push_back({{"node", link.nodeNum}, {"dist", link.fDist}, {"disconnectCount", static_cast<int>(link.disconnectCount)},
++                                 {"negotiationLink", static_cast<int>(link.negotiationLink)}, {"flags", static_cast<int>(link.flags)}});
++            }
++            nodes.push_back({{"type", static_cast<int>(c.type)}, {"spawnflags", c.spawnflags}, {"targetname", str(c.targetname)},
++                             {"script_linkname", str(c.script_linkName)}, {"script_noteworthy", str(c.script_noteworthy)},
++                             {"target", str(c.target)}, {"animscript", str(c.animscript)}, {"animscriptfunc", c.animscriptfunc},
++                             {"origin", {c.vOrigin.x, c.vOrigin.y, c.vOrigin.z}}, {"angle", c.fAngle}, {"forward", {c.forward.x, c.forward.y}},
++                             {"radius", c.fRadius}, {"minUseDistSq", c.minUseDistSq}, {"overlap", {c.wOverlapNode[0], c.wOverlapNode[1]}},
++                             {"links", links}});
++        }
++        std::string vis;
++        vis.reserve(static_cast<size_t>(path.visBytes) * 2);
++        for (auto b = 0; path.pathVis && b < path.visBytes; b++)
++            vis += std::format("{:02x}", static_cast<unsigned char>(path.pathVis[b]));
++        const nlohmann::json js = {{"version", 1}, {"nodeCount", path.nodeCount}, {"visBytes", vis.size() / 2}, {"pathVis", vis}, {"nodes", nodes}};
++        out << js.dump(1) << "\n";
++    }
      // Diagnostic: world draw buffers and a sample of surfaces per technique set
 +    // waw2bo2 hardening audit (tools/check_world.py): the fill state of every GfxWorld array (count, null) and
 +    // per-light/per-cell entries, and every stored index against what it indexes. Diffed against stock BO2
@@ -4682,7 +4984,7 @@ index 830c78e..5b5624e 100644
      void DumpGfxWorldLayout(std::ostream& out, const GfxWorld& world)
      {
          const auto& grid = world.lightGrid;
-@@ -600,6 +729,9 @@ namespace map_ents
+@@ -600,6 +758,9 @@ namespace map_ents
                  const auto layoutFile = context.OpenAssetFile(std::format("{}.gfxworld.txt", mapEnts->name));
                  if (layoutFile)
                      DumpGfxWorldLayout(*layoutFile, *gfxWorld->Asset());
@@ -4692,3 +4994,13 @@ index 830c78e..5b5624e 100644
                  const auto gridFile = context.OpenAssetFile(std::format("{}.t6lightgrid.bin", mapEnts->name));
                  if (gridFile)
                      DumpLightGrid(*gridFile, gfxWorld->Asset()->lightGrid);
+@@ -634,6 +795,9 @@ namespace map_ents
+                 const auto layoutFile = context.OpenAssetFile(std::format("{}.paths.txt", mapEnts->name));
+                 if (layoutFile)
+                     DumpPathLayout(*layoutFile, gameWorld->Asset()->path, context.m_zone.m_script_strings);
++                const auto pathsFile = context.OpenAssetFile(std::format("{}.paths.json", mapEnts->name));
++                if (pathsFile)
++                    DumpPathsJson(*pathsFile, gameWorld->Asset()->path, context.m_zone.m_script_strings);
+             }
+         }
+         if (pools && pools->m_clip_map)

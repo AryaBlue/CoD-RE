@@ -17,8 +17,9 @@ COPIES = {
     'shared/tools': [CONV / 'research' / n for n in ('structdiff.py', 'structdiff.txt')],
     'shared/notes': [CONV / 'research' / 'bo1_to_bo2_porting.md'],  # b2w's handoff log stays out, other people's paths
     'games/t6-bo2/notes/engine': [CONV / 'research' / n for n in ('t6_cbuf.md', 't6_sv_sendservercommand.md', 't6_sound_playsound.md')],
-    'games/t6-bo2/notes/render': [CONV / 'research' / 't6_materials_runtime.md'],
-    'games/t6-bo2/notes/tables': sorted(f for f in (CONV / 'research' / 't6_renderer').glob('t6*') if f.is_file()),
+    'games/t6-bo2/notes/render': [CONV / 'research' / 't6_materials_runtime.md'] +
+        [CONV / 'research' / 't6_renderer' / n for n in ('t6_frame_walkthrough.md', 't6_renderer.md', 't6_techniques.md')],
+    'games/t6-bo2/notes/tables': sorted(f for f in (CONV / 'research' / 't6_renderer').glob('t6*') if f.is_file() and f.suffix != '.md'),
     'games/t6-bo2/t6match': sorted(f for f in (CONV / 'research' / 't6_renderer' / 't6match').iterdir() if f.suffix in ('.py', '.java')),
     'converter': [CONV / 'run_bo1.py', CONV / 'README.md'],
     'converter/tools': sorted((CONV / 'tools').glob('*.py')),
@@ -28,6 +29,7 @@ COPIES = {
 RENAME = {
     't6_cbuf.md': 'cbuf.md', 't6_sv_sendservercommand.md': 'sv_sendservercommand.md',
     't6_sound_playsound.md': 'sound_playsound.md', 't6_materials_runtime.md': 'materials_runtime.md',
+    't6_frame_walkthrough.md': 'frame_walkthrough.md', 't6_renderer.md': 'renderer.md', 't6_techniques.md': 'techniques.md',
 }
 
 # local OAT checkout under CONV -> its home here. one changes.patch per checkout, filed under the game it mostly serves
@@ -51,10 +53,13 @@ def main():
         out = HERE / dest
         out.mkdir(parents=True, exist_ok=True)
         for src in sources:
-            if src.is_file():
-                shutil.copy2(src, out / RENAME.get(src.name, src.name))
-            else:
+            dst = out / RENAME.get(src.name, src.name)
+            if not src.is_file():
                 print('missing', src)
+            elif dst.exists() and dst.stat().st_mtime >= src.stat().st_mtime:
+                pass  # the copy here was edited after the source, keep it
+            else:
+                shutil.copy2(src, dst)
     trees = list(OAT_TREES.items())
     trees.append((CONVERTER_TREE, HERE / 'converter' / 'b2w-patch'))
     for name, out in trees:

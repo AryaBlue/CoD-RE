@@ -40,6 +40,7 @@ These notes came out of E115, our from-scratch engine that loads our own WaW, BO
 - **plutoniummod/t6-scripts** (hand-fixed, recompilable BO2 GSC; formerly JezuzLizard's Recompilable-gscs-for-BO2-zombies-and-multiplayer). Read-only reference for what the stock T6 zombies scripts do when we filled in missing built-ins. Nothing from it is copied. https://github.com/plutoniummod/t6-scripts
 - **JezuzLizard - Recompilable-gscs.** The same lineage as above, credited for the original work. https://github.com/JezuzLizard
 - **xensik - gsc-tool,** **ate47 - ACTS** and the **codresearch.dev** wiki, as listed above, for the VM semantics note: gsc-tool 1.6.1's disassembly is what our bytecode decoder is checked against.
+- **Yann Collet - LZ4.** Advanced Warfare fastfile blocks are LZ4; the AW zones note reads that format. Nothing from the library is in the repo. https://github.com/lz4/lz4
 - **Plutonium.** `t6zm.exe` and `t6mp.exe` were read statically (the MP exe after removing its SteamStub wrapper into a scratch copy only) for the VM, spread/kick and fall-damage notes.
 
 ## Licensing & compliance

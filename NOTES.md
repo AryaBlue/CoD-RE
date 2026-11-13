@@ -68,6 +68,7 @@ Folder: [`games/t6-bo2/`](games/t6-bo2/)
 | Zombies | [struct_spawns.md](games/t6-bo2/notes/zombies/struct_spawns.md) | Zombies T6: perk machines, Pack-a-Punch and power from structs |
 | Zombies | [zbarrier.md](games/t6-bo2/notes/zombies/zbarrier.md) | Zombies windows: T6 (BO2) zbarriers |
 | Multiplayer | [bot_goals.md](games/t6-bo2/notes/mp/bot_goals.md) | T6 MP bots: where they go and how a team spreads |
+| Multiplayer | [cut_hacker_mode.md](games/t6-bo2/notes/mp/cut_hacker_mode.md) | Cut multiplayer gametypes left in retail BO2 - Hacker mode and the unused settings files |
 | Multiplayer | [spread_kick.md](games/t6-bo2/notes/mp/spread_kick.md) | T6 MP weapon spread, view kick and gun kick (t6mp.exe) |
 | Engine | [cbuf.md](games/t6-bo2/notes/engine/cbuf.md) | T6 Zombies (Plutonium t6zm.exe) - Cbuf_AddText |
 | Engine | [fx_layout.md](games/t6-bo2/notes/engine/fx_layout.md) | FX: T6 (BO2) PC layout against T5 |

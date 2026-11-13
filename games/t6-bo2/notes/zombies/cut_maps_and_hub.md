@@ -5,6 +5,8 @@ No game files are stored here, only names and where they sit.
 
 ## Nacht, Der Riese and Moon are registered as BO2 maps
 
+These are the leftovers of the unreleased fifth DLC, which is already well documented.
+
 - `zm/gametypestable.csv` start location rows (type 5) list `zm_prototype`, `zm_factory`, `zm_moon`
 - The same table has two dev maps first: `zm_bus_test` ("Bus Test") and `zm_meat`
 - Type 6 rows wire all five to `zclassic`

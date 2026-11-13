@@ -63,6 +63,7 @@ Folder: [`games/t6-bo2/`](games/t6-bo2/)
 | Zombies | [actor_team_round_count.md](games/t6-bo2/notes/zombies/actor_team_round_count.md) | T6 actor teams and the zombie round count: why Origins' giant robots don't hold the round |
 | Zombies | [anims_falls_wallbuys.md](games/t6-bo2/notes/zombies/anims_falls_wallbuys.md) | T6 zombies: zombie anim clips, fall damage, wall-buy models |
 | Zombies | [box_model_misses.md](games/t6-bo2/notes/zombies/box_model_misses.md) | Mystery box models left out of conversion |
+| Zombies | [cut_maps_and_hub.md](games/t6-bo2/notes/zombies/cut_maps_and_hub.md) | Cut zombies content left in retail BO2 - BO1 maps, the hub test map and unused gametypes |
 | Zombies | [round_font.md](games/t6-bo2/notes/zombies/round_font.md) | BO2 zombies round number font |
 | Zombies | [struct_spawns.md](games/t6-bo2/notes/zombies/struct_spawns.md) | Zombies T6: perk machines, Pack-a-Punch and power from structs |
 | Zombies | [zbarrier.md](games/t6-bo2/notes/zombies/zbarrier.md) | Zombies windows: T6 (BO2) zbarriers |

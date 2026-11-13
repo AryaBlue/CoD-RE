@@ -47,6 +47,7 @@ Folder: [`games/t5-bo1/`](games/t5-bo1/)
 
 | Topic | Note | Title |
 | --- | --- | --- |
+| Zombies | [cut_content_survival.md](games/t5-bo1/notes/zombies/cut_content_survival.md) | BO1 cut content - how much of each cut mode and feature still ships (survival %) |
 | Zombies | [five.md](games/t5-bo1/notes/zombies/five.md) | BO1 "Five" (zombie_pentagon): elevators, thief, DEFCON pack-a-punch |
 | Zombies | [kino_entities.md](games/t5-bo1/notes/zombies/kino_entities.md) | Zombies: Kino der Toten (`zombie_theater`) entity checklist |
 | Multiplayer | [bots.md](games/t5-bo1/notes/mp/bots.md) | BO1 Combat Training bots: how the brain works |
@@ -63,6 +64,7 @@ Folder: [`games/t6-bo2/`](games/t6-bo2/)
 | Zombies | [actor_team_round_count.md](games/t6-bo2/notes/zombies/actor_team_round_count.md) | T6 actor teams and the zombie round count: why Origins' giant robots don't hold the round |
 | Zombies | [anims_falls_wallbuys.md](games/t6-bo2/notes/zombies/anims_falls_wallbuys.md) | T6 zombies: zombie anim clips, fall damage, wall-buy models |
 | Zombies | [box_model_misses.md](games/t6-bo2/notes/zombies/box_model_misses.md) | Mystery box models left out of conversion |
+| Zombies | [cut_content_survival.md](games/t6-bo2/notes/zombies/cut_content_survival.md) | BO2 cut content - how much of each cut mode, map and feature still ships (survival %) |
 | Zombies | [cut_maps_and_hub.md](games/t6-bo2/notes/zombies/cut_maps_and_hub.md) | Cut zombies content left in retail BO2 - BO1 maps, the hub test map and unused gametypes |
 | Zombies | [round_font.md](games/t6-bo2/notes/zombies/round_font.md) | BO2 zombies round number font |
 | Zombies | [struct_spawns.md](games/t6-bo2/notes/zombies/struct_spawns.md) | Zombies T6: perk machines, Pack-a-Punch and power from structs |

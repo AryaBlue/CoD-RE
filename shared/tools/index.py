@@ -20,10 +20,10 @@ GAMES = [
     ('shared', 'Shared', 'Cross-game'),
 ]
 TOPICS = {
-    'zombies': 'Zombies', 'mp': 'Multiplayer', 'engine': 'Engine', 'render': 'Rendering',
+    'zombies': 'Zombies', 'mp': 'Multiplayer', 'sp': 'Campaign', 'engine': 'Engine', 'render': 'Rendering',
     'script': 'Scripting', 'assets': 'Assets and formats', 'world': 'World and collision', '': 'General',
 }
-TOPIC_ORDER = ['', 'zombies', 'mp', 'engine', 'render', 'script', 'assets', 'world']
+TOPIC_ORDER = ['', 'zombies', 'mp', 'sp', 'engine', 'render', 'script', 'assets', 'world']
 
 HEADER = """# Notes index
 

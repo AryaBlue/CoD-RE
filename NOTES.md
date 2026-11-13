@@ -70,6 +70,7 @@ Folder: [`games/t6-bo2/`](games/t6-bo2/)
 | Multiplayer | [bot_goals.md](games/t6-bo2/notes/mp/bot_goals.md) | T6 MP bots: where they go and how a team spreads |
 | Multiplayer | [cut_hacker_mode.md](games/t6-bo2/notes/mp/cut_hacker_mode.md) | Cut multiplayer gametypes left in retail BO2 - Hacker mode and the unused settings files |
 | Multiplayer | [spread_kick.md](games/t6-bo2/notes/mp/spread_kick.md) | T6 MP weapon spread, view kick and gun kick (t6mp.exe) |
+| Campaign | [cut_strike_force_carrier.md](games/t6-bo2/notes/sp/cut_strike_force_carrier.md) | Cut campaign content left in retail BO2 - Strike Force Carrier, a sixth Strike Force mission |
 | Engine | [cbuf.md](games/t6-bo2/notes/engine/cbuf.md) | T6 Zombies (Plutonium t6zm.exe) - Cbuf_AddText |
 | Engine | [fx_layout.md](games/t6-bo2/notes/engine/fx_layout.md) | FX: T6 (BO2) PC layout against T5 |
 | Engine | [grenade_splash.md](games/t6-bo2/notes/engine/grenade_splash.md) | BO2 grenade splash, explosion and bounce; actor repath rules |

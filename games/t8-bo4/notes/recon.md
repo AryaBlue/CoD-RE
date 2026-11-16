@@ -41,7 +41,7 @@ yet proven; the probe that would settle it is named.
   loose `.xpak/.xsub/.ipak/.xmodel/.xanim/.xsound/.sab*`; the only loose `.ff` are 12 tiny
   patch fastfiles under `LPC\` (ffotd + playlists, ~10 MB total). **[fact]**
 - **The one realistic offline route is ATIAN-COD-TOOLS (ACTS), already on disk at
-  `E:\ClaudeWork\acts\release_3.3.0`.** Its `fastfile` tool has a native `-C --casc` +
+  `<local>\acts\release_3.3.0`.** Its `fastfile` tool has a native `-C --casc` +
   `-G --game-path` mode - it reads the CASC install **cold, no running game** - and the
   BO4 AES keys are bundled (`keys_aes.csv`), so fastfiles decrypt offline. **[fact]**
 - ACTS dumps offline: **GSC/CSC scripts (decompiled), Lua, strings/localize, DDL,
@@ -113,10 +113,10 @@ it.** **[fact]**
 
 | Tool | Location | State |
 |---|---|---|
-| **ACTS 3.3.0** (ate47) | `E:\ClaudeWork\acts\release_3.3.0\unpacked\acts` | Extracted, runnable. Ships `acts.exe`, `Cordycep.CLI.exe`, `acts-bo3/bocw/shield` plugin DLLs, `data\games\bo4.json`, `data\keys\keys_aes.csv` (incl. BO4 keys). |
-| **Greyhound** (Scobalula fork) | `E:\ClaudeWork\bo3\greyhound\app\Greyhound.exe` | Present; was used on BO3 by attaching to the running game. |
-| **CoDLuaDecompiler** | `E:\ClaudeWork\t6_ui_mod\tools\CoDLuaDecompiler` | Source + built DLLs; has `Games\BlackOps4.cs` → decompiles BO4 `luafile`. |
-| BO3 `.xpak` extractor (ours) | `E:\ClaudeWork\xpak_extract` | Our Python KAPI/xpak image extractor, built for **BO3**; BO4 xpak framing may differ (see §2.5). |
+| **ACTS 3.3.0** (ate47) | `<local>\acts\release_3.3.0\unpacked\acts` | Extracted, runnable. Ships `acts.exe`, `Cordycep.CLI.exe`, `acts-bo3/bocw/shield` plugin DLLs, `data\games\bo4.json`, `data\keys\keys_aes.csv` (incl. BO4 keys). |
+| **Greyhound** (Scobalula fork) | `<local>\bo3\greyhound\app\Greyhound.exe` | Present; was used on BO3 by attaching to the running game. |
+| **CoDLuaDecompiler** | `<local>\t6_ui_mod\tools\CoDLuaDecompiler` | Source + built DLLs; has `Games\BlackOps4.cs` → decompiles BO4 `luafile`. |
+| BO3 `.xpak` extractor (ours) | `<local>\xpak_extract` | Our Python KAPI/xpak image extractor, built for **BO3**; BO4 xpak framing may differ (see §2.5). |
 | HydraX / Wraith / Cordycep(standalone) | - | **Not on disk** (searched our drives). |
 
 ### 2.2 ACTS - the primary offline route (first-hand verified)
@@ -319,5 +319,5 @@ intended listing path].**
 
 ## 8. Files & hashes
 
-- This report: `E:\ClaudeWork\bo4_recon\RECON.md`
-- Hashes recorded in `E:\ClaudeWork\bo4_recon\HASHES.txt` (generated alongside).
+- This report: `<local>\bo4_recon\RECON.md`
+- Hashes recorded in `<local>\bo4_recon\HASHES.txt` (generated alongside).

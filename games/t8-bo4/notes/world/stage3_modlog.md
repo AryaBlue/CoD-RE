@@ -1,6 +1,6 @@
 # Stage 3 GfxWorld and placements: work log
 
-Zone: E:\ClaudeWork\bo3\bod_port\t8_world\decomp\zm_escape.ff.dec (510,745,780 bytes).
+Zone: <local>\bo3\bod_port\t8_world\decomp\zm_escape.ff.dec (510,745,780 bytes).
 64-bit py: python.exe (64-bit)  (run with -I).
 Landmark s_warden_box -1815 8033 1432 (shared world space w/ MotD zm_prison after metre->inch).
 
@@ -20,10 +20,10 @@ Landmark s_warden_box -1815 8033 1432 (shared world space w/ MotD zm_prison afte
 
 ## OPEN BLOCKER: XModel pointer base
 - xmodel ptr form 0x40000000_XXXXXXXX. BoD decode (XXXXXXXX-1)+0x101DF9EC lands in a block filled w/ repeating 0x00c000 padding -> that base is for clip-INTERNAL ptrs, NOT the cross-asset XModel pool. Need the XModel-pool base.
-- FIX IN PROGRESS: hash the 6092 Greyhound BoD model names (E:\ClaudeWork\bo3\greyhound\app\exported_files\black_ops_4\xmodels\<name>), scan .dec for those hashes -> real XModel struct offsets -> solve base = struct_off - (ptr_low-1); same pass gives hash->name.
+- FIX IN PROGRESS: hash the 6092 Greyhound BoD model names (<local>\bo3\greyhound\app\exported_files\black_ops_4\xmodels\<name>), scan .dec for those hashes -> real XModel struct offsets -> solve base = struct_off - (ptr_low-1); same pass gives hash->name.
 
 ## TARGET OUTPUT SCHEMA (motd_smodels.json): list of {model, source, origin[3], angles[3], scale, axis[9], flags}
   reuse MotD matrix->angles convention from bod_port\geo builder.
 
-## FILES (this batch) E:\ClaudeWork\bo3\bod_port\t8_world\stage3_gfxworld\
+## FILES (this batch) <local>\bo3\bod_port\t8_world\stage3_gfxworld\
   find_gfxworld.py, inspect_hits.py, scan_placements.py, dump_record.py, extract_0x60.py, verify_chain.py

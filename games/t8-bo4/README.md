@@ -30,6 +30,14 @@ worked it out on Blood of the Dead.
 - **Placement transforms.** Each static-model placement's origin, rotation and scale, solved from the collision
   static-model array (`invScaledAxis` to a world transform). A bounds check confirms a model name against the
   record's own AABB.
+- **Fastfile framing, XModels and meshes.** Asset list, aliases, stubs, the XModel and XModelMesh structs, where
+  each LOD lives (resident or streamed from which xpak), the instance table, composite groups, script bundles.
+- **Lighting, read from the shader bytecode.** The BRDF, punctual and area lights, probes, froxel and height fog,
+  auto exposure, the tone curve and display LUTs, the bloom chain and the emissive material classes, with the
+  constants each material carries.
+- **Baked lighting and the lighting states.** The lighting asset (type 146): the four lighting states (moon, sky,
+  fog, exposure), the primary light record, light exploders, GI volumes (monochrome ambient cubes) and probes.
+- **Sky.** How the night sky is drawn: an 8K lat-long BC6H map times 0.25, a cloud veil, a horizon band, fog.
 
 ## What is not here
 
@@ -42,7 +50,13 @@ copied third-party source. You point the tools at your own BO4 install.
 - `port/`: the build-stage tools the method uses. Placement matching, entity list, spawns, textures, winding and
   z-fight fixes, collision budgeting and decimation, collmaps, the solid-but-invisible fill, lava and sea, zones and
   gameplay, and the import, map and build scripts.
-- `notes/`: the format write-ups.
+- `notes/`: the format write-ups, by topic:
+  - `notes/render/`: lighting spec, bloom, emissive materials (three parts), volumetric fog and lights, baked
+    lighting, primary lights and lighting states, sky.
+  - `notes/assets/`: fastfile framing and XModels, the XModel name hash.
+  - `notes/world/`: the BO3 collision and GfxWorld template, struct references, collision decimation, cod2map
+    caps, the Havok scope, the emitter spec, the stage 3 work log.
+  - `notes/recon.md`: the first offline recon.
 - `tools/`: offline, read-only Python and shell. The CASC reader and extractor and their test, the xpak reader, the
   clipMap and GfxWorld/placement extractors, the Havok tagfile and navmesh reader, the name-hash and dictionary
   builder, and the render-world emitter and validator.
@@ -77,7 +91,8 @@ Steam path). The scripts in `tools` keep `PATH/TO/...` constants near the top. T
 If it fails:
 - `test_casc.py` fails after a BO4 update: the reader needs a fix. The test says which of its five checks broke.
 - The offsets in `clip_t8.py` are for one map. For another map you must find the inline ClipInfo block again; see
-  `notes/t8_struct_refs.md`.
+  `notes/world/struct_refs.md`.
 - ACTS aborts: make sure you left out `-r bo4`, and that the Oodle DLL is next to ACTS as `oo2core_8_win64.dll`.
 
-Credits for the research and tools behind this are in [CREDITS.md](../../CREDITS.md).
+Every note is listed with its title in [NOTES.md](../../NOTES.md). Credits for the research and tools behind this
+are in [CREDITS.md](../../CREDITS.md).

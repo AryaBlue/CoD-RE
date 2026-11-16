@@ -39,7 +39,7 @@ Notes sit in `notes/<topic>/` inside each game folder: `zombies`, `mp`, `engine`
 | `games/t6-bo2/perks/` | Lua perks for BO2 Zombies: the `lua2gsc` compiler, a GSC runtime, `API.md`, examples, tests |
 | `games/t6-bo2/oatfork/` | our faster OAT Linker and Unlinker, plus a T6 world dumper ([README](games/t6-bo2/oatfork/README.md)) |
 | `games/t7-bo3/` | BO3 notes and small offline tools: `.xpak` and fastfile readers ([README](games/t7-bo3/README.md)) |
-| `games/t8-bo4/` | BO4 offline research and the BO4 to BO3 map porting method ([README](games/t8-bo4/README.md)) |
+| `games/t8-bo4/` | BO4 offline research: fastfile and XModel layouts, lighting, materials, sky and the lighting asset read from the shader bytecode and zones, plus the BO4 to BO3 map porting method ([README](games/t8-bo4/README.md)) |
 | `games/iw4-mw2/` | MW2: IWI version 8 images, the 2026 64-bit update, clipmap brushes |
 | `games/s1-aw/` | Advanced Warfare: the PC fastfile and asset layouts (models, anims, sounds, materials, weapon defs) |
 | `shared/notes/` | cross-game notes: zombies, MP, audio, server frame, lighting, water, glass, scripting, assets, world, BO1 to BO2 porting |

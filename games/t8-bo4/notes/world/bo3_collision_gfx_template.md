@@ -47,7 +47,7 @@ engine family - T8 is expected to be a close evolution of T7).
   MW3 https://codresearch.dev/index.php/Collision_Map_Asset_(MW3) )
 - Scobalula/Husky @ commit `ce1f82d`, `src/Husky/Husky/Games/BlackOps3.cs`
   https://github.com/Scobalula/Husky/blob/master/src/Husky/Husky/Games/BlackOps3.cs
-  (local copy: `E:\ClaudeWork\bo4_recon\_src\husky_BlackOps3.cs`)
+  (from a local copy of `husky_BlackOps3.cs`)
 - NOTE: a dedicated `GfxWorld Asset (BO3)` wiki page does **not exist** (404 / absent from
   search); Husky's `BlackOps3.cs` is the authoritative open-source GfxWorld layout and is used
   for §2.

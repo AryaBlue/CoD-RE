@@ -4,7 +4,7 @@ Target: two files per map, consumed unchanged by the pipeline that built the shi
 - `<map>.gfx.bin`, render world (W2BSP001), read by `waw2bo2.world.read_gfx_world` (F:\Documents\BO1MapConverter\b2w_bo1\src\waw2bo2\world.py:172), then `bod_port\geo\build_textured.py` → XMODEL_EXPORT chunks.
 - `<map>_clip.json`, collision brushes plus triangles, read by `bo3_modtools_test\clip_brushes.py` → cod2map clip brushes and navmesh.
 
-Check every emit with `python E:\ClaudeWork\bo4_recon\validate_emit.py <gfx.bin> <clip.json> -1815 8033 1432`. Known-good baseline (zm_prison):
+Check every emit with `python <local>\bo4_recon\validate_emit.py <gfx.bin> <clip.json> -1815 8033 1432`. Known-good baseline (zm_prison):
 - gfx: 324,065 verts, 11,988 surfaces, 224,550 tris, winding_ok 100.0%.
 - clip: 15,133 brushes, `problems: []`, 18 brushes with verts more than 0.05u outside their planes (float noise).
 
@@ -46,7 +46,7 @@ surface[surfaceCount]:
 
 Packing helper for a unit normal n: use `s = 255` (byte 3), so scale = 447/32385; then bytes x, y, z = round(n.i / scale + 127), clamped to 0..255.
 
-Reference writer: `E:\ClaudeWork\bo4_recon\emit_gfx_v1.py` (`write_gfx_v1(...)`). Re-emitting zm_prison as v1 reads back with identical geometry, indices and surfaces; the maximum normal quantisation error is 0.0088.
+Reference writer: `<local>\bo4_recon\emit_gfx_v1.py` (`write_gfx_v1(...)`). Re-emitting zm_prison as v1 reads back with identical geometry, indices and surfaces; the maximum normal quantisation error is 0.0088.
 
 **Winding (critical; we were bitten today):** emit the engine's NATIVE index order. For T6 (and expected for T7/T8), `(p1-p0)×(p2-p0)` points AGAINST the vertex normal. The validator's `winding_ok_pct` must be about 100. If it reports about 100% `winding_reversed`, swap corners 2 and 3.
 
@@ -80,4 +80,4 @@ Once BO4 output passes validate_emit, swap the two inputs:
 It needs a BO4-side spawn (`--start`) and node_pathnodes or other seeds (`--ents`); without seeds cod2map keeps only a tiny navmesh region.
 
 ## 4. Where T8 data probably lives (for stage 3)
-Vertex and index buffers are expected to be streamed in the `.xpak` rather than inline in the fastfile. GfxWorldDraw-like counts and pointers in the zone blob give the sizes, and stream keys locate the data in the xpak. T6 reference structs (verbatim, OAT): `E:\ClaudeWork\bo4_recon\t6_world_structs.h`.
+Vertex and index buffers are expected to be streamed in the `.xpak` rather than inline in the fastfile. GfxWorldDraw-like counts and pointers in the zone blob give the sizes, and stream keys locate the data in the xpak. T6 reference structs (verbatim, OAT): `<local>\bo4_recon\t6_world_structs.h`.

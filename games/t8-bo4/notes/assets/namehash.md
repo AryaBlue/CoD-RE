@@ -120,7 +120,7 @@ read the binary `.wni` here - it is the recommended on-disk verification set for
   `BO4CalculateHash` (L738-751, 60-bit mask) + pool loader `NamePtr &= 0xFFFFFFFFFFFFFFF`
   (L779) + `.wni` cache load (L2586-2593).
   https://github.com/Scobalula/Greyhound/blob/master/src/WraithXCOD/WraithXCOD/GameBlackOps4.cpp
-  (local copy: `E:\ClaudeWork\bo4_recon\_src\gh_GameBlackOps4.cpp`)
+  (from a local copy of `gh_GameBlackOps4.cpp`)
 - ate47/atian-cod-tools @ `main`, `src/core/shared/utils/hash.hpp` (`Hash64`/`Hash64A`/`lowerc`
   normalisation, `MASK63`) and `src/core/shared/utils/hash_mini.hpp` (`FNV1A_PRIME =
   0xcbf29ce484222325`, `IV_DEFAULT = 0x100000001b3`, `MASK60 = 0xFFFFFFFFFFFFFFF`, `MASK63 =

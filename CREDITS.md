@@ -12,6 +12,12 @@ The Call of Duty reverse-engineering in this repository builds on prior communit
 - **Treyarch BO3 Mod Tools.** The build stages target the official cod2map / linker / gdtdb toolchain and copy stock prefabs and settings from your own install at runtime; none of it is included here.
 - **Oodle (RAD Game Tools / Epic Games).** xpak and fastfile payloads are Oodle-compressed; our tools call the game's own `oo2core` DLL on your disk. The Oodle library is **not** included or redistributed.
 
+## BO4 / T8 lighting, materials, sky and models (`games/t8-bo4/notes/render/`, `notes/assets/`)
+- **ate47 - atian-cod-tools (ACTS).** The asset type enum (`ASSET_TYPE_LIGHTING`, `ASSET_TYPE_GAMEWORLD`), the ComWorld probe fields, the XModel struct shapes (`bo4_unlinker_model.cpp`), the zone string table decrypt (`decrypt_t8old`) and the bdiff patch route (`fastfile -d -p -H`) were the starting points. https://github.com/ate47/atian-cod-tools
+- **Scobalula - Greyhound.** `gh_GameBlackOps4.cpp` and `gh_DBGameAssets.h` were the reference for the XModelMesh and surface layout; a Greyhound rip of our own install was the check for positions, UVs and normals. https://github.com/Scobalula/Greyhound
+- **Microsoft D3DCompiler (`D3DDisassemble`).** Used through ctypes to disassemble the DXBC shader blobs in our own zones. The listings stay local; the notes carry the maths only.
+- **Treyarch.** The shaders, zones and textures read are from our own installed game. No shader code, bytecode, texture or zone data is in this repository.
+
 ## BO2 / T6 Lua perks (`games/t6-bo2/perks/`)
 - **xensik - gsc-tool.** The T6 GSC compiler/decompiler the perk builds and tests run through (`-m comp -g t6 -s pc`); the stock scripts the link checker reads are decompiled with it from our own game files. Not included here. https://github.com/xensik/gsc-tool
 - **Plutonium.** The T6 client whose `scripts\zm` loading the runtime is written for. https://plutonium.pw

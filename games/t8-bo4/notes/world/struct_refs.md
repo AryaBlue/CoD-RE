@@ -501,5 +501,5 @@ signatures in those blobs - capture it from the zone; likely a ~2014-2016 build 
    critical path since the zone is already decompressed.
 
 ## Local copies of mined source
-Raw files saved under `E:\ClaudeWork\bo4_recon\_src\` (gh_*.{h,cpp} = Greyhound; act_*.{hpp,cpp}
+Raw files saved under `<local>\bo4_recon\_src\` (gh_*.{h,cpp} = Greyhound; act_*.{hpp,cpp}
 = ACTS) for offline reference while building the extractor.

@@ -113,16 +113,26 @@ Folder: [`games/t8-bo4/`](games/t8-bo4/)
 
 | Topic | Note | Title |
 | --- | --- | --- |
-| General | [bo3_collision_gfx_template.md](games/t8-bo4/notes/bo3_collision_gfx_template.md) | BO3 (T7) collision and GfxWorld layouts: the template for BO4 hand-RE |
-| General | [cod2map_caps.md](games/t8-bo4/notes/cod2map_caps.md) | cod2map64.exe plane caps |
-| General | [collision_decimation.md](games/t8-bo4/notes/collision_decimation.md) | Collision decimation: passes, measured results, caveats |
-| General | [emitter_spec.md](games/t8-bo4/notes/emitter_spec.md) | BO4 extractor to BO3 shell: emitter spec |
-| General | [havok_scope.md](games/t8-bo4/notes/havok_scope.md) | Blood of the Dead Havok to BO3 clip: feasibility |
-| General | [namehash.md](games/t8-bo4/notes/namehash.md) | BO4 (T8) XModel asset-name hash: spec, reference implementation, test vectors |
 | General | [recon.md](games/t8-bo4/notes/recon.md) | BO4 (T8) recon: offline, read-only |
-| General | [stage3_modlog.md](games/t8-bo4/notes/stage3_modlog.md) | Stage 3 GfxWorld and placements: work log |
-| General | [struct_refs.md](games/t8-bo4/notes/struct_refs.md) | BO4 / T8 (zm_escape) Structure References |
 | General | [porting_method.md](games/t8-bo4/porting_method.md) | Porting a Black Ops 4 map to Black Ops 3: the method |
+| Rendering | [baked_lighting.md](games/t8-bo4/notes/render/baked_lighting.md) | BO4 (T8) baked lighting: lighting asset, GI volumes, lighting states |
+| Rendering | [bloom.md](games/t8-bo4/notes/render/bloom.md) | BO4 (T8) bloom chain, read from shader bytecode |
+| Rendering | [emissive.md](games/t8-bo4/notes/render/emissive.md) | BO4 (T8) emissive materials: the standard lit class, read from the shader bytecode |
+| Rendering | [emissive_classes.md](games/t8-bo4/notes/render/emissive_classes.md) | BO4 emissive materials, part 2: the non-standard classes |
+| Rendering | [emissive_exposure.md](games/t8-bo4/notes/render/emissive_exposure.md) | BO4 emissive, part 3: cb2[110].x is 1 / exposure |
+| Rendering | [lighting_spec.md](games/t8-bo4/notes/render/lighting_spec.md) | BO4 (T8) lighting, fog and tone map: read from the shader bytecode |
+| Rendering | [primary_lights.md](games/t8-bo4/notes/render/primary_lights.md) | BO4 (T8) primary lights, light exploders and lighting states (zm_escape) |
+| Rendering | [sky.md](games/t8-bo4/notes/render/sky.md) | BO4 (T8) sky: how zm_escape's night sky is drawn |
+| Rendering | [volumetric_fog.md](games/t8-bo4/notes/render/volumetric_fog.md) | BO4 (T8) volumetric lights and fog volumes: how much lit haze each light makes |
+| Assets and formats | [fastfile_xmodels.md](games/t8-bo4/notes/assets/fastfile_xmodels.md) | BO4 (T8) fastfile framing, XModels, meshes and placements (zm_escape, offline) |
+| Assets and formats | [namehash.md](games/t8-bo4/notes/assets/namehash.md) | BO4 (T8) XModel asset-name hash: spec, reference implementation, test vectors |
+| World and collision | [bo3_collision_gfx_template.md](games/t8-bo4/notes/world/bo3_collision_gfx_template.md) | BO3 (T7) collision and GfxWorld layouts: the template for BO4 hand-RE |
+| World and collision | [cod2map_caps.md](games/t8-bo4/notes/world/cod2map_caps.md) | cod2map64.exe plane caps |
+| World and collision | [collision_decimation.md](games/t8-bo4/notes/world/collision_decimation.md) | Collision decimation: passes, measured results, caveats |
+| World and collision | [emitter_spec.md](games/t8-bo4/notes/world/emitter_spec.md) | BO4 extractor to BO3 shell: emitter spec |
+| World and collision | [havok_scope.md](games/t8-bo4/notes/world/havok_scope.md) | Blood of the Dead Havok to BO3 clip: feasibility |
+| World and collision | [stage3_modlog.md](games/t8-bo4/notes/world/stage3_modlog.md) | Stage 3 GfxWorld and placements: work log |
+| World and collision | [struct_refs.md](games/t8-bo4/notes/world/struct_refs.md) | BO4 / T8 (zm_escape) Structure References |
 
 ## Modern Warfare 2 (IW4)
 
